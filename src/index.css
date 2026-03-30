@@ -85,6 +85,8 @@
 @layer base {
   html {
     color-scheme: dark;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 
   body {
@@ -92,6 +94,8 @@
     color: var(--color-on-surface);
     font-family: var(--font-body);
     min-height: 100dvh;
+    overflow-x: hidden;
+    max-width: 100%;
   }
 
   h1, h2, h3, h4, h5, h6 {

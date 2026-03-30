@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,6 +12,18 @@ const NAV_LINKS = [
 export default function Navbar() {
   const { pathname } = useLocation();
   const { user, isAdmin, signOut } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (isMobileMenuOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = 'unset';
+    }
+    return () => {
+      document.body.style.overflow = 'unset';
+    };
+  }, [isMobileMenuOpen]);
 
   return (
     <>
@@ -49,37 +61,66 @@ export default function Navbar() {
           )}
         </div>
 
-        {/* Mobile: just show login icon */}
-        <div className="md:hidden flex items-center gap-2">
+        {/* Mobile: hamburger and icons */}
+        <div className="md:hidden flex items-center gap-4">
           {user ? (
-            <button onClick={signOut} className="text-on-surface-variant">
-              <span className="material-symbols-outlined">logout</span>
+            <button onClick={() => { signOut(); setIsMobileMenuOpen(false); }} className="text-on-surface-variant focus:outline-none mb-1">
+              <span className="material-symbols-outlined text-[26px]">logout</span>
             </button>
           ) : (
-            <Link to="/login">
-              <span className="material-symbols-outlined text-primary">login</span>
+            <Link to="/login" className="mb-1" onClick={() => setIsMobileMenuOpen(false)}>
+              <span className="material-symbols-outlined text-primary text-[26px]">login</span>
             </Link>
           )}
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+            className="text-primary focus:outline-none mb-1"
+            aria-label="Toggle menu"
+          >
+            <span className="material-symbols-outlined text-[32px]">
+              {isMobileMenuOpen ? 'close' : 'menu'}
+            </span>
+          </button>
         </div>
       </nav>
 
-      {/* Mobile Bottom Nav */}
-      <nav className="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-4 bg-[#1a1a1a]/70 backdrop-blur-xl border-t border-[#484847]/15">
-        {NAV_LINKS.map(link => (
-          <Link
-            key={link.to}
-            to={link.to}
-            className={`flex flex-col items-center justify-center px-3 py-1 active:translate-y-0.5 transition-transform ${
-              pathname === link.to
-                ? 'text-secondary bg-surface-variant rounded-md'
-                : 'text-on-surface-variant hover:text-primary'
-            }`}
-          >
-            <span className="material-symbols-outlined">{link.icon}</span>
-            <span className="font-headline text-[10px] uppercase tracking-widest font-medium mt-1">{link.label}</span>
-          </Link>
-        ))}
-      </nav>
+      {/* Mobile Menu Dropdown */}
+      {isMobileMenuOpen && (
+        <div className="md:hidden fixed top-16 left-0 w-full h-[calc(100vh-4rem)] bg-[#1a1a1a]/95 backdrop-blur-2xl z-40 flex flex-col pt-8 pb-24 overflow-y-auto border-t border-[#484847]/15 animate-in fade-in duration-200">
+          <div className="flex flex-col gap-4 px-6">
+            {NAV_LINKS.map(link => (
+              <Link
+                key={link.to}
+                to={link.to}
+                onClick={() => setIsMobileMenuOpen(false)}
+                className={`flex items-center gap-4 p-4 rounded-xl font-headline font-bold text-lg uppercase tracking-wider transition-all ${
+                  pathname === link.to 
+                    ? 'bg-primary/10 text-primary border border-primary/20' 
+                    : 'text-on-surface-variant hover:bg-surface-variant/50'
+                }`}
+              >
+                <span className="material-symbols-outlined text-2xl">{link.icon}</span>
+                {link.label}
+              </Link>
+            ))}
+            
+            {user && isAdmin && (
+              <Link 
+                to="/admin" 
+                onClick={() => setIsMobileMenuOpen(false)} 
+                className={`flex items-center gap-4 p-4 rounded-xl font-headline font-bold text-lg uppercase tracking-wider transition-all mt-4 ${
+                  pathname.startsWith('/admin')
+                    ? 'bg-secondary/10 text-secondary border border-secondary/20' 
+                    : 'text-on-surface-variant hover:bg-surface-variant/50'
+                }`}
+              >
+                 <span className="material-symbols-outlined text-2xl">admin_panel_settings</span>
+                 Panel Admin
+              </Link>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Floating WhatsApp Button */}
       <a

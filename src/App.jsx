@@ -16,10 +16,10 @@ import StudentPortal from './pages/student/StudentPortal';
 
 function PublicLayout({ children }) {
   return (
-    <>
+    <div className="relative min-h-screen w-full overflow-x-hidden">
       <Navbar />
       <div className="pb-20 md:pb-0">{children}</div>
-    </>
+    </div>
   );
 }
 
