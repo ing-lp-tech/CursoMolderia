@@ -1,8 +1,13 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
-const ADMIN_EMAILS = ['ing.lp.tech@gmail.com'];
+// Obtenemos los admins desde las variables de entorno
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
+  .split(',')
+  .map(email => email.trim().toLowerCase())
+  .filter(Boolean);
 
 export default function LoginPage() {
   const { signIn } = useAuth();
@@ -18,13 +23,33 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     const { data, error: err } = await signIn(email, password);
-    setLoading(false);
-    if (err) { setError(err.message); return; }
+    
+    if (err) {
+      setLoading(false);
+      setError(err.message);
+      return;
+    }
 
-    // Chequeamos admin por email o por metadatos
+    // Chequeamos admin por email, metadatos, o tabla perfiles
     const userEmail = data?.user?.email?.toLowerCase() || '';
     const metaRol = data?.user?.user_metadata?.rol;
-    const isAdmin = metaRol === 'admin' || ADMIN_EMAILS.includes(userEmail);
+    let isDbAdmin = false;
+
+    if (data?.user?.id) {
+      try {
+        const { data: profile } = await supabase
+          .from('perfiles')
+          .select('rol')
+          .eq('id', data.user.id)
+          .single();
+        if (profile?.rol === 'admin') isDbAdmin = true;
+      } catch (e) {
+        // Ignorar si falla por RLS o si no existe
+      }
+    }
+
+    const isAdmin = metaRol === 'admin' || ADMIN_EMAILS.includes(userEmail) || isDbAdmin;
+    setLoading(false);
 
     if (isAdmin) navigate('/admin');
     else navigate('/portal');

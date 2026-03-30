@@ -2,8 +2,11 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Emails que SIEMPRE son admin, como fallback mientras se configura Supabase
-const ADMIN_EMAILS = ['ing.lp.tech@gmail.com'];
+// Obtenemos los admins desde las variables de entorno para no hardcodearlos en el código.
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
+  .split(',')
+  .map(email => email.trim().toLowerCase())
+  .filter(Boolean);
 
 const AuthContext = createContext({});
 
@@ -66,14 +69,16 @@ export function AuthProvider({ children }) {
 
   async function fetchPerfil(userId) {
     try {
-      const { data } = await supabase
+      const { data, error } = await supabase
         .from('perfiles')
         .select('*')
         .eq('id', userId)
         .single();
+        
+      if (error) throw error;
       setPerfil(data);
-    } catch {
-      // tabla puede no existir todavía — no hacer nada
+    } catch (err) {
+      console.error("Error cargando perfil desde Supabase:", err.message);
     } finally {
       setLoading(false);
     }
