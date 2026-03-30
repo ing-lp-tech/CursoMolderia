@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<link href="https://fonts.googleapis.com" rel="preconnect"/>
+<link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect"/>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600&amp;family=Space+Grotesk:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-container": "#ac8eff",
+              "on-primary": "#37008e",
+              "on-surface": "#ffffff",
+              "inverse-on-surface": "#565555",
+              "tertiary-fixed": "#ff81f5",
+              "primary": "#b89fff",
+              "on-primary-container": "#2a0070",
+              "tertiary-fixed-dim": "#ff61f8",
+              "on-secondary-container": "#e8fbff",
+              "inverse-surface": "#fcf9f8",
+              "surface-container-high": "#20201f",
+              "surface-container": "#1a1a1a",
+              "on-tertiary": "#400040",
+              "surface-bright": "#2c2c2c",
+              "tertiary": "#ff51fa",
+              "on-error": "#490013",
+              "surface-tint": "#b89fff",
+              "on-surface-variant": "#adaaaa",
+              "primary-fixed-dim": "#a07dff",
+              "outline-variant": "#484847",
+              "surface-variant": "#262626",
+              "surface-container-low": "#131313",
+              "surface-dim": "#0e0e0e",
+              "on-tertiary-fixed": "#320032",
+              "on-primary-fixed-variant": "#350088",
+              "on-background": "#ffffff",
+              "secondary-dim": "#00d4ec",
+              "error-container": "#a70138",
+              "secondary-container": "#006875",
+              "error": "#ff6e84",
+              "primary-fixed": "#ac8eff",
+              "secondary-fixed": "#26e6ff",
+              "primary-dim": "#834fff",
+              "on-primary-fixed": "#000000",
+              "on-tertiary-fixed-variant": "#6a006a",
+              "error-dim": "#d73357",
+              "tertiary-dim": "#ff51fa",
+              "on-tertiary-container": "#230023",
+              "secondary": "#00e3fd",
+              "tertiary-container": "#fe00fe",
+              "on-secondary-fixed-variant": "#005964",
+              "surface-container-lowest": "#000000",
+              "on-secondary": "#004d57",
+              "background": "#0e0e0e",
+              "surface-container-highest": "#262626",
+              "secondary-fixed-dim": "#00d7f0",
+              "outline": "#767575",
+              "on-secondary-fixed": "#003a42",
+              "on-error-container": "#ffb2b9",
+              "surface": "#0e0e0e",
+              "inverse-primary": "#6d23f9"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+            display: inline-block;
+            line-height: 1;
+            text-transform: none;
+            letter-spacing: normal;
+            word-wrap: normal;
+            white-space: nowrap;
+            direction: ltr;
+        }
+        .blueprint-grid {
+            background-image: 
+                linear-gradient(to right, rgba(72, 72, 71, 0.1) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(72, 72, 71, 0.1) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+        .glass-card {
+            background: rgba(26, 26, 26, 0.7);
+            backdrop-filter: blur(20px);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-primary/30">
+<!-- Top Navigation Shell -->
+<nav class="fixed top-0 w-full z-50 bg-[#1a1a1a]/70 backdrop-blur-xl border-b border-[#484847]/15 shadow-[0_8px_32px_rgba(184,159,255,0.1)] flex justify-between items-center px-6 h-16">
+<div class="flex items-center gap-3">
+<span class="material-symbols-outlined text-[#b89fff]" data-icon="architecture">architecture</span>
+<span class="text-xl font-black tracking-tighter text-[#b89fff] font-['Space_Grotesk'] uppercase">Digital Atelier</span>
+</div>
+<div class="hidden md:flex gap-6 items-center">
+<a class="font-['Space_Grotesk'] text-[#00e3fd] text-sm uppercase tracking-widest font-bold" href="#">Inicio</a>
+<a class="font-['Space_Grotesk'] text-[#adaaaa] text-sm uppercase tracking-widest font-medium hover:bg-[#262626] transition-colors duration-300 px-3 py-1 rounded" href="#">Temario</a>
+<a class="font-['Space_Grotesk'] text-[#adaaaa] text-sm uppercase tracking-widest font-medium hover:bg-[#262626] transition-colors duration-300 px-3 py-1 rounded" href="#">Ventajas</a>
+<a class="font-['Space_Grotesk'] text-[#adaaaa] text-sm uppercase tracking-widest font-medium hover:bg-[#262626] transition-colors duration-300 px-3 py-1 rounded" href="#">Inscribirse</a>
+<div class="h-6 w-[1px] bg-[#484847]/30 mx-2"></div>
+<button class="font-['Space_Grotesk'] text-[#b89fff] text-sm uppercase tracking-widest font-bold border border-[#b89fff]/30 px-4 py-1.5 rounded-md hover:bg-[#b89fff]/10 transition-all">Iniciar Sesión</button>
+<button class="bg-[#b89fff] text-[#37008e] font-['Space_Grotesk'] font-bold tracking-tight uppercase px-6 py-2 rounded-md active:scale-95 duration-200">ÚNETE AHORA</button>
+</div>
+</nav>
+<main class="relative pt-16">
+<!-- Hero Section -->
+<section class="relative min-h-[921px] flex items-center overflow-hidden blueprint-grid">
+<!-- Background Elements -->
+<div class="absolute inset-0 z-0 pointer-events-none">
+<div class="absolute top-1/4 -right-20 w-[600px] h-[600px] bg-primary/10 blur-[120px] rounded-full"></div>
+<div class="absolute bottom-1/4 -left-20 w-[400px] h-[400px] bg-secondary/10 blur-[100px] rounded-full"></div>
+<!-- Technical Pattern Overlay -->
+<div class="absolute inset-0 opacity-20 pointer-events-none flex items-center justify-center translate-x-1/4 translate-y-1/4">
+<img alt="Technical blueprint" class="w-full h-full object-contain grayscale invert" data-alt="Technical garment blueprint lines and drafting markers on a dark charcoal background with high contrast neon strokes" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCjqvo8iMpz54UrwgYxOCMoLWtDeve7GSnpZ9GPkcZJu48CYLsq7n2Z5y4Kgx-3SFpcasdxlBTbw_S1j_FRqMCitriN6Po2hXH337x8JQaRg-trP4AwG9SNvIufCFkVpNpbipKJPGraMl4R05zG4pPvUw0JRLIAA-0X14p5LbBefLqsIlv0Wz28MO9QGJ5aufkUS5mx4zFaRMDbFPJ9ujIupv0hYYmZwq5vAvPRWgS6vCa81IisVALADGonYPLjoufbSbUJ97KENAA"/>
+</div>
+</div>
+<div class="container mx-auto px-6 relative z-10">
+<div class="max-w-4xl">
+<div class="inline-flex items-center gap-2 px-3 py-1 rounded bg-surface-container-highest border border-outline-variant/20 mb-8">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+<span class="font-label text-xs tracking-[0.2em] text-secondary font-bold uppercase">Cupos limitados disponibles - Inscríbete ya</span>
+</div>
+<h1 class="font-headline text-6xl md:text-8xl font-bold tracking-tighter leading-[0.9] mb-8 uppercase">
+                    Digital Atelier: <br/>
+<span class="text-transparent bg-clip-text bg-gradient-to-r from-primary to-secondary">Curso de Audaces y Sastrería Digital</span>
+</h1>
+<p class="font-body text-xl text-on-surface-variant max-w-2xl mb-12 leading-relaxed">
+                    De cero a profesional: Diseño, Patronaje y Escalado Industrial. Transforma tu visión creativa en activos técnicos precisos con flujos de trabajo digitales estándar de la industria.
+                </p>
+<div class="flex flex-col md:flex-row gap-6 items-center">
+<button class="w-full md:w-auto px-10 py-5 bg-gradient-to-br from-primary to-primary-container text-on-primary font-headline font-bold text-lg uppercase tracking-wider rounded shadow-[0_12px_40px_rgba(184,159,255,0.3)] active:scale-[0.98] transition-all">
+                        Inicia tu Carrera Digital
+                    </button>
+<div class="flex flex-col items-center md:items-start">
+<span class="font-label text-[10px] text-on-surface-variant uppercase tracking-[0.3em] mb-1">Inversión Matrícula</span>
+<span class="font-headline text-4xl font-bold text-secondary">$400.000 COP</span>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Bento Grid Features -->
+<section class="py-32 bg-surface-container-low">
+<div class="container mx-auto px-6">
+<div class="flex flex-col mb-16">
+<span class="font-label text-secondary tracking-[0.4em] uppercase text-xs font-bold mb-4">El Plan de Estudios</span>
+<h2 class="font-headline text-4xl font-bold uppercase tracking-tight">Módulos de Maestría Técnica</h2>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6 h-auto md:min-h-[700px]">
+<!-- Large Feature Card -->
+<div class="md:col-span-8 bg-surface-container rounded-xl p-10 flex flex-col justify-between group hover:bg-surface-container-high transition-colors duration-500 overflow-hidden relative">
+<div class="relative z-10">
+<span class="material-symbols-outlined text-4xl text-primary mb-6" data-icon="square_foot">square_foot</span>
+<h3 class="font-headline text-3xl font-bold uppercase mb-4">Trazo de Precisión</h3>
+<p class="text-on-surface-variant max-w-md">Domina la matemática de la forma humana. Crea patrones 2D con precisión milimétrica usando software CAD avanzado.</p>
+</div>
+<div class="absolute top-0 right-0 w-1/2 h-full opacity-30 group-hover:opacity-50 transition-opacity">
+<img alt="CAD interface" class="w-full h-full object-cover rounded-l-3xl grayscale" data-alt="Digital tailoring software interface showing complex pattern pieces and vector lines on a dark dark UI" src="https://lh3.googleusercontent.com/aida-public/AB6AXuD8E58R45Pe0YGJGZr5q31ZmNZjA33XN6XXi66rj5UH6PB4iOfdHp9Il79R5pWW3YryqhII4aBpzQIb6Klp4npq1bvK_NNejRDz9u7BdlaQsu7OnfZAubi9TLZ-V43c0OM4t165gWBeFp5wZ0oHHzqgIy_PvfEBu0Rg3zzs_7vlnrI7JkS3WpuRgoh0OUvBmMQKZ8IvfFnvfr2thg4bewPC_DmLAtkOzsvmHrnwDmUqB7SKOwH5AobnZX2J2T5Dgndue_E8wNuWyzs"/>
+</div>
+<div class="mt-8 flex gap-4 relative z-10">
+<span class="px-3 py-1 rounded bg-primary/10 border border-primary/20 text-xs font-label text-primary uppercase">Módulo 01</span>
+<span class="px-3 py-1 rounded bg-secondary/10 border border-secondary/20 text-xs font-label text-secondary uppercase">12 Horas</span>
+</div>
+</div>
+<!-- Side Card 1 -->
+<div class="md:col-span-4 bg-surface-container rounded-xl p-8 flex flex-col justify-between border-l-2 border-transparent hover:border-secondary transition-all">
+<div>
+<span class="material-symbols-outlined text-3xl text-secondary mb-4" data-icon="layers">layers</span>
+<h3 class="font-headline text-xl font-bold uppercase mb-2">Escalado Industrial</h3>
+<p class="text-on-surface-variant text-sm">Automatiza el cambio de tallas en diversas siluetas sin perder la integridad del ajuste original.</p>
+</div>
+<div class="mt-4">
+<div class="h-1 w-full bg-outline-variant/20 rounded overflow-hidden">
+<div class="h-full w-2/3 bg-secondary shadow-[0_0_10px_#00e3fd]"></div>
+</div>
+<span class="font-label text-[10px] text-secondary mt-2 block uppercase">Nivel de Habilidad Avanzado</span>
+</div>
+</div>
+<!-- Side Card 2 -->
+<div class="md:col-span-4 bg-surface-container rounded-xl p-8 flex flex-col justify-between border-l-2 border-transparent hover:border-tertiary transition-all">
+<div>
+<span class="material-symbols-outlined text-3xl text-tertiary mb-4" data-icon="grid_view">grid_view</span>
+<h3 class="font-headline text-xl font-bold uppercase mb-2">Trazo y Tizada</h3>
+<p class="text-on-surface-variant text-sm">Optimiza el uso de tela con algoritmos de anidado inteligente. Reduce desperdicios, maximiza ganancias.</p>
+</div>
+<div class="mt-4 flex justify-between items-center">
+<span class="font-label text-[10px] text-on-surface-variant uppercase tracking-widest">Enfoque en Eficiencia</span>
+<span class="material-symbols-outlined text-tertiary" data-icon="trending_up">trending_up</span>
+</div>
+</div>
+<!-- Side Card 3 -->
+<div class="md:col-span-8 bg-surface-container rounded-xl p-8 flex flex-col md:flex-row items-center gap-10 group overflow-hidden">
+<div class="flex-1">
+<span class="material-symbols-outlined text-3xl text-primary mb-4" data-icon="view_in_ar">view_in_ar</span>
+<h3 class="font-headline text-2xl font-bold uppercase mb-2">Visualización de Ajuste 3D</h3>
+<p class="text-on-surface-variant">Simula prendas en avatares digitales para verificar caída, tensión y ajuste antes del primer corte.</p>
+</div>
+<div class="w-full md:w-1/3 h-48 md:h-full relative">
+<img alt="Prenda 3D" class="w-full h-full object-cover rounded-xl group-hover:scale-110 transition-transform duration-700 grayscale" data-alt="Hyper-realistic 3D digital garment render on a mannequin in a dark studio setting with dramatic purple lighting" src="https://lh3.googleusercontent.com/aida-public/AB6AXuBN_PZVHB3AlEa4sqDwPaxDNf312YXN0YmU3A3hx7BFEszgG_0oKNYAAuHKA9g0fpDBX7KHQ5m3VJ0yOFT7C6NK-_c1nDSI7cqCdwwkELqjCxJyFPr1os6LJ2Z6WnhosioNiZGSab05BlrmtQz6NS8wfzhJgq5D5nP-I_gLOWw1PBacseFCXpTOh4CVlpNC16LWtQzxfJ7T68rcETqzw6BUh7IU0vLTgj0wkataBc29_f1dk39jI_Nf9MPuhTn4-FU7mHifqftXxvc"/>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Pricing / CTA Section -->
+<section class="py-32 relative overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-b from-surface-container-low to-background"></div>
+<div class="container mx-auto px-6 relative z-10">
+<div class="max-w-5xl mx-auto glass-card rounded-2xl p-12 border border-outline-variant/10 flex flex-col md:flex-row gap-12 items-center">
+<div class="flex-1">
+<h2 class="font-headline text-5xl font-bold uppercase mb-6 leading-tight">Asegura tu lugar en el futuro de la moda</h2>
+<ul class="space-y-4 mb-8">
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary" data-icon="check_circle">check_circle</span>
+<span class="text-on-surface-variant">40+ Horas de Contenido Técnico en Video</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary" data-icon="check_circle">check_circle</span>
+<span class="text-on-surface-variant">Licencias de Software CAD Profesional Incluidas</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary" data-icon="check_circle">check_circle</span>
+<span class="text-on-surface-variant">Sesiones Semanales de Feedback en Vivo</span>
+</li>
+<li class="flex items-center gap-3">
+<span class="material-symbols-outlined text-secondary" data-icon="check_circle">check_circle</span>
+<span class="text-on-surface-variant">Certificación Industrial Internacional</span>
+</li>
+</ul>
+</div>
+<div class="w-full md:w-auto flex flex-col items-center bg-surface-container-highest p-10 rounded-xl border border-primary/20">
+<span class="font-label text-tertiary text-xs tracking-widest uppercase font-bold mb-2">Pago Único</span>
+<div class="text-center mb-8">
+<span class="font-headline text-6xl font-bold">$400.000</span>
+<span class="font-headline text-2xl font-medium text-on-surface-variant">COP</span>
+</div>
+<button class="w-full px-8 py-4 bg-secondary text-on-secondary font-headline font-bold uppercase tracking-wider rounded-md active:translate-y-1 transition-all mb-4">
+                        Inscríbete Ahora
+                    </button>
+<p class="text-[10px] font-label text-on-surface-variant uppercase text-center tracking-tighter">Limitado a 25 cupos por cohorte para asegurar mentoría directa.</p>
+</div>
+</div>
+</div>
+</section>
+</main>
+<!-- Footer -->
+<footer class="bg-surface-container-lowest py-20 border-t border-outline-variant/10">
+<div class="container mx-auto px-6">
+<div class="grid grid-cols-1 md:grid-cols-4 gap-12 mb-16">
+<div class="col-span-1 md:col-span-2">
+<div class="flex items-center gap-3 mb-6">
+<span class="material-symbols-outlined text-[#b89fff]" data-icon="architecture">architecture</span>
+<span class="text-xl font-black tracking-tighter text-[#b89fff] font-headline uppercase">Digital Atelier</span>
+</div>
+<p class="text-on-surface-variant max-w-sm mb-6">
+                    La plataforma educativa líder en el mundo para patronaje digital de alta gama e ingeniería industrial de prendas.
+                </p>
+<div class="flex gap-4">
+<a class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="share">share</span>
+</a>
+<a class="w-10 h-10 rounded-full bg-surface-container flex items-center justify-center hover:text-primary transition-colors" href="#">
+<span class="material-symbols-outlined text-sm" data-icon="mail">mail</span>
+</a>
+</div>
+</div>
+<div>
+<h4 class="font-headline text-sm font-bold uppercase tracking-widest mb-6">Explorar</h4>
+<ul class="space-y-4 text-sm text-on-surface-variant font-medium">
+<li><a class="hover:text-secondary" href="#">Plan de Estudios</a></li>
+<li><a class="hover:text-secondary" href="#">Metodología</a></li>
+<li><a class="hover:text-secondary" href="#">Graduados</a></li>
+<li><a class="hover:text-secondary" href="#">Soluciones Corporativas</a></li>
+</ul>
+</div>
+<div>
+<h4 class="font-headline text-sm font-bold uppercase tracking-widest mb-6">Contacto</h4>
+<ul class="space-y-4 text-sm text-on-surface-variant font-medium">
+<li>Soporte Atelier</li>
+<li>contacto@digitalatelier.com</li>
+<li>Bogotá, Colombia</li>
+</ul>
+</div>
+</div>
+<div class="flex flex-col md:flex-row justify-between items-center pt-12 border-t border-outline-variant/10">
+<p class="text-xs font-label text-on-surface-variant uppercase tracking-widest mb-4 md:mb-0">© 2024 Digital Atelier. Todos los derechos técnicos reservados.</p>
+<div class="flex gap-8">
+<a class="text-[10px] font-label text-on-surface-variant uppercase hover:text-white" href="#">Política de Privacidad</a>
+<a class="text-[10px] font-label text-on-surface-variant uppercase hover:text-white" href="#">Términos de Servicio</a>
+</div>
+</div>
+</div>
+</footer>
+<!-- Mobile Navigation Shell -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 bg-[#1a1a1a]/70 backdrop-blur-xl flex justify-around items-center h-20 px-4 pb-safe border-t border-[#484847]/15 rounded-t-lg">
+<div class="flex flex-col items-center justify-center text-[#00e3fd] bg-[#262626] rounded-md px-3 py-1">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium">Inicio</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#adaaaa] px-3 py-1 hover:text-[#b89fff]">
+<span class="material-symbols-outlined" data-icon="tactic">tactic</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium">Temario</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#adaaaa] px-3 py-1 hover:text-[#b89fff]">
+<span class="material-symbols-outlined" data-icon="star">star</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium">Ventajas</span>
+</div>
+<div class="flex flex-col items-center justify-center text-[#adaaaa] px-3 py-1 hover:text-[#b89fff]">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium">Pagar</span>
+</div>
+</nav>
+</body></html>

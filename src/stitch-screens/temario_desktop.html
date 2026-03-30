@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Digital Atelier | Plan de Estudios Audaces</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "primary-container": "#ac8eff",
+              "on-primary": "#37008e",
+              "on-surface": "#ffffff",
+              "inverse-on-surface": "#565555",
+              "tertiary-fixed": "#ff81f5",
+              "primary": "#b89fff",
+              "on-primary-container": "#2a0070",
+              "tertiary-fixed-dim": "#ff61f8",
+              "on-secondary-container": "#e8fbff",
+              "inverse-surface": "#fcf9f8",
+              "surface-container-high": "#20201f",
+              "surface-container": "#1a1a1a",
+              "on-tertiary": "#400040",
+              "surface-bright": "#2c2c2c",
+              "tertiary": "#ff51fa",
+              "on-error": "#490013",
+              "surface-tint": "#b89fff",
+              "on-surface-variant": "#adaaaa",
+              "primary-fixed-dim": "#a07dff",
+              "outline-variant": "#484847",
+              "surface-variant": "#262626",
+              "surface-container-low": "#131313",
+              "surface-dim": "#0e0e0e",
+              "on-tertiary-fixed": "#320032",
+              "on-primary-fixed-variant": "#350088",
+              "on-background": "#ffffff",
+              "secondary-dim": "#00d4ec",
+              "error-container": "#a70138",
+              "secondary-container": "#006875",
+              "error": "#ff6e84",
+              "primary-fixed": "#ac8eff",
+              "secondary-fixed": "#26e6ff",
+              "primary-dim": "#834fff",
+              "on-primary-fixed": "#000000",
+              "on-tertiary-fixed-variant": "#6a006a",
+              "error-dim": "#d73357",
+              "tertiary-dim": "#ff51fa",
+              "on-tertiary-container": "#230023",
+              "secondary": "#00e3fd",
+              "tertiary-container": "#fe00fe",
+              "on-secondary-fixed-variant": "#005964",
+              "surface-container-lowest": "#000000",
+              "on-secondary": "#004d57",
+              "background": "#0e0e0e",
+              "surface-container-highest": "#262626",
+              "secondary-fixed-dim": "#00d7f0",
+              "outline": "#767575",
+              "on-secondary-fixed": "#003a42",
+              "on-error-container": "#ffb2b9",
+              "surface": "#0e0e0e",
+              "inverse-primary": "#6d23f9"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+        .material-symbols-outlined {
+            font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+        }
+        .blueprint-grid {
+            background-size: 40px 40px;
+            background-image: linear-gradient(to right, rgba(72, 72, 71, 0.05) 1px, transparent 1px),
+                              linear-gradient(to bottom, rgba(72, 72, 71, 0.05) 1px, transparent 1px);
+        }
+    </style>
+</head>
+<body class="bg-background text-on-surface font-body selection:bg-secondary selection:text-on-secondary">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 bg-[#1a1a1a]/70 backdrop-blur-xl border-b border-[#484847]/15 shadow-[0_8px_32px_rgba(184,159,255,0.1)] flex justify-between items-center px-6 h-16 w-full">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#b89fff]" data-icon="architecture">architecture</span>
+<span class="text-xl font-black tracking-tighter text-[#b89fff] font-['Space_Grotesk'] uppercase">Digital Atelier</span>
+</div>
+<nav class="hidden md:flex items-center gap-8">
+<a class="text-[#adaaaa] hover:bg-[#262626] transition-colors duration-300 px-3 py-1 font-['Space_Grotesk'] tracking-tight font-bold uppercase text-sm" href="#">Inicio</a>
+<a class="text-[#00e3fd] hover:bg-[#262626] transition-colors duration-300 px-3 py-1 font-['Space_Grotesk'] tracking-tight font-bold uppercase text-sm" href="#">Currículo</a>
+<a class="text-[#adaaaa] hover:bg-[#262626] transition-colors duration-300 px-3 py-1 font-['Space_Grotesk'] tracking-tight font-bold uppercase text-sm" href="#">Beneficios</a>
+<a class="text-[#adaaaa] hover:bg-[#262626] transition-colors duration-300 px-3 py-1 font-['Space_Grotesk'] tracking-tight font-bold uppercase text-sm" href="#">Inscripción</a>
+</nav>
+<button class="bg-gradient-to-br from-primary to-primary-container text-on-primary px-6 py-2 font-label font-bold tracking-tight rounded-lg active:scale-95 duration-200 uppercase text-xs">
+            ÚNETE AHORA
+        </button>
+</header>
+<main class="pt-32 pb-24 px-6 max-w-7xl mx-auto blueprint-grid min-h-screen">
+<!-- Hero Section -->
+<section class="mb-20">
+<div class="flex flex-col md:flex-row items-end justify-between gap-8">
+<div class="max-w-2xl">
+<span class="font-label text-secondary text-sm tracking-[0.3em] uppercase mb-4 block">Syllabus de Masterclass</span>
+<h1 class="font-headline text-6xl md:text-8xl font-black tracking-tighter leading-none mb-6">
+                        Lo que vas a <span class="text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary-container">Dominar</span>
+</h1>
+<p class="text-on-surface-variant text-lg max-w-xl leading-relaxed">
+                        Transita del patronaje manual a flujos digitales de alta frecuencia con Audaces 360. Nuestra formación está diseñada para la precisión industrial y escalabilidad comercial.
+                    </p>
+</div>
+<div class="hidden lg:block">
+<div class="p-8 bg-surface-container border border-outline-variant/15 rounded-xl shadow-2xl relative overflow-hidden group">
+<div class="absolute top-0 right-0 w-32 h-32 bg-secondary/10 blur-3xl group-hover:bg-secondary/20 transition-all"></div>
+<div class="relative z-10">
+<p class="font-label text-xs text-on-surface-variant tracking-widest mb-2 uppercase">Valor de Inversión</p>
+<h3 class="font-headline text-4xl font-bold text-on-surface">$400.000 COP</h3>
+<div class="h-[2px] w-full bg-outline-variant/30 my-4 overflow-hidden">
+<div class="h-full w-1/3 bg-secondary shadow-[0_0_8px_#00e3fd]"></div>
+</div>
+<p class="text-xs text-secondary-dim font-medium tracking-wide">ACCESO POR TIEMPO LIMITADO • ACTUALIZACIONES DE POR VIDA</p>
+</div>
+</div>
+</div>
+</div>
+</section>
+<!-- Curriculum Bento Grid -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+<!-- Module 1 -->
+<div class="md:col-span-7 group relative overflow-hidden bg-surface-container-low rounded-xl transition-all duration-300 hover:bg-surface-container-high border-l-2 border-transparent hover:border-secondary">
+<div class="p-8 flex flex-col h-full">
+<div class="flex justify-between items-start mb-12">
+<div class="bg-surface-container-highest p-4 rounded-lg">
+<span class="material-symbols-outlined text-primary text-3xl" data-icon="polyline">polyline</span>
+</div>
+<span class="font-label text-outline text-4xl font-black opacity-20">01</span>
+</div>
+<h2 class="font-headline text-3xl font-bold mb-4">Audaces Patrones</h2>
+<p class="text-on-surface-variant mb-8 flex-grow">Domina las herramientas de dibujo técnico vectorial. Aprende la geometría del cuerpo humano a través de curvas paramétricas y sistemas de anclaje digital.</p>
+<div class="flex flex-wrap gap-3">
+<span class="px-3 py-1 bg-surface-container-highest text-on-surface-variant text-[10px] font-label uppercase tracking-widest border border-outline-variant/10">Dibujo Vectorial</span>
+<span class="px-3 py-1 bg-surface-container-highest text-on-surface-variant text-[10px] font-label uppercase tracking-widest border border-outline-variant/10">Geometría</span>
+</div>
+</div>
+<img alt="Interfaz técnica de patrones digitales" class="absolute bottom-0 right-0 w-1/3 opacity-20 group-hover:opacity-40 transition-opacity grayscale hover:grayscale-0" data-alt="Close-up of a high-tech CAD software interface showing complex purple and blue geometric patterns and vector lines on a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDqplhhEY2LCjAzHWrLlKzmqISZ0bstokxJm9b_1chKH96ap4eWpl2y49oWf0Hf2fIX76pqlycQgjfjN3C9ApnrRJgVSVIrXkx73cbtMbohQw1pu6QxmdPFn2GJGtI8OC3uQXI2uQNFyxfjoJiw0UiyfwLjoqOgypw7P2G5CYUZ33EcsvkgkjMGZ-PGsNm8haLmzh0ybSSJFHEK-JphrQWdQGCR4GSDYXvulNb9cvtk0FxRWHn9ZMwi1nRoQK3XLqIPloThVtteorg"/>
+</div>
+<!-- Module 2 -->
+<div class="md:col-span-5 group relative bg-surface-container-low rounded-xl transition-all duration-300 hover:bg-surface-container-high border-l-2 border-transparent hover:border-secondary">
+<div class="p-8 flex flex-col h-full">
+<div class="flex justify-between items-start mb-12">
+<div class="bg-surface-container-highest p-4 rounded-lg">
+<span class="material-symbols-outlined text-secondary text-3xl" data-icon="straighten">straighten</span>
+</div>
+<span class="font-label text-outline text-4xl font-black opacity-20">02</span>
+</div>
+<h2 class="font-headline text-3xl font-bold mb-4">Escalado Automático</h2>
+<p class="text-on-surface-variant mb-8">Escala tus diseños instantáneamente en rangos de tallas completos utilizando tablas de progresión industrial y lógica de curvas para un ajuste perfecto.</p>
+<div class="mt-auto">
+<div class="flex items-center gap-2 text-secondary text-xs font-label uppercase tracking-tighter">
+<span class="w-2 h-2 rounded-full bg-secondary animate-pulse"></span>
+                            Sistemas de Lógica Industrial
+                        </div>
+</div>
+</div>
+</div>
+<!-- Module 3 -->
+<div class="md:col-span-5 group relative bg-surface-container-low rounded-xl transition-all duration-300 hover:bg-surface-container-high border-l-2 border-transparent hover:border-secondary">
+<div class="p-8 flex flex-col h-full">
+<div class="flex justify-between items-start mb-12">
+<div class="bg-surface-container-highest p-4 rounded-lg">
+<span class="material-symbols-outlined text-tertiary text-3xl" data-icon="grid_view">grid_view</span>
+</div>
+<span class="font-label text-outline text-4xl font-black opacity-20">03</span>
+</div>
+<h2 class="font-headline text-3xl font-bold mb-4">Audaces Tizada (Nesting)</h2>
+<p class="text-on-surface-variant mb-8">Optimiza el consumo de material. Aprovecha algoritmos de encaje automático para minimizar el desperdicio de tela y maximizar el ahorro en producción.</p>
+<div class="p-4 bg-surface-container-lowest rounded border border-outline-variant/10">
+<div class="flex justify-between text-[10px] font-label text-on-surface-variant mb-1">
+<span>OPTIMIZACIÓN</span>
+<span>98.4%</span>
+</div>
+<div class="w-full h-1 bg-outline-variant/20">
+<div class="h-full bg-tertiary w-[98%]"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Module 4 -->
+<div class="md:col-span-7 group relative overflow-hidden bg-surface-container-low rounded-xl transition-all duration-300 hover:bg-surface-container-high border-l-2 border-transparent hover:border-secondary">
+<div class="p-8 flex flex-col h-full">
+<div class="flex justify-between items-start mb-12">
+<div class="bg-surface-container-highest p-4 rounded-lg">
+<span class="material-symbols-outlined text-primary-container text-3xl" data-icon="print">print</span>
+</div>
+<span class="font-label text-outline text-4xl font-black opacity-20">04</span>
+</div>
+<h2 class="font-headline text-3xl font-bold mb-4">Prep. Industrial y Trazado</h2>
+<p class="text-on-surface-variant mb-8 max-w-lg">Finaliza datos técnicos para manufactura. Exportación integral a formatos DXF/AAMA para compatibilidad global con cualquier plotter.</p>
+<div class="flex gap-4">
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-on-surface-variant uppercase">Estándar</span>
+<span class="text-sm font-bold text-on-surface">DXF / ASTM</span>
+</div>
+<div class="w-px h-8 bg-outline-variant/30"></div>
+<div class="flex flex-col">
+<span class="text-[10px] font-label text-on-surface-variant uppercase">Hardware</span>
+<span class="text-sm font-bold text-on-surface">Plotters A0</span>
+</div>
+</div>
+</div>
+<img alt="Plotter de prendas a gran escala" class="absolute top-0 right-0 h-full w-1/3 object-cover opacity-10 group-hover:opacity-30 transition-all" data-alt="Industrial large-format inkjet plotter printing complex white lines of garment patterns onto a dark blue roll of paper in a dimly lit studio" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCwsVbxebzcGMXLfHpm1cGphd5H9CrWZwRMraTGtxXwxsiehCF4jpPZYRjAnGgLUCMlOg_HyUs_gkpesxEV5oz8y1dp78VvsX1NLkBIAy623jROVBrWNKL4bqabC4Ihc7-lYYjI8zZLsKKXzsaBjDcp8XmVuAMpH0BqCM_4j8qnOBvrkVXcAAZXLZ2IHB9EtInyoeqiK3DlCl-ZAlamj-55OG5PYFrHQnrUObJqDujjrF39B8YULnSh1cA9jMu437Ho6r8s-TeLhCc"/>
+</div>
+</div>
+<!-- Sticky Enrollment Footer / Bar -->
+<div class="mt-20 flex flex-col md:flex-row items-center justify-between p-8 bg-surface-container-highest rounded-xl border border-primary/20 shadow-[0_0_40px_rgba(184,159,255,0.05)]">
+<div class="flex flex-col md:flex-row items-center gap-8 mb-8 md:mb-0 text-center md:text-left">
+<div>
+<h4 class="font-headline text-2xl font-bold">Asegura tu Cupo</h4>
+<p class="text-on-surface-variant text-sm">Fase de Inscripción Masterclass Industrial I</p>
+</div>
+<div class="flex flex-col items-center md:items-start">
+<span class="font-label text-[10px] text-secondary tracking-widest uppercase">Pago único</span>
+<span class="text-3xl font-black text-on-surface">$400.000 COP</span>
+</div>
+</div>
+<button class="w-full md:w-auto px-12 py-5 bg-gradient-to-r from-primary to-primary-container text-on-primary font-headline font-black text-lg rounded-lg shadow-xl hover:shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all uppercase tracking-tighter">
+                Inscribirme al Curso Completo
+            </button>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 flex justify-around items-center h-20 px-4 pb-safe bg-[#1a1a1a]/70 backdrop-blur-xl border-t border-[#484847]/15">
+<a class="flex flex-col items-center justify-center text-[#adaaaa] px-3 py-1 hover:text-[#b89fff] active:translate-y-0.5 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium">Inicio</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#00e3fd] bg-[#262626] rounded-md px-3 py-1 active:translate-y-0.5 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="tactic">tactic</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium">Currículo</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#adaaaa] px-3 py-1 hover:text-[#b89fff] active:translate-y-0.5 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="star">star</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium">Beneficios</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#adaaaa] px-3 py-1 hover:text-[#b89fff] active:translate-y-0.5 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium">Inscribir</span>
+</a>
+</nav>
+<!-- Decorative Elements -->
+<div class="fixed top-1/4 -left-64 w-[500px] h-[500px] bg-primary/5 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+<div class="fixed bottom-1/4 -right-64 w-[500px] h-[500px] bg-secondary/5 rounded-full blur-[120px] pointer-events-none -z-10"></div>
+</body></html>

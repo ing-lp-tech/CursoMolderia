@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="es"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Inscripción | Digital Atelier</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Inter:wght@300;400;500;600&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "secondary-container": "#006875",
+              "surface-container-lowest": "#000000",
+              "tertiary-container": "#fe00fe",
+              "on-background": "#ffffff",
+              "inverse-primary": "#6d23f9",
+              "on-tertiary-fixed": "#320032",
+              "secondary-dim": "#00d4ec",
+              "error": "#ff6e84",
+              "surface": "#0e0e0e",
+              "tertiary-dim": "#ff51fa",
+              "primary-container": "#ac8eff",
+              "inverse-on-surface": "#565555",
+              "primary": "#b89fff",
+              "on-secondary-fixed-variant": "#005964",
+              "background": "#0e0e0e",
+              "on-tertiary": "#400040",
+              "tertiary-fixed-dim": "#ff61f8",
+              "surface-tint": "#b89fff",
+              "on-surface-variant": "#adaaaa",
+              "primary-fixed-dim": "#a07dff",
+              "on-error": "#490013",
+              "on-secondary-container": "#e8fbff",
+              "on-error-container": "#ffb2b9",
+              "surface-variant": "#262626",
+              "tertiary": "#ff51fa",
+              "surface-bright": "#2c2c2c",
+              "on-secondary-fixed": "#003a42",
+              "surface-dim": "#0e0e0e",
+              "surface-container": "#1a1a1a",
+              "error-dim": "#d73357",
+              "outline": "#767575",
+              "error-container": "#a70138",
+              "surface-container-highest": "#262626",
+              "on-primary-fixed-variant": "#350088",
+              "surface-container-high": "#20201f",
+              "on-tertiary-fixed-variant": "#6a006a",
+              "on-primary": "#37008e",
+              "outline-variant": "#484847",
+              "on-primary-fixed": "#000000",
+              "tertiary-fixed": "#ff81f5",
+              "secondary": "#00e3fd",
+              "on-surface": "#ffffff",
+              "primary-dim": "#834fff",
+              "on-primary-container": "#2a0070",
+              "surface-container-low": "#131313",
+              "secondary-fixed": "#26e6ff",
+              "secondary-fixed-dim": "#00d7f0",
+              "on-secondary": "#004d57",
+              "on-tertiary-container": "#230023",
+              "inverse-surface": "#fcf9f8",
+              "primary-fixed": "#ac8eff"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Inter"],
+              "label": ["Space Grotesk"]
+            },
+            borderRadius: {"DEFAULT": "0.125rem", "lg": "0.25rem", "xl": "0.5rem", "full": "0.75rem"},
+          },
+        },
+      }
+    </script>
+<style>
+      .material-symbols-outlined {
+        font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+      }
+      body {
+        background-color: #0e0e0e;
+        color: #ffffff;
+        font-family: 'Inter', sans-serif;
+      }
+      .glass-panel {
+        background: rgba(26, 26, 26, 0.7);
+        backdrop-filter: blur(20px);
+      }
+      .text-glow-secondary {
+        text-shadow: 0 0 10px rgba(0, 227, 253, 0.4);
+      }
+      input:focus, select:focus {
+        outline: none;
+        box-shadow: 0 0 0 1px #00e3fd, 0 0 8px rgba(0, 227, 253, 0.2);
+      }
+    </style>
+<style>
+      body {
+        min-height: max(884px, 100dvh);
+      }
+    </style>
+</head>
+<body class="min-h-screen bg-background">
+<!-- TopAppBar Navigation Shell -->
+<nav class="fixed top-0 w-full z-50 bg-[#1a1a1a]/70 backdrop-blur-xl border-b border-[#484847]/15 shadow-[0_8px_32px_rgba(184,159,255,0.1)] flex justify-between items-center px-6 h-16 w-full">
+<div class="flex items-center gap-4">
+<span class="material-symbols-outlined text-[#b89fff]" data-icon="menu">menu</span>
+<div class="flex items-center gap-2">
+<span class="text-xl font-black tracking-tighter text-[#b89fff] font-['Space_Grotesk'] uppercase">Digital Atelier</span>
+</div>
+</div>
+<div class="hidden md:flex gap-8 items-center">
+<a class="text-[#adaaaa] font-['Space_Grotesk'] text-sm uppercase tracking-tight font-bold hover:bg-[#262626] transition-colors duration-300 px-3 py-1 rounded" href="#">Inicio</a>
+<a class="text-[#adaaaa] font-['Space_Grotesk'] text-sm uppercase tracking-tight font-bold hover:bg-[#262626] transition-colors duration-300 px-3 py-1 rounded" href="#">Currículo</a>
+<a class="text-[#00e3fd] font-['Space_Grotesk'] text-sm uppercase tracking-tight font-bold px-3 py-1 rounded bg-[#262626]" href="#">Inscribirse</a>
+</div>
+<button class="text-[#b89fff] font-['Space_Grotesk'] tracking-tight font-bold uppercase text-xs border border-[#b89fff]/30 px-4 py-2 hover:bg-[#b89fff]/10 transition-all duration-300 active:scale-95 duration-200">
+            INGRESAR
+        </button>
+</nav>
+<!-- Main Content Canvas -->
+<main class="pt-24 pb-32 px-4 max-w-6xl mx-auto min-h-screen grid grid-cols-1 lg:grid-cols-12 gap-12 items-start">
+<!-- Left Column: Context & Imagery -->
+<div class="lg:col-span-5 space-y-8">
+<div class="relative overflow-hidden rounded-xl bg-surface-container-low aspect-[4/5] shadow-2xl">
+<img class="absolute inset-0 w-full h-full object-cover mix-blend-luminosity opacity-60" data-alt="Technical digital pattern drafting software interface on a dark screen with vibrant neon blue and purple construction lines" src="https://lh3.googleusercontent.com/aida-public/AB6AXuCnS52Hp03j2_OsRioSxcxzzqogx6NXxFp8XwqNGMQ9WdaEn1uXQqle6Ecs0uhGt1DT2csOVib9pmvuwxfua4Wo9c2TuSjuJ8koF6DVLwgmTD5dIdpEVT44-rnXWrKKs-eS5wY-ecjqnct3BQcy-dSWKKlgtPeSJLfCOWVnfkFEyudYOXXVuFr-JcNFnbXIzkW8EDdcvOxX-fLhiGNcSmpk1ztf3roJokrBaZMvYnFJUCe-gwIiaVvj58GUPcvQ9O5RkiLGxbbuwN0"/>
+<div class="absolute inset-0 bg-gradient-to-t from-background via-transparent to-transparent"></div>
+<div class="absolute bottom-8 left-8 right-8">
+<div class="inline-flex items-center gap-2 px-3 py-1 bg-secondary text-on-secondary rounded-full text-[10px] font-bold font-headline uppercase tracking-widest mb-4">
+<span class="material-symbols-outlined text-[14px]" style="font-variation-settings: 'FILL' 1;">timer</span>
+                        Sesión técnica en vivo
+                    </div>
+<h2 class="font-headline text-4xl font-bold tracking-tight text-white leading-tight mb-2">
+                        Dominio Digital de la <span class="text-primary italic">Alta Costura</span>
+</h2>
+<p class="text-on-surface-variant text-sm font-body leading-relaxed">
+                        Accede a las herramientas de precisión utilizadas por las casas de moda internacionales. Aprende modelado 2D y 3D avanzado.
+                    </p>
+</div>
+</div>
+<!-- Urgent Alert -->
+<div class="bg-error-container/20 border-l-2 border-error p-6 rounded-r-lg">
+<div class="flex items-start gap-4">
+<span class="material-symbols-outlined text-error" data-icon="bolt" style="font-variation-settings: 'FILL' 1;">bolt</span>
+<div>
+<h4 class="font-headline text-error font-bold text-sm uppercase tracking-wider">Alerta de Disponibilidad</h4>
+<p class="text-on-error-container text-sm mt-1">¡No pierdas esta oportunidad, cupos volando! Solo quedan 4 espacios para la cohorte de este mes.</p>
+</div>
+</div>
+</div>
+</div>
+<!-- Right Column: Enrollment Form -->
+<div class="lg:col-span-7">
+<div class="bg-surface-container rounded-xl p-8 lg:p-12 shadow-2xl relative overflow-hidden">
+<!-- Decorative element -->
+<div class="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl rounded-full -mr-16 -mt-16"></div>
+<header class="mb-10">
+<h1 class="font-headline text-5xl font-extrabold tracking-tighter text-white uppercase mb-2">
+                        Asegura tu <span class="text-secondary text-glow-secondary">cupo limitado</span>
+</h1>
+<div class="h-1 w-24 bg-gradient-to-r from-secondary to-transparent"></div>
+</header>
+<form class="space-y-6">
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Full Name -->
+<div class="space-y-2">
+<label class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-medium">Nombre Completo</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="person">person</span>
+<input class="w-full bg-surface-container-highest border-none rounded-md py-4 pl-12 pr-4 text-on-surface font-body placeholder:text-outline/50 transition-all duration-200" placeholder="Ej. Julian Sanchez" type="text"/>
+</div>
+</div>
+<!-- Level Selection -->
+<div class="space-y-2">
+<label class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-medium">Nivel de Experiencia</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="layers">layers</span>
+<select class="w-full bg-surface-container-highest border-none rounded-md py-4 pl-12 pr-4 text-on-surface font-body appearance-none transition-all duration-200">
+<option value="beginner">Principiante</option>
+<option value="advanced">Avanzado</option>
+</select>
+</div>
+</div>
+</div>
+<div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+<!-- Email -->
+<div class="space-y-2">
+<label class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-medium">Correo Electrónico</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="mail">mail</span>
+<input class="w-full bg-surface-container-highest border-none rounded-md py-4 pl-12 pr-4 text-on-surface font-body placeholder:text-outline/50 transition-all duration-200" placeholder="julian@atelier.com" type="email"/>
+</div>
+</div>
+<!-- WhatsApp -->
+<div class="space-y-2">
+<label class="font-label text-[10px] uppercase tracking-widest text-on-surface-variant font-medium">WhatsApp</label>
+<div class="relative">
+<span class="material-symbols-outlined absolute left-4 top-1/2 -translate-y-1/2 text-outline text-lg" data-icon="chat">chat</span>
+<input class="w-full bg-surface-container-highest border-none rounded-md py-4 pl-12 pr-4 text-on-surface font-body placeholder:text-outline/50 transition-all duration-200" placeholder="+57 300 000 0000" type="tel"/>
+</div>
+</div>
+</div>
+<!-- Summary Card -->
+<div class="mt-10 p-6 bg-surface-container-low rounded-lg border border-outline-variant/10">
+<div class="flex justify-between items-center mb-4">
+<span class="font-label text-xs uppercase tracking-widest text-on-surface-variant">Resumen de Matrícula</span>
+<span class="text-[10px] bg-secondary/10 text-secondary px-2 py-0.5 rounded font-bold uppercase">Pago Único</span>
+</div>
+<div class="flex justify-between items-end">
+<div>
+<h3 class="text-xl font-headline font-bold text-white">Curso de Audaces</h3>
+<p class="text-[10px] text-outline uppercase tracking-tight">Incluye Certificación &amp; Librería Digital</p>
+</div>
+<div class="text-right">
+<span class="text-3xl font-headline font-black text-secondary tracking-tighter">$400.000</span>
+</div>
+</div>
+</div>
+<!-- CTA -->
+<button class="w-full bg-gradient-to-r from-primary to-primary-container text-on-primary py-5 rounded-md font-headline font-bold uppercase tracking-[0.2em] shadow-[0_10px_30px_rgba(184,159,255,0.2)] hover:shadow-[0_15px_40px_rgba(184,159,255,0.3)] transition-all duration-300 active:scale-[0.98] group flex justify-center items-center gap-3" type="submit">
+                        Completar Inscripción
+                        <span class="material-symbols-outlined group-hover:translate-x-1 transition-transform" data-icon="arrow_forward">arrow_forward</span>
+</button>
+</form>
+<footer class="mt-8 pt-6 border-t border-outline-variant/10 text-center">
+<p class="text-[10px] font-label text-outline uppercase tracking-widest">
+                        Transacción segura encriptada por AES-256
+                    </p>
+</footer>
+</div>
+</div>
+</main>
+<!-- Detailed Footer -->
+<footer class="w-full py-12 px-6 bg-[#0e0e0e] border-t border-[#484847]/15">
+<div class="flex flex-col md:flex-row justify-between items-center gap-8 max-w-7xl mx-auto">
+<div class="flex items-center gap-2">
+<span class="material-symbols-outlined text-[#b89fff]" data-icon="architecture">architecture</span>
+<span class="text-[#b89fff] font-bold font-['Space_Grotesk'] text-xs uppercase tracking-widest">Digital Atelier</span>
+</div>
+<div class="flex flex-wrap justify-center gap-6">
+<a class="font-['Space_Grotesk'] text-xs uppercase tracking-widest text-[#adaaaa] hover:text-[#b89fff] transition-colors opacity-80 hover:opacity-100" href="#">Privacidad</a>
+<a class="font-['Space_Grotesk'] text-xs uppercase tracking-widest text-[#adaaaa] hover:text-[#b89fff] transition-colors opacity-80 hover:opacity-100" href="#">Términos</a>
+<a class="font-['Space_Grotesk'] text-xs uppercase tracking-widest text-[#adaaaa] hover:text-[#b89fff] transition-colors opacity-80 hover:opacity-100" href="#">Contacto</a>
+<a class="font-['Space_Grotesk'] text-xs uppercase tracking-widest text-[#adaaaa] hover:text-[#b89fff] transition-colors opacity-80 hover:opacity-100" href="#">Soporte</a>
+</div>
+<p class="font-['Space_Grotesk'] text-xs uppercase tracking-widest text-[#adaaaa]">
+                © 2024 Digital Atelier. Diseñado para la precisión.
+            </p>
+</div>
+</footer>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="md:hidden fixed bottom-0 left-0 w-full z-50 bg-[#1a1a1a]/70 backdrop-blur-xl flex justify-around items-center h-20 px-4 pb-safe border-t border-[#484847]/15">
+<a class="flex flex-col items-center justify-center text-[#adaaaa] px-3 py-1 hover:text-[#b89fff] active:translate-y-0.5 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="home">home</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium mt-1">Inicio</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#adaaaa] px-3 py-1 hover:text-[#b89fff] active:translate-y-0.5 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="tactic">tactic</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium mt-1">Currículo</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#adaaaa] px-3 py-1 hover:text-[#b89fff] active:translate-y-0.5 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="star">star</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium mt-1">Beneficios</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#00e3fd] bg-[#262626] rounded-md px-3 py-1 active:translate-y-0.5 transition-transform" href="#">
+<span class="material-symbols-outlined" data-icon="payments">payments</span>
+<span class="font-['Space_Grotesk'] text-[10px] uppercase tracking-widest font-medium mt-1">Inscribirse</span>
+</a>
+</nav>
+</body></html>
