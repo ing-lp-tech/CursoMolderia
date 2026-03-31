@@ -29,14 +29,28 @@ export default function LoginPage() {
       return;
     }
 
-    // Chequeamos admin por email (lista env) o metadatos de auth — sin consulta extra a DB
+    // Chequeamos admin por email (lista env), metadatos de auth o tabla perfiles
     const userEmail = data?.user?.email?.toLowerCase() || '';
     const metaRol = data?.user?.user_metadata?.rol;
-    const isAdmin = metaRol === 'admin' || ADMIN_EMAILS.includes(userEmail);
+    
+    // Traemos el perfil de la DB rápido para ver el rol real
+    let dbRol = null;
+    try {
+      const { data: perfilData } = await import('../lib/supabase').then(m => m.supabase)
+        .from('perfiles').select('rol').eq('id', data.user.id).single();
+      dbRol = perfilData?.rol;
+    } catch (err) {
+      // Ignorar
+    }
+
+    const isUserAdmin = metaRol === 'admin' || dbRol === 'admin' || ADMIN_EMAILS.includes(userEmail);
     setLoading(false);
 
-    if (isAdmin) navigate('/admin');
-    else navigate('/portal');
+    if (isUserAdmin) {
+      navigate('/admin');
+    } else {
+      navigate('/portal');
+    }
   }
 
   return (
