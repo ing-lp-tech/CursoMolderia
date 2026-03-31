@@ -164,70 +164,77 @@ export default function TablreroKanban() {
 
   // Guardar en localStorage cada vez que cambia el estado
   useEffect(() => {
+    console.log('[Tablero] Estado actualizado, preparando sync...', 'Tasks:', tasks.length);
     saveLocal(columns, tasks);
+    
     // Intentar sincronizar con Supabase (debounced)
     clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
+      console.log('[Tablero] Timer finalizado, llamando a syncToSupabase...');
       syncToSupabase(columns, tasks);
     }, 1000);
   }, [columns, tasks]);
 
   // ── Supabase sync (background, no bloquea UI) ────────────────────
   async function loadFromSupabase() {
+    console.log('[Tablero] Ejecutando loadFromSupabase()');
     setSyncStatus('syncing');
     try {
-      // AbortSignal con timeout de 10 segundos
-      const ac = new AbortController();
-      const tid = setTimeout(() => ac.abort(), 10000);
-
       const { data: resData, error } = await supabase
         .from('kanban_state')
         .select('data')
         .eq('id', 1)
-        .single()
-        .abortSignal(ac.signal);
+        .single();
         
-      clearTimeout(tid);
-
       if (!isMountedRef.current) return;
-      if (error) throw error;
+      if (error) {
+        console.error('[Tablero] loadFromSupabase Error:', error);
+        setSyncStatus(`Error: ${error.message}`);
+        return;
+      }
 
       if (resData && resData.data) {
+        console.log('[Tablero] Datos recebidos de Supabase (load)', resData.data);
         const parsed = resData.data;
         if (parsed.columns && parsed.columns.length > 0) {
-          setColumns(parsed.columns);
-          setTasks(parsed.tasks || []);
-          saveLocal(parsed.columns, parsed.tasks || []);
+          // NO sobreescribimos si hay mas tareas en local - EVITAR REGRESIONES
+          if ((parsed.tasks || []).length >= tasks.length) {
+              setColumns(parsed.columns);
+              setTasks(parsed.tasks || []);
+              saveLocal(parsed.columns, parsed.tasks || []);
+          }
         }
       }
       setSyncStatus('ok');
     } catch (err) {
-      console.warn('[Tablero] Supabase no disponible, usando datos locales:', err?.message);
-      if (isMountedRef.current) setSyncStatus('error');
+      console.error('[Tablero] Exception en loadFromSupabase', err);
+      if (isMountedRef.current) setSyncStatus(`Exception: ${err?.message}`);
     }
   }
 
   async function syncToSupabase(cols, tsks) {
-    // Sync silencioso a Supabase - falla silenciosamente
+    console.log('[Tablero] syncToSupabase iniciado... columnas:', cols.length, 'tareas:', tsks.length);
     try {
-      const ac = new AbortController();
-      const tid = setTimeout(() => ac.abort(), 8000);
-      const { error } = await supabase
+      setSyncStatus('syncing');
+      console.log('[Tablero] Disparando supabase.update() a kanban_state');
+      const { error, status } = await supabase
         .from('kanban_state')
-        .upsert({ id: 1, data: { columns: cols, tasks: tsks } })
-        .abortSignal(ac.signal);
-      clearTimeout(tid);
+        .update({ data: { columns: cols, tasks: tsks } })
+        .eq('id', 1);
+      
+      console.log('[Tablero] Resultado de supabase:', {error, status});
       
       if (!isMountedRef.current) return;
       if (!error) {
         setSyncStatus('ok');
+        console.log('[Tablero] ✅ Sincronización Exitosa');
       } else {
-        console.error('[Tablero] Error sincronizando:', error);
-        setSyncStatus('error');
+        console.error('[Tablero] ❌ Error devolviendo Supabase:', error);
+        setSyncStatus(`Sync Error: ${error.message || 'Desconocido'}`);
       }
     } catch (e) {
-      console.error('[Tablero] Exception sincronizando:', e);
-      if (isMountedRef.current) setSyncStatus('error');
+      console.error('[Tablero] 🔥 Exception grave en syncToSupabase:', e);
+      if (isMountedRef.current) setSyncStatus(`Sync Code Error: ${e.message}`);
     }
   }
 
@@ -283,8 +290,8 @@ export default function TablreroKanban() {
 
   const COLORS = ['#b89fff', '#00e3fd', '#ff51fa', '#f59e0b', '#22d3a0', '#f87171', '#60a5fa', '#a3e635'];
 
-  const syncIcon = syncStatus === 'syncing' ? 'sync' : syncStatus === 'ok' ? 'cloud_done' : syncStatus === 'error' ? 'cloud_off' : 'cloud';
-  const syncColor = syncStatus === 'ok' ? 'text-primary' : syncStatus === 'error' ? 'text-on-surface-variant' : 'text-on-surface-variant';
+  const syncIcon = syncStatus === 'syncing' ? 'sync' : syncStatus === 'ok' ? 'cloud_done' : 'cloud_off';
+  const syncColor = syncStatus === 'ok' ? 'text-primary' : (syncStatus !== 'idle' && syncStatus !== 'syncing' ? 'text-error hover:text-red-400 cursor-help' : 'text-on-surface-variant');
 
   return (
     <div className="h-full flex flex-col">
@@ -300,6 +307,9 @@ export default function TablreroKanban() {
               <span className={`material-symbols-outlined text-xs ${syncStatus === 'syncing' ? 'animate-spin' : ''}`}>
                 {syncIcon}
               </span>
+              {syncStatus !== 'ok' && syncStatus !== 'idle' && syncStatus !== 'syncing' && (
+                <span className="max-w-[150px] truncate text-[10px]">{syncStatus}</span>
+              )}
             </span>
           </div>
         </div>
