@@ -71,7 +71,7 @@ export default function AdminLayout() {
       {sidebarOpen && <div className="fixed inset-0 bg-black/50 z-30 lg:hidden" onClick={() => setSidebarOpen(false)} />}
 
       {/* Main content */}
-      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen">
+      <div className="flex-1 lg:ml-64 flex flex-col min-h-screen min-w-0 overflow-x-hidden">
         {/* Top bar */}
         <header className="h-16 bg-surface-container border-b border-outline-variant/20 flex items-center justify-between px-6 sticky top-0 z-20">
           <button onClick={() => setSidebarOpen(true)} className="lg:hidden text-on-surface-variant">
@@ -92,7 +92,7 @@ export default function AdminLayout() {
           </div>
         </header>
 
-        <main className="flex-1 p-6">
+        <main className="flex-1 p-6 overflow-auto">
           <Outlet />
         </main>
       </div>

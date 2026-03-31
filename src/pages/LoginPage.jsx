@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
 
 // Obtenemos los admins desde las variables de entorno
 const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
@@ -30,25 +29,10 @@ export default function LoginPage() {
       return;
     }
 
-    // Chequeamos admin por email, metadatos, o tabla perfiles
+    // Chequeamos admin por email (lista env) o metadatos de auth — sin consulta extra a DB
     const userEmail = data?.user?.email?.toLowerCase() || '';
     const metaRol = data?.user?.user_metadata?.rol;
-    let isDbAdmin = false;
-
-    if (data?.user?.id) {
-      try {
-        const { data: profile } = await supabase
-          .from('perfiles')
-          .select('rol')
-          .eq('id', data.user.id)
-          .single();
-        if (profile?.rol === 'admin') isDbAdmin = true;
-      } catch (e) {
-        // Ignorar si falla por RLS o si no existe
-      }
-    }
-
-    const isAdmin = metaRol === 'admin' || ADMIN_EMAILS.includes(userEmail) || isDbAdmin;
+    const isAdmin = metaRol === 'admin' || ADMIN_EMAILS.includes(userEmail);
     setLoading(false);
 
     if (isAdmin) navigate('/admin');

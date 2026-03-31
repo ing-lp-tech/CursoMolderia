@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { supabase } from '../../lib/supabase';
 
-const STORAGE_KEY = 'da_kanban_v1';
+const LS_KEY = 'molditex_kanban_v2';
+
 const PRIORIDAD_COLOR = {
   baja: 'bg-outline/20 text-on-surface-variant',
   normal: 'bg-primary/20 text-primary',
@@ -8,36 +10,41 @@ const PRIORIDAD_COLOR = {
   urgente: 'bg-error/20 text-error',
 };
 
-function uid() {
-  return Math.random().toString(36).slice(2, 10);
-}
-
 const DEFAULT_COLUMNS = [
-  { id: uid(), titulo: 'Por Hacer', color: '#b89fff' },
-  { id: uid(), titulo: 'En Proceso', color: '#00e3fd' },
-  { id: uid(), titulo: 'Revisión', color: '#ff51fa' },
-  { id: uid(), titulo: 'Completado', color: '#22d3a0' },
+  { id: 'col-1', titulo: 'Por Hacer', color: '#b89fff' },
+  { id: 'col-2', titulo: 'En Proceso', color: '#00e3fd' },
+  { id: 'col-3', titulo: 'Revisión', color: '#ff51fa' },
+  { id: 'col-4', titulo: 'Completado', color: '#22d3a0' },
 ];
 
-function loadState() {
+function uid() { return 'k-' + Math.random().toString(36).slice(2, 10); }
+
+function loadLocal() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) return JSON.parse(raw);
+    const raw = localStorage.getItem(LS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (parsed?.columns?.length > 0) return parsed;
+    }
   } catch {}
   return { columns: DEFAULT_COLUMNS, tasks: [] };
 }
 
-function saveState(columns, tasks) {
-  localStorage.setItem(STORAGE_KEY, JSON.stringify({ columns, tasks }));
+function saveLocal(columns, tasks) {
+  try { localStorage.setItem(LS_KEY, JSON.stringify({ columns, tasks })); } catch {}
 }
 
-// ── Task Card ──────────────────────────────────────────────────────────────
-function TaskCard({ task, onEdit, onDelete, onDragStart, onDragEnd }) {
+// ── Task Card ────────────────────────────────────────────────────────────────
+function TaskCard({ task, onEdit, onDelete, onDragStart }) {
+  const prioridad = task.prioridad || 'normal';
+  const etiquetas = Array.isArray(task.etiquetas)
+    ? task.etiquetas
+    : (task.etiqueta ? [task.etiqueta] : []);
+
   return (
     <div
       draggable
       onDragStart={() => onDragStart(task)}
-      onDragEnd={onDragEnd}
       className="bg-surface-container-high border border-outline-variant/20 rounded-xl p-3 cursor-grab active:cursor-grabbing hover:border-primary/30 transition-all group shadow-sm"
     >
       <div className="flex items-start justify-between gap-1 mb-2">
@@ -51,48 +58,39 @@ function TaskCard({ task, onEdit, onDelete, onDragStart, onDragEnd }) {
           </button>
         </div>
       </div>
-
       {task.descripcion && (
         <p className="text-xs text-on-surface-variant mb-2 line-clamp-2">{task.descripcion}</p>
       )}
-
       <div className="flex items-center gap-1.5 flex-wrap">
-        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${PRIORIDAD_COLOR[task.prioridad]}`}>
-          {task.prioridad}
+        <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${PRIORIDAD_COLOR[prioridad]}`}>
+          {prioridad}
         </span>
-        {task.etiqueta && (
-          <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-tertiary/20 text-tertiary">
-            {task.etiqueta}
+        {etiquetas.map((et, i) => (
+          <span key={i} className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-tertiary/20 text-tertiary">
+            {et}
           </span>
-        )}
-        {task.fecha_limite && (
-          <span className="text-[9px] font-bold text-on-surface-variant flex items-center gap-0.5 ml-auto">
-            <span className="material-symbols-outlined text-[11px]">calendar_today</span>
-            {new Date(task.fecha_limite + 'T00:00').toLocaleDateString('es', { day: '2-digit', month: 'short' })}
-          </span>
-        )}
+        ))}
       </div>
     </div>
   );
 }
 
-// ── Column ──────────────────────────────────────────────────────────────────
-function Column({ col, tasks, onAddTask, onEditCol, onDeleteCol, onEditTask, onDeleteTask, onDragStart, onDragEnd, onDrop }) {
+// ── Column ───────────────────────────────────────────────────────────────────
+function Column({ col, tasks, onAddTask, onEditCol, onEditTask, onDeleteTask, onDragStart, onDrop }) {
   const [isOver, setIsOver] = useState(false);
   const [addingTask, setAddingTask] = useState(false);
   const [quickTitle, setQuickTitle] = useState('');
   const inputRef = useRef(null);
 
-  useEffect(() => {
-    if (addingTask) inputRef.current?.focus();
-  }, [addingTask]);
+  useEffect(() => { if (addingTask) inputRef.current?.focus(); }, [addingTask]);
 
   function handleQuickAdd(e) {
     e.preventDefault();
-    if (!quickTitle.trim()) { setAddingTask(false); return; }
-    onAddTask(col.id, { titulo: quickTitle.trim() });
+    const title = quickTitle.trim();
+    if (!title) { setAddingTask(false); return; }
     setQuickTitle('');
     setAddingTask(false);
+    onAddTask(col.id, title);
   }
 
   return (
@@ -103,7 +101,6 @@ function Column({ col, tasks, onAddTask, onEditCol, onDeleteCol, onEditTask, onD
       onDragLeave={() => setIsOver(false)}
       onDrop={() => { setIsOver(false); onDrop(col.id); }}
     >
-      {/* Column header */}
       <div className="flex items-center gap-2 px-3 py-3 border-b border-outline-variant/20">
         <div className="w-3 h-3 rounded-full shrink-0" style={{ background: col.color }} />
         <h3 className="font-headline font-bold text-sm flex-1 truncate">{col.titulo}</h3>
@@ -113,46 +110,27 @@ function Column({ col, tasks, onAddTask, onEditCol, onDeleteCol, onEditTask, onD
         </button>
       </div>
 
-      {/* Tasks */}
       <div className="flex-1 p-2 space-y-2 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 280px)' }}>
         {tasks.map(task => (
-          <TaskCard
-            key={task.id}
-            task={task}
-            onEdit={onEditTask}
-            onDelete={onDeleteTask}
-            onDragStart={onDragStart}
-            onDragEnd={onDragEnd}
-          />
+          <TaskCard key={task.id} task={task} onEdit={onEditTask} onDelete={onDeleteTask} onDragStart={onDragStart} />
         ))}
-
-        {isOver && (
-          <div className="h-16 border-2 border-dashed border-primary/40 rounded-xl bg-primary/5" />
-        )}
+        {isOver && <div className="h-16 border-2 border-dashed border-primary/40 rounded-xl bg-primary/5" />}
       </div>
 
-      {/* Quick add */}
       <div className="p-2 border-t border-outline-variant/10">
         {addingTask ? (
           <form onSubmit={handleQuickAdd} className="space-y-2">
-            <input
-              ref={inputRef}
-              value={quickTitle}
-              onChange={e => setQuickTitle(e.target.value)}
+            <input ref={inputRef} value={quickTitle} onChange={e => setQuickTitle(e.target.value)}
               onKeyDown={e => e.key === 'Escape' && setAddingTask(false)}
-              placeholder="Título de la tarea..."
-              className="input-field text-sm py-2"
-            />
+              placeholder="Título de la tarea..." className="input-field text-sm py-2" />
             <div className="flex gap-2">
               <button type="submit" className="btn-primary py-1 px-3 text-xs flex-1">Agregar</button>
               <button type="button" onClick={() => setAddingTask(false)} className="btn-secondary py-1 px-3 text-xs">✕</button>
             </div>
           </form>
         ) : (
-          <button
-            onClick={() => setAddingTask(true)}
-            className="flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface w-full p-2 rounded-lg hover:bg-surface-variant transition-all text-xs font-bold uppercase tracking-wide"
-          >
+          <button onClick={() => setAddingTask(true)}
+            className="flex items-center gap-1.5 text-on-surface-variant hover:text-on-surface w-full p-2 rounded-lg hover:bg-surface-variant transition-all text-xs font-bold uppercase tracking-wide">
             <span className="material-symbols-outlined text-base">add</span>
             Agregar tarea
           </button>
@@ -162,44 +140,109 @@ function Column({ col, tasks, onAddTask, onEditCol, onDeleteCol, onEditTask, onD
   );
 }
 
-// ── Main Board ──────────────────────────────────────────────────────────────
+// ── Main Board ───────────────────────────────────────────────────────────────
 export default function TablreroKanban() {
-  const [columns, setColumns] = useState([]);
-  const [tasks, setTasks] = useState([]);
+  // Carga instantánea desde localStorage (sin esperar a Supabase)
+  const initial = loadLocal();
+  const [columns, setColumns] = useState(initial.columns);
+  const [tasks, setTasks] = useState(initial.tasks);
   const [dragging, setDragging] = useState(null);
   const [mobileColIdx, setMobileColIdx] = useState(0);
   const [taskModal, setTaskModal] = useState(null);
   const [colModal, setColModal] = useState(null);
   const [isNewCol, setIsNewCol] = useState(false);
+  const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'ok' | 'error'
+  const syncTimerRef = useRef(null);
+  const isMountedRef = useRef(true);
 
-  // Load from localStorage
   useEffect(() => {
-    const { columns: c, tasks: t } = loadState();
-    setColumns(c);
-    setTasks(t);
+    isMountedRef.current = true;
+    // Intentar cargar desde Supabase en background (no bloquea la UI)
+    loadFromSupabase();
+    return () => { isMountedRef.current = false; };
   }, []);
 
-  // Save on change
+  // Guardar en localStorage cada vez que cambia el estado
   useEffect(() => {
-    if (columns.length > 0 || tasks.length > 0) saveState(columns, tasks);
+    saveLocal(columns, tasks);
+    // Intentar sincronizar con Supabase (debounced)
+    clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      syncToSupabase(columns, tasks);
+    }, 1000);
   }, [columns, tasks]);
 
-  // ── Tasks CRUD ──────────────────────────────────────────────
-  function addTask(colId, partial) {
-    const task = {
-      id: uid(),
-      columna_id: colId,
-      titulo: partial.titulo || 'Nueva tarea',
-      descripcion: '',
-      prioridad: 'normal',
-      etiqueta: '',
-      fecha_limite: '',
-    };
+  // ── Supabase sync (background, no bloquea UI) ────────────────────
+  async function loadFromSupabase() {
+    setSyncStatus('syncing');
+    try {
+      // AbortSignal con timeout de 10 segundos
+      const ac = new AbortController();
+      const tid = setTimeout(() => ac.abort(), 10000);
+
+      const { data: resData, error } = await supabase
+        .from('kanban_state')
+        .select('data')
+        .eq('id', 1)
+        .single()
+        .abortSignal(ac.signal);
+        
+      clearTimeout(tid);
+
+      if (!isMountedRef.current) return;
+      if (error) throw error;
+
+      if (resData && resData.data) {
+        const parsed = resData.data;
+        if (parsed.columns && parsed.columns.length > 0) {
+          setColumns(parsed.columns);
+          setTasks(parsed.tasks || []);
+          saveLocal(parsed.columns, parsed.tasks || []);
+        }
+      }
+      setSyncStatus('ok');
+    } catch (err) {
+      console.warn('[Tablero] Supabase no disponible, usando datos locales:', err?.message);
+      if (isMountedRef.current) setSyncStatus('error');
+    }
+  }
+
+  async function syncToSupabase(cols, tsks) {
+    // Sync silencioso a Supabase - falla silenciosamente
+    try {
+      const ac = new AbortController();
+      const tid = setTimeout(() => ac.abort(), 8000);
+      const { error } = await supabase
+        .from('kanban_state')
+        .upsert({ id: 1, data: { columns: cols, tasks: tsks } })
+        .abortSignal(ac.signal);
+      clearTimeout(tid);
+      
+      if (!isMountedRef.current) return;
+      if (!error) {
+        setSyncStatus('ok');
+      } else {
+        console.error('[Tablero] Error sincronizando:', error);
+        setSyncStatus('error');
+      }
+    } catch (e) {
+      console.error('[Tablero] Exception sincronizando:', e);
+      if (isMountedRef.current) setSyncStatus('error');
+    }
+  }
+
+  // ── Tasks CRUD ───────────────────────────────────────────────────
+  function addTask(colId, titulo) {
+    const task = { id: uid(), columna_id: colId, titulo, descripcion: '', prioridad: 'normal', etiquetas: [] };
     setTasks(prev => [...prev, task]);
   }
 
   function saveTask(task) {
-    setTasks(prev => prev.map(t => t.id === task.id ? task : t));
+    const { etiquetaInput, ...rest } = task;
+    if (etiquetaInput !== undefined) {
+      rest.etiquetas = etiquetaInput ? etiquetaInput.split(',').map(s => s.trim()).filter(Boolean) : [];
+    }
+    setTasks(prev => prev.map(t => t.id === rest.id ? rest : t));
     setTaskModal(null);
   }
 
@@ -208,7 +251,13 @@ export default function TablreroKanban() {
     setTaskModal(null);
   }
 
-  // ── Columns CRUD ────────────────────────────────────────────
+  function handleDrop(colId) {
+    if (!dragging) return;
+    setTasks(prev => prev.map(t => t.id === dragging.id ? { ...t, columna_id: colId } : t));
+    setDragging(null);
+  }
+
+  // ── Columns CRUD ─────────────────────────────────────────────────
   function openNewCol() {
     setIsNewCol(true);
     setColModal({ id: uid(), titulo: '', color: '#b89fff' });
@@ -232,71 +281,64 @@ export default function TablreroKanban() {
     setIsNewCol(false);
   }
 
-  // ── Drag & Drop ─────────────────────────────────────────────
-  function handleDrop(colId) {
-    if (!dragging) return;
-    setTasks(prev => prev.map(t => t.id === dragging.id ? { ...t, columna_id: colId } : t));
-    setDragging(null);
-  }
-
   const COLORS = ['#b89fff', '#00e3fd', '#ff51fa', '#f59e0b', '#22d3a0', '#f87171', '#60a5fa', '#a3e635'];
+
+  const syncIcon = syncStatus === 'syncing' ? 'sync' : syncStatus === 'ok' ? 'cloud_done' : syncStatus === 'error' ? 'cloud_off' : 'cloud';
+  const syncColor = syncStatus === 'ok' ? 'text-primary' : syncStatus === 'error' ? 'text-on-surface-variant' : 'text-on-surface-variant';
 
   return (
     <div className="h-full flex flex-col">
       {/* Header */}
-      <div className="flex items-center justify-between mb-6 shrink-0">
+      <div className="flex items-center justify-between mb-6 shrink-0 flex-wrap gap-3">
         <div>
           <h2 className="font-headline text-2xl font-bold">Tablero de Tareas</h2>
-          <p className="text-on-surface-variant text-sm">{tasks.length} tarea{tasks.length !== 1 ? 's' : ''} · {columns.length} columna{columns.length !== 1 ? 's' : ''}</p>
+          <div className="flex items-center gap-2">
+            <p className="text-on-surface-variant text-sm">
+              {tasks.length} tarea{tasks.length !== 1 ? 's' : ''} · {columns.length} columna{columns.length !== 1 ? 's' : ''}
+            </p>
+            <span className={`flex items-center gap-1 text-xs ${syncColor}`} title={syncStatus}>
+              <span className={`material-symbols-outlined text-xs ${syncStatus === 'syncing' ? 'animate-spin' : ''}`}>
+                {syncIcon}
+              </span>
+            </span>
+          </div>
         </div>
-        <div className="flex gap-2">
-          <button onClick={openNewCol} className="btn-secondary flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">view_column</span>
-            Nueva Columna
-          </button>
-        </div>
+        <button onClick={openNewCol} className="btn-secondary flex items-center gap-2">
+          <span className="material-symbols-outlined text-sm">view_column</span>
+          Nueva Columna
+        </button>
       </div>
 
-      {/* Board */}
       {columns.length === 0 ? (
         <div className="flex-1 flex flex-col items-center justify-center text-center gap-4 text-on-surface-variant">
           <span className="material-symbols-outlined text-6xl">view_kanban</span>
           <p className="font-headline text-xl font-bold">Tu tablero está vacío</p>
-          <p className="text-sm">Creá tu primera columna para empezar a organizar tus tareas.</p>
+          <p className="text-sm">Creá tu primera columna para organizar tus tareas.</p>
           <button onClick={openNewCol} className="btn-primary flex items-center gap-2">
-            <span className="material-symbols-outlined text-sm">add</span>
-            Crear primera columna
+            <span className="material-symbols-outlined text-sm">add</span>Crear primera columna
           </button>
         </div>
       ) : (
         <>
-          {/* ── Mobile: tab column switcher ── */}
+          {/* Mobile tabs */}
           <div className="md:hidden mb-3">
             <div className="flex gap-2 overflow-x-auto pb-1">
               {columns.map((col, idx) => (
-                <button
-                  key={col.id}
-                  onClick={() => setMobileColIdx(idx)}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all ${
-                    mobileColIdx === idx
-                      ? 'text-black'
-                      : 'bg-surface-variant text-on-surface-variant hover:bg-surface-container-high'
-                  }`}
-                  style={mobileColIdx === idx ? { background: col.color } : {}}
-                >
+                <button key={col.id} onClick={() => setMobileColIdx(idx)}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold uppercase tracking-wide whitespace-nowrap transition-all ${mobileColIdx === idx ? 'text-black' : 'bg-surface-variant text-on-surface-variant'}`}
+                  style={mobileColIdx === idx ? { background: col.color } : {}}>
                   <span className="w-2 h-2 rounded-full" style={{ background: mobileColIdx === idx ? 'rgba(0,0,0,0.3)' : col.color }} />
                   {col.titulo}
                   <span className="bg-black/20 px-1 rounded-full">{tasks.filter(t => t.columna_id === col.id).length}</span>
                 </button>
               ))}
             </div>
-            {/* Mobile: navigation arrows + add column */}
             <div className="flex items-center gap-2 mt-2">
-              <button disabled={mobileColIdx === 0} onClick={() => setMobileColIdx(i => i - 1)} className="p-1.5 rounded-lg bg-surface-variant disabled:opacity-30 text-on-surface-variant">
+              <button disabled={mobileColIdx === 0} onClick={() => setMobileColIdx(i => i - 1)} className="p-1.5 rounded-lg bg-surface-variant disabled:opacity-30">
                 <span className="material-symbols-outlined text-base">chevron_left</span>
               </button>
               <span className="text-xs text-on-surface-variant">{mobileColIdx + 1} / {columns.length}</span>
-              <button disabled={mobileColIdx === columns.length - 1} onClick={() => setMobileColIdx(i => i + 1)} className="p-1.5 rounded-lg bg-surface-variant disabled:opacity-30 text-on-surface-variant">
+              <button disabled={mobileColIdx === columns.length - 1} onClick={() => setMobileColIdx(i => i + 1)} className="p-1.5 rounded-lg bg-surface-variant disabled:opacity-30">
                 <span className="material-symbols-outlined text-base">chevron_right</span>
               </button>
               <button onClick={openNewCol} className="ml-auto text-xs text-primary font-bold flex items-center gap-1">
@@ -305,47 +347,29 @@ export default function TablreroKanban() {
             </div>
           </div>
 
-          {/* ── Mobile: single column view ── */}
+          {/* Mobile: single column */}
           <div className="md:hidden flex-1">
             {columns[mobileColIdx] && (
-              <Column
-                col={columns[mobileColIdx]}
-                tasks={tasks.filter(t => t.columna_id === columns[mobileColIdx].id)}
-                onAddTask={addTask}
-                onEditCol={c => { setIsNewCol(false); setColModal(c); }}
-                onDeleteCol={deleteCol}
-                onEditTask={t => setTaskModal({ ...t })}
-                onDeleteTask={deleteTask}
-                onDragStart={t => setDragging(t)}
-                onDragEnd={() => {}}
-                onDrop={handleDrop}
-              />
+              <Column col={columns[mobileColIdx]} tasks={tasks.filter(t => t.columna_id === columns[mobileColIdx].id)}
+                onAddTask={addTask} onEditCol={c => { setIsNewCol(false); setColModal({ ...c }); }}
+                onEditTask={t => setTaskModal({ ...t, etiquetaInput: (t.etiquetas || []).join(', ') })}
+                onDeleteTask={deleteTask} onDragStart={t => setDragging(t)} onDrop={handleDrop} />
             )}
           </div>
 
-          {/* ── Desktop: all columns horizontal ── */}
+          {/* Desktop: all columns */}
           <div className="hidden md:flex gap-4 overflow-x-auto pb-4 flex-1 items-start">
             {columns.map(col => (
               <div key={col.id} style={{ minWidth: 260, maxWidth: 300, flexShrink: 0, width: 280 }}>
-                <Column
-                  col={col}
-                  tasks={tasks.filter(t => t.columna_id === col.id)}
-                  onAddTask={addTask}
-                  onEditCol={c => { setIsNewCol(false); setColModal(c); }}
-                  onDeleteCol={deleteCol}
-                  onEditTask={t => setTaskModal({ ...t })}
-                  onDeleteTask={deleteTask}
-                  onDragStart={t => setDragging(t)}
-                  onDragEnd={() => {}}
-                  onDrop={handleDrop}
-                />
+                <Column col={col} tasks={tasks.filter(t => t.columna_id === col.id)}
+                  onAddTask={addTask} onEditCol={c => { setIsNewCol(false); setColModal({ ...c }); }}
+                  onEditTask={t => setTaskModal({ ...t, etiquetaInput: (t.etiquetas || []).join(', ') })}
+                  onDeleteTask={deleteTask} onDragStart={t => setDragging(t)} onDrop={handleDrop} />
               </div>
             ))}
-            <button
-              onClick={openNewCol}
+            <button onClick={openNewCol}
               className="shrink-0 flex flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-outline-variant/30 hover:border-primary/40 hover:bg-surface-container transition-all text-on-surface-variant hover:text-primary p-6 h-24"
-              style={{ minWidth: 200 }}
-            >
+              style={{ minWidth: 200 }}>
               <span className="material-symbols-outlined">add</span>
               <span className="text-xs font-bold uppercase tracking-wide">Nueva columna</span>
             </button>
@@ -368,28 +392,16 @@ export default function TablreroKanban() {
                 </button>
               </div>
             </div>
-
             <div className="p-6 space-y-4">
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Título</label>
-                <input
-                  required
-                  value={taskModal.titulo}
-                  onChange={e => setTaskModal(p => ({ ...p, titulo: e.target.value }))}
-                  className="input-field"
-                  placeholder="Título de la tarea"
-                  autoFocus
-                />
+                <input required value={taskModal.titulo} onChange={e => setTaskModal(p => ({ ...p, titulo: e.target.value }))}
+                  className="input-field" placeholder="Título de la tarea" autoFocus />
               </div>
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Descripción</label>
-                <textarea
-                  rows={3}
-                  value={taskModal.descripcion}
-                  onChange={e => setTaskModal(p => ({ ...p, descripcion: e.target.value }))}
-                  className="input-field resize-none"
-                  placeholder="Detalles de la tarea..."
-                />
+                <textarea rows={3} value={taskModal.descripcion || ''} onChange={e => setTaskModal(p => ({ ...p, descripcion: e.target.value }))}
+                  className="input-field resize-none" placeholder="Detalles..." />
               </div>
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -400,28 +412,17 @@ export default function TablreroKanban() {
                 </div>
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Prioridad</label>
-                  <select value={taskModal.prioridad} onChange={e => setTaskModal(p => ({ ...p, prioridad: e.target.value }))} className="input-field">
+                  <select value={taskModal.prioridad || 'normal'} onChange={e => setTaskModal(p => ({ ...p, prioridad: e.target.value }))} className="input-field">
                     {['baja', 'normal', 'alta', 'urgente'].map(p => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
               </div>
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Etiqueta</label>
-                  <input
-                    value={taskModal.etiqueta || ''}
-                    onChange={e => setTaskModal(p => ({ ...p, etiqueta: e.target.value }))}
-                    className="input-field"
-                    placeholder="ej: pago, alumno"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Fecha límite</label>
-                  <input type="date" value={taskModal.fecha_limite || ''} onChange={e => setTaskModal(p => ({ ...p, fecha_limite: e.target.value }))} className="input-field" />
-                </div>
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Etiquetas <span className="normal-case font-normal">(separadas por coma)</span></label>
+                <input value={taskModal.etiquetaInput || ''} onChange={e => setTaskModal(p => ({ ...p, etiquetaInput: e.target.value }))}
+                  className="input-field" placeholder="ej: pago, alumno" />
               </div>
             </div>
-
             <div className="flex gap-3 px-6 pb-6">
               <button onClick={() => setTaskModal(null)} className="btn-secondary flex-1">Cancelar</button>
               <button onClick={() => saveTask(taskModal)} className="btn-primary flex-1">Guardar</button>
@@ -440,34 +441,23 @@ export default function TablreroKanban() {
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
-
             <div className="p-6 space-y-5">
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Nombre</label>
-                <input
-                  autoFocus
-                  value={colModal.titulo}
-                  onChange={e => setColModal(p => ({ ...p, titulo: e.target.value }))}
-                  onKeyDown={e => e.key === 'Enter' && saveCol(colModal)}
-                  className="input-field"
-                  placeholder="ej: En Revisión"
-                />
+                <input autoFocus value={colModal.titulo} onChange={e => setColModal(p => ({ ...p, titulo: e.target.value }))}
+                  onKeyDown={e => e.key === 'Enter' && saveCol(colModal)} className="input-field" placeholder="ej: En Revisión" />
               </div>
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-3">Color</label>
                 <div className="flex flex-wrap gap-2">
                   {COLORS.map(c => (
-                    <button
-                      key={c}
-                      onClick={() => setColModal(p => ({ ...p, color: c }))}
+                    <button key={c} onClick={() => setColModal(p => ({ ...p, color: c }))}
                       className={`w-8 h-8 rounded-full transition-all ${colModal.color === c ? 'ring-2 ring-white ring-offset-2 ring-offset-surface-container scale-110' : 'hover:scale-110'}`}
-                      style={{ background: c }}
-                    />
+                      style={{ background: c }} />
                   ))}
                 </div>
               </div>
             </div>
-
             <div className="flex gap-3 px-6 pb-6">
               {!isNewCol && (
                 <button onClick={() => { if (confirm('¿Eliminar columna y sus tareas?')) deleteCol(colModal.id); }} className="text-error hover:bg-error/10 px-3 py-2 rounded-lg transition-colors">
@@ -475,9 +465,7 @@ export default function TablreroKanban() {
                 </button>
               )}
               <button onClick={() => { setColModal(null); setIsNewCol(false); }} className="btn-secondary flex-1">Cancelar</button>
-              <button onClick={() => saveCol(colModal)} className="btn-primary flex-1">
-                {isNewCol ? 'Crear' : 'Guardar'}
-              </button>
+              <button onClick={() => saveCol(colModal)} className="btn-primary flex-1">{isNewCol ? 'Crear' : 'Guardar'}</button>
             </div>
           </div>
         </div>
