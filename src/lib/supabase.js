@@ -9,6 +9,12 @@ if (!supabaseUrl || !supabaseAnonKey) {
   );
 }
 
+// Bypassear el odioso bug de `navigator.locks` en Chrome/Incognito
+// Forzamos a Supabase a usar su gestor de concurrencia en memoria para que no pelee en LocalStorage
+if (typeof window !== 'undefined' && window.navigator && window.navigator.locks) {
+  Object.defineProperty(window.navigator, 'locks', { value: undefined, configurable: true });
+}
+
 export const supabase = createClient(
   supabaseUrl || 'https://placeholder.supabase.co',
   supabaseAnonKey || 'placeholder'

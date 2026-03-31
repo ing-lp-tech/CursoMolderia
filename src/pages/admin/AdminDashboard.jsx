@@ -7,22 +7,52 @@ export default function AdminDashboard() {
   const [pagos_recientes, setPagos] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  const [testMode, setTestMode] = useState(false);
+
   useEffect(() => {
     async function load() {
-      const [{ count: est }, { count: pend }, { data: pagos }, { data: fin }, { count: tareas }] = await Promise.all([
-        supabase.from('perfiles').select('*', { count: 'exact', head: true }).eq('rol', 'estudiante'),
-        supabase.from('pagos').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
-        supabase.from('pagos').select('*, perfiles(nombre, apellido)').order('created_at', { ascending: false }).limit(5),
-        supabase.from('finanzas').select('monto, tipo'),
-        supabase.from('tareas').select('*', { count: 'exact', head: true }),
-      ]);
-      const ingresos = fin?.filter(f => f.tipo === 'ingreso').reduce((a, b) => a + b.monto, 0) || 0;
-      setStats({ estudiantes: est || 0, pagos_pendientes: pend || 0, ingresos, tareas: tareas || 0 });
-      setPagos(pagos || []);
-      setLoading(false);
+      try {
+        const [{ count: est }, { count: pend }, { data: pagos }, { data: fin }, { count: tareas }] = await Promise.all([
+          supabase.from('perfiles').select('*', { count: 'exact', head: true }).eq('rol', 'estudiante'),
+          supabase.from('pagos').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
+          supabase.from('pagos').select('*, perfiles(nombre, apellido)').order('created_at', { ascending: false }).limit(5),
+          supabase.from('finanzas').select('monto, tipo'),
+          supabase.from('tareas').select('*', { count: 'exact', head: true }),
+        ]);
+
+        const ingresos = fin?.filter(f => f.tipo === 'ingreso').reduce((a, b) => a + b.monto, 0) || 0;
+        setStats({ 
+          estudiantes: est || 0, 
+          pagos_pendientes: pend || 0, 
+          ingresos, 
+          tareas: tareas || 0 
+        });
+        setPagos(pagos || []);
+
+        // Load config separately so it doesn't break the whole dashboard if missing
+        const { data: config } = await supabase.from('app_settings').select('value').eq('id', 'test_mode_mp').limit(1);
+        if (config && config.length > 0 && config[0].value === true) {
+          setTestMode(true);
+        }
+      } catch (error) {
+        console.error("Error cargando dashboard:", error);
+      } finally {
+        setLoading(false);
+      }
     }
     load();
   }, []);
+
+  async function toggleTestMode() {
+    const newVal = !testMode;
+    setTestMode(newVal);
+    const { error } = await supabase.from('app_settings').upsert({ id: 'test_mode_mp', value: newVal });
+    if (error) {
+      console.error("Error guardando el botón:", error);
+      alert("Error en Supabase al guardar la config: " + error.message);
+      setTestMode(!newVal); // revert
+    }
+  }
 
   const STAT_CARDS = [
     { label: 'Estudiantes', value: stats.estudiantes, icon: 'school', color: 'text-primary', link: '/admin/estudiantes' },
@@ -33,9 +63,25 @@ export default function AdminDashboard() {
 
   return (
     <div className="space-y-8">
-      <div>
-        <h2 className="font-headline text-2xl font-bold">Bienvenido al Panel Admin</h2>
-        <p className="text-on-surface-variant text-sm mt-1">Todo el control de tu negocio en un solo lugar.</p>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="font-headline text-2xl font-bold">Bienvenido al Panel Admin</h2>
+          <p className="text-on-surface-variant text-sm mt-1">Todo el control de tu negocio en un solo lugar.</p>
+        </div>
+        
+        <div className="flex items-center gap-3 bg-surface-variant px-4 py-2 rounded-xl border border-outline-variant/20">
+          <span className="material-symbols-outlined text-error">bug_report</span>
+          <div className="text-sm">
+            <p className="font-bold">Plan de Prueba ($100)</p>
+            <p className="text-xs text-on-surface-variant">Habilitar en página de inscripción</p>
+          </div>
+          <button 
+            onClick={toggleTestMode}
+            className={`w-12 h-6 ml-2 rounded-full relative transition-colors duration-300 ${testMode ? 'bg-error' : 'bg-outline-variant/30'}`}
+          >
+            <span className={`absolute top-1 left-1 bg-white w-4 h-4 rounded-full transition-transform duration-300 ${testMode ? 'translate-x-6' : 'translate-x-0'}`}></span>
+          </button>
+        </div>
       </div>
 
       {/* Stat Cards */}

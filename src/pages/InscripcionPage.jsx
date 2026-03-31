@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 
 const WAPP = '5491162020911';
@@ -42,6 +42,16 @@ const PLANES = [
     icon: 'account_balance_wallet',
     color: 'border-tertiary',
   },
+  {
+    id: 'prueba_100',
+    label: '⚡ MODO PRUEBA — $100',
+    monto: 100,
+    badge: 'Test Real',
+    badgeColor: 'bg-error/20 text-error',
+    desc: 'Plan exclusivo temporal para probar que MercadoPago descuenta dinero real correctamente.',
+    icon: 'bug_report',
+    color: 'border-error',
+  },
 ];
 
 export default function InscripcionPage() {
@@ -56,11 +66,37 @@ export default function InscripcionPage() {
 
   const planSeleccionado = PLANES.find(p => p.id === form.plan);
 
+  const [testMode, setTestMode] = useState(false);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const isUrlTest = params.get('test') === 'true';
+
+    // Intentamos traerlo de DB (si falla por permisos RLS o red, no rompe)
+    supabase.from('app_settings').select('value').eq('id', 'test_mode_mp').single().then(({data, error}) => {
+      if (data?.value === true || isUrlTest) {
+        setTestMode(true);
+      } else {
+        if (form.plan === 'prueba_100') setForm(prev => ({...prev, plan: 'completo_mp'}));
+      }
+    }).catch(() => {
+      if (isUrlTest) setTestMode(true);
+    });
+
+    if (params.get('status') === 'approved' || params.get('status') === 'success') {
+      setEstado('success');
+    } else if (params.get('status') === 'failure') {
+      setEstado('error');
+      setErrMsg('El pago ha fallado o fue rechazado. Podés intentar nuevamente.');
+    }
+  }, []);
+
   async function handleSubmit(e) {
     e.preventDefault();
     setEstado('loading');
     setErrMsg('');
     try {
+      // 1. Crear el usuario en Supabase
       const { data: authData, error: authErr } = await supabase.auth.signUp({
         email: form.email,
         password: Math.random().toString(36).slice(-10) + 'A1!',
@@ -68,33 +104,44 @@ export default function InscripcionPage() {
           data: { nombre: form.nombre, apellido: form.apellido, telefono: form.telefono, rol: 'estudiante' },
         },
       });
-      if (authErr) throw authErr;
+      if (authErr && !authErr.message.includes('already registered')) throw authErr;
 
-      let comprobante_url = null;
-      if (comprobante && authData.user) {
-        const ext = comprobante.name.split('.').pop();
-        const path = `${authData.user.id}/inscripcion_${Date.now()}.${ext}`;
-        const { error: upErr } = await supabase.storage.from('comprobantes').upload(path, comprobante);
-        if (!upErr) {
-          const { data: urlData } = supabase.storage.from('comprobantes').getPublicUrl(path);
-          comprobante_url = urlData?.publicUrl || null;
-        }
-      }
+      const userId = authData?.user?.id || (await supabase.auth.getUser()).data?.user?.id;
 
-      if (authData.user) {
+      // 2. Pedirle la Preferencia a nuestro servidor Node (Vercel)
+      const res = await fetch('/api/create-preference', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          payer_email: form.email,
+          items: [{
+            title: `Inscripción Curso Presencial - ${planSeleccionado?.label}`,
+            unit_price: planSeleccionado?.monto || 400000,
+            quantity: 1,
+            currency_id: 'ARS'
+          }]
+        })
+      });
+
+      const mpData = await res.json();
+      if (!res.ok) throw new Error(mpData.error || 'Error al generar link de pago');
+
+      // 3. Registrar el pago PENDIENTE en la base de datos
+      if (userId) {
         await supabase.from('pagos').insert({
-          estudiante_id: authData.user.id,
+          estudiante_id: userId,
           monto: planSeleccionado?.monto || 400000,
           moneda: 'ARS',
           metodo_pago: 'mercadopago',
           estado: 'pendiente',
           concepto: `Inscripción Curso Moldería — ${planSeleccionado?.label}`,
-          comprobante_url,
-          notas: form.consulta,
+          notas: `Preferencia MP: ${mpData.id} | Consulta del alumno: ${form.consulta}`,
         });
       }
 
-      setEstado('success');
+      // 4. Redirigir agresivamente a MercadoPago Seguro
+      window.location.href = mpData.init_point;
+
     } catch (err) {
       setEstado('error');
       setErrMsg(err.message || 'Ocurrió un error. Intenta de nuevo.');
@@ -102,31 +149,27 @@ export default function InscripcionPage() {
   }
 
   if (estado === 'success') {
-    const wappSuccessMsg = encodeURIComponent(
-      `Hola! Acabo de completar mi inscripción al curso de moldería.\nNombre: ${form.nombre} ${form.apellido}\nEmail: ${form.email}\nPlan elegido: ${planSeleccionado?.label}\n\nAdjunto mi comprobante de pago. ¡Gracias!`
-    );
     return (
       <div className="min-h-screen flex items-center justify-center px-6 pt-16">
         <div className="text-center max-w-md">
-          <span className="material-symbols-outlined text-secondary text-6xl">check_circle</span>
-          <h2 className="font-headline text-3xl font-bold mt-4 mb-3">¡Inscripción enviada!</h2>
-          <p className="text-on-surface-variant mb-8">
-            Recibimos tu solicitud. Ahora enviá tu comprobante de pago por WhatsApp para confirmar tu lugar.
+          <span className="material-symbols-outlined text-secondary text-8xl mb-4">task_alt</span>
+          <h2 className="font-headline text-4xl font-black mt-4 mb-3">¡Pago Aprobado!</h2>
+          <p className="text-on-surface-variant mb-8 text-lg">
+            Tu lugar ya está asegurado. Te enviamos un correo con todos los detalles de acceso y el comprobante oficial. 
           </p>
           <a
-            href={`https://wa.me/${WAPP}?text=${wappSuccessMsg}`}
-            target="_blank"
-            rel="noreferrer"
-            className="btn-primary inline-flex items-center gap-3 text-lg px-8 py-4"
+            href="/student"
+            className="btn-primary inline-flex items-center gap-3 text-lg px-8 py-4 w-full justify-center"
           >
-            <svg viewBox="0 0 24 24" className="w-5 h-5 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-            Enviar comprobante por WhatsApp
+            Ir a Mi Plataforma
+            <span className="material-symbols-outlined">arrow_forward</span>
           </a>
-          <p className="text-xs text-on-surface-variant mt-4 uppercase tracking-widest">+54 11 6202-0911</p>
         </div>
       </div>
     );
   }
+
+  const planesActivos = testMode ? PLANES : PLANES.filter(p => p.id !== 'prueba_100');
 
   return (
     <div className="min-h-screen pt-24 pb-32 px-6 lg:px-20">
@@ -138,7 +181,7 @@ export default function InscripcionPage() {
             Asegura tu <span className="gradient-text">lugar</span> en el aula
           </h1>
           <p className="text-on-surface-variant max-w-xl mx-auto">
-            Este es un <strong>curso 100% presencial</strong>. Elegí tu plan de pago, completá el formulario y enviá tu comprobante por WhatsApp para confirmar tu inscripción.
+            Este es un <strong>curso 100% presencial</strong>. Elegí tu plan de pago, completá el formulario y completá tu pago online para confirmar tu inscripción.
           </p>
         </div>
 
@@ -146,7 +189,7 @@ export default function InscripcionPage() {
         <div className="mb-10">
           <h2 className="font-headline font-bold uppercase text-xs tracking-widest text-on-surface-variant mb-4">Elegí tu plan de pago</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {PLANES.map(plan => (
+            {planesActivos.map(plan => (
               <label
                 key={plan.id}
                 className={`relative cursor-pointer rounded-xl border-2 p-5 transition-all ${
@@ -196,25 +239,7 @@ export default function InscripcionPage() {
               </div>
             ))}
 
-            {/* Comprobante info */}
-            <div className="bg-surface-variant rounded-xl p-4 border border-outline-variant/20">
-              <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2 flex items-center gap-2">
-                <svg viewBox="0 0 24 24" className="w-4 h-4 fill-current text-secondary"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                Enviá el comprobante por WhatsApp
-              </p>
-              <p className="text-sm text-on-surface-variant">
-                Luego de pagar por MercadoPago, enviá el comprobante al <span className="font-bold text-on-surface">+54 11 6202-0911</span> para confirmar tu lugar.
-              </p>
-              <a
-                href={`https://wa.me/${WAPP}?text=${WAPP_MSG}`}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 inline-flex items-center gap-2 text-xs font-bold text-secondary hover:underline"
-              >
-                <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 fill-current"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/></svg>
-                Contactar por WhatsApp ahora
-              </a>
-            </div>
+            {/* Eliminamos el bloque viejo de adjuntar comprobante */}
 
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Consulta / Mensaje (opcional)</label>
@@ -232,10 +257,10 @@ export default function InscripcionPage() {
               <div className="bg-error-container/20 border border-error/30 rounded-lg px-4 py-3 text-sm text-error">{errMsg}</div>
             )}
 
-            <button type="submit" disabled={estado === 'loading'} className="btn-primary w-full flex items-center justify-center gap-2">
+            <button type="submit" disabled={estado === 'loading'} className="btn-primary w-full flex items-center justify-center gap-2 bg-[#009EE3] hover:bg-[#008ACA] border-none text-white h-14 rounded-xl font-bold shadow-lg shadow-[#009EE3]/20">
               {estado === 'loading'
-                ? <><span className="material-symbols-outlined text-sm" style={{ animation: 'spin 1s linear infinite' }}>refresh</span>Enviando...</>
-                : <><span className="material-symbols-outlined text-sm">send</span>Enviar Inscripción</>
+                ? <><span className="material-symbols-outlined text-sm" style={{ animation: 'spin 1s linear infinite' }}>refresh</span>Generando pago seguro...</>
+                : <>Pagar con MercadoPago<span className="material-symbols-outlined text-sm">lock</span></>
               }
             </button>
           </form>
