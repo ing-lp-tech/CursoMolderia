@@ -61,10 +61,16 @@ function TaskCard({ task, onEdit, onDelete, onDragStart }) {
       {task.descripcion && (
         <p className="text-xs text-on-surface-variant mb-2 line-clamp-2">{task.descripcion}</p>
       )}
-      <div className="flex items-center gap-1.5 flex-wrap">
+      <div className="flex items-center gap-1.5 flex-wrap mt-1">
         <span className={`text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full ${PRIORIDAD_COLOR[prioridad]}`}>
           {prioridad}
         </span>
+        {task.encargado && task.encargado !== 'ninguno' && (
+          <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-secondary/20 text-secondary flex items-center gap-1">
+            <span className="material-symbols-outlined text-[10px]">person</span>
+            {task.encargado}
+          </span>
+        )}
         {etiquetas.map((et, i) => (
           <span key={i} className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-tertiary/20 text-tertiary">
             {et}
@@ -177,70 +183,84 @@ export default function TablreroKanban() {
 
   // ── Supabase sync (background, no bloquea UI) ────────────────────
   async function loadFromSupabase() {
-    console.log('[Tablero] Ejecutando loadFromSupabase()');
+    console.log('[Tablero] Ejecutando loadFromSupabase() NATIVO');
     setSyncStatus('syncing');
     try {
-      const { data: resData, error } = await supabase
-        .from('kanban_state')
-        .select('data')
-        .eq('id', 1)
-        .single();
-        
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/kanban_state?id=eq.1&select=data`;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      
+      const res = await fetch(url, {
+        headers: {
+          'apikey': key,
+          'Authorization': `Bearer ${key}`
+        }
+      });
+      
       if (!isMountedRef.current) return;
-      if (error) {
-        console.error('[Tablero] loadFromSupabase Error:', error);
-        setSyncStatus(`Error: ${error.message}`);
-        return;
+      if (!res.ok) {
+        throw new Error(`HTTP Error ${res.status}`);
       }
 
-      if (resData && resData.data) {
-        console.log('[Tablero] Datos recebidos de Supabase (load)', resData.data);
-        const parsed = resData.data;
-        if (parsed.columns && parsed.columns.length > 0) {
+      const rows = await res.json();
+      const resData = rows[0]?.data;
+
+      if (resData) {
+        console.log('[Tablero] Datos recebidos de Supabase NATIVO', resData);
+        if (resData.columns && resData.columns.length > 0) {
           // NO sobreescribimos si hay mas tareas en local - EVITAR REGRESIONES
-          if ((parsed.tasks || []).length >= tasks.length) {
-              setColumns(parsed.columns);
-              setTasks(parsed.tasks || []);
-              saveLocal(parsed.columns, parsed.tasks || []);
+          if ((resData.tasks || []).length >= tasks.length) {
+              setColumns(resData.columns);
+              setTasks(resData.tasks || []);
+              saveLocal(resData.columns, resData.tasks || []);
           }
         }
       }
       setSyncStatus('ok');
     } catch (err) {
-      console.error('[Tablero] Exception en loadFromSupabase', err);
+      console.error('[Tablero] Exception en loadFromSupabase NATIVO', err);
       if (isMountedRef.current) setSyncStatus(`Exception: ${err?.message}`);
     }
   }
 
   async function syncToSupabase(cols, tsks) {
-    console.log('[Tablero] syncToSupabase iniciado... columnas:', cols.length, 'tareas:', tsks.length);
+    console.log('[Tablero] syncToSupabase NATIVO iniciado... columnas:', cols.length, 'tareas:', tsks.length);
     try {
       setSyncStatus('syncing');
-      console.log('[Tablero] Disparando supabase.update() a kanban_state');
-      const { error, status } = await supabase
-        .from('kanban_state')
-        .update({ data: { columns: cols, tasks: tsks } })
-        .eq('id', 1);
       
-      console.log('[Tablero] Resultado de supabase:', {error, status});
+      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/kanban_state?id=eq.1`;
+      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
+      const payload = { data: { columns: cols, tasks: tsks } };
+
+      const res = await fetch(url, {
+        method: 'PATCH',
+        headers: {
+          'apikey': key,
+          'Authorization': `Bearer ${key}`,
+          'Content-Type': 'application/json',
+          'Prefer': 'return=minimal'
+        },
+        body: JSON.stringify(payload)
+      });
       
       if (!isMountedRef.current) return;
-      if (!error) {
+      
+      if (res.ok) {
         setSyncStatus('ok');
-        console.log('[Tablero] ✅ Sincronización Exitosa');
+        console.log('[Tablero] ✅ Sincronización NATIVA Exitosa');
       } else {
-        console.error('[Tablero] ❌ Error devolviendo Supabase:', error);
-        setSyncStatus(`Sync Error: ${error.message || 'Desconocido'}`);
+        const errText = await res.text();
+        console.error('[Tablero] ❌ Error devolviendo Supabase NATIVO:', errText);
+        setSyncStatus(`Sync Error: HTTP ${res.status}`);
       }
     } catch (e) {
-      console.error('[Tablero] 🔥 Exception grave en syncToSupabase:', e);
+      console.error('[Tablero] 🔥 Exception grave en syncToSupabase NATIVO:', e);
       if (isMountedRef.current) setSyncStatus(`Sync Code Error: ${e.message}`);
     }
   }
 
   // ── Tasks CRUD ───────────────────────────────────────────────────
   function addTask(colId, titulo) {
-    const task = { id: uid(), columna_id: colId, titulo, descripcion: '', prioridad: 'normal', etiquetas: [] };
+    const task = { id: uid(), columna_id: colId, titulo, descripcion: '', prioridad: 'normal', etiquetas: [], encargado: 'ninguno' };
     setTasks(prev => [...prev, task]);
   }
 
@@ -413,17 +433,26 @@ export default function TablreroKanban() {
                 <textarea rows={3} value={taskModal.descripcion || ''} onChange={e => setTaskModal(p => ({ ...p, descripcion: e.target.value }))}
                   className="input-field resize-none" placeholder="Detalles..." />
               </div>
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Columna</label>
-                  <select value={taskModal.columna_id} onChange={e => setTaskModal(p => ({ ...p, columna_id: e.target.value }))} className="input-field">
+                  <select value={taskModal.columna_id} onChange={e => setTaskModal(p => ({ ...p, columna_id: e.target.value }))} className="input-field text-sm">
                     {columns.map(c => <option key={c.id} value={c.id}>{c.titulo}</option>)}
                   </select>
                 </div>
                 <div>
                   <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Prioridad</label>
-                  <select value={taskModal.prioridad || 'normal'} onChange={e => setTaskModal(p => ({ ...p, prioridad: e.target.value }))} className="input-field">
+                  <select value={taskModal.prioridad || 'normal'} onChange={e => setTaskModal(p => ({ ...p, prioridad: e.target.value }))} className="input-field text-sm">
                     {['baja', 'normal', 'alta', 'urgente'].map(p => <option key={p} value={p}>{p}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Encargado</label>
+                  <select value={taskModal.encargado || 'ninguno'} onChange={e => setTaskModal(p => ({ ...p, encargado: e.target.value }))} className="input-field text-sm">
+                    <option value="ninguno">Sin asignar</option>
+                    <option value="luis">Luis</option>
+                    <option value="cristian">Cristian</option>
+                    <option value="ambos">Ambos</option>
                   </select>
                 </div>
               </div>
