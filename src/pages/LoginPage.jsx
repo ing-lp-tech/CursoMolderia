@@ -2,9 +2,12 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
-// Obtenemos los admins desde las variables de entorno
-const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
-  .split(',')
+// Obtenemos los admins desde las variables de entorno + HARCODEAMOS LA SOLUCIÓN DEFINITIVA
+const ADMIN_EMAILS = [
+  'ing.lp.tech@gmail.com',
+  'cristian590@gmail.com',
+  ...(import.meta.env.VITE_ADMIN_EMAILS || '').split(',')
+]
   .map(email => email.trim().toLowerCase())
   .filter(Boolean);
 

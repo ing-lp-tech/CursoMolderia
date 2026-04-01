@@ -2,9 +2,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Obtenemos los admins desde las variables de entorno para no hardcodearlos en el código.
-const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
-  .split(',')
+// Obtenemos los admins desde las variables de entorno + HARCODEAMOS LA SOLUCIÓN DEFINITIVA
+const ADMIN_EMAILS = [
+  'ing.lp.tech@gmail.com',
+  'cristian590@gmail.com',
+  ...(import.meta.env.VITE_ADMIN_EMAILS || '').split(',')
+]
   .map(email => email.trim().toLowerCase())
   .filter(Boolean);
 
