@@ -257,10 +257,33 @@ export default function InscripcionPage() {
               <div className="bg-error-container/20 border border-error/30 rounded-lg px-4 py-3 text-sm text-error">{errMsg}</div>
             )}
 
-            <button type="submit" disabled={estado === 'loading'} className="btn-primary w-full flex items-center justify-center gap-2 bg-[#009EE3] hover:bg-[#008ACA] border-none text-white h-14 rounded-xl font-bold shadow-lg shadow-[#009EE3]/20">
+            <button type="submit" disabled={estado === 'loading'} className="group relative overflow-hidden w-full flex items-center justify-center gap-3 bg-[#009EE3] hover:bg-[#008ACA] active:bg-[#007EB5] transition-all duration-300 border-none text-white h-[64px] rounded-xl font-bold shadow-[0_8px_24px_rgba(0,158,227,0.3)] hover:shadow-[0_12px_28px_rgba(0,158,227,0.4)] disabled:opacity-75 disabled:cursor-not-allowed">
+              {/* Brillo animado estilo Apple/Stripe al hacer hover */}
+              <div className="absolute inset-0 -translate-x-[150%] bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
+
               {estado === 'loading'
-                ? <><span className="material-symbols-outlined text-sm" style={{ animation: 'spin 1s linear infinite' }}>refresh</span>Generando pago seguro...</>
-                : <>Pagar con MercadoPago<span className="material-symbols-outlined text-sm">lock</span></>
+                ? (
+                  <div className="flex items-center justify-center gap-2 relative z-10 w-full">
+                    <span className="material-symbols-outlined animate-spin text-xl">refresh</span>
+                    <span className="text-[17px] tracking-wide font-headline">Generando pago seguro...</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center justify-center gap-2 sm:gap-3 relative z-10 w-full">
+                    <span className="text-[17px] tracking-wide font-headline whitespace-nowrap hidden sm:inline">Finalizar inscripción en</span>
+                    <span className="text-[16px] tracking-wide font-headline whitespace-nowrap sm:hidden">Pagar con</span>
+                    
+                    {/* Píldora blanca con el logo oficial para asegurar lectura */}
+                    <div className="bg-white rounded-lg px-4 py-1.5 flex items-center justify-center shadow-sm">
+                      <img 
+                        src="https://http2.mlstatic.com/frontend-assets/mp-web-navigation/ui-navigation/5.21.22/mercadopago/logo__small@2x.png" 
+                        alt="Mercado Pago" 
+                        className="h-[18px] md:h-[20px] object-contain select-none"
+                      />
+                    </div>
+
+                    <span className="material-symbols-outlined text-white/50 text-xl absolute right-5 hidden md:block" title="Transacción Segura 100%">verified_user</span>
+                  </div>
+                )
               }
             </button>
           </form>
