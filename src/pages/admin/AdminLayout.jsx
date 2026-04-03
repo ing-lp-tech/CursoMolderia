@@ -6,6 +6,7 @@ const NAV = [
   { to: '/admin', label: 'Dashboard', icon: 'dashboard' },
   { to: '/admin/estudiantes', label: 'Estudiantes', icon: 'school' },
   { to: '/admin/finanzas', label: 'Finanzas', icon: 'account_balance_wallet' },
+  { to: '/admin/cupones', label: 'Cupones', icon: 'confirmation_number' },
   { to: '/admin/tablero', label: 'Tablero', icon: 'view_kanban' },
 ];
 

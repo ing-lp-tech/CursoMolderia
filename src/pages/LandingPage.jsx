@@ -1,12 +1,76 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import luisBlack from '../assets/luisBlack.png';
 import cristian from '../assets/cristian.jpg';
 import logo from '../assets/logo.png';
+import { getActiveFlashPromo } from '../utils/cupones';
+
+function useCountdown(targetDate) {
+  const [timeLeft, setTimeLeft] = useState(null);
+  useEffect(() => {
+    if (!targetDate) return;
+    function calc() {
+      const diff = new Date(targetDate) - new Date();
+      if (diff <= 0) return setTimeLeft(null);
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft({ h, m, s });
+    }
+    calc();
+    const id = setInterval(calc, 1000);
+    return () => clearInterval(id);
+  }, [targetDate]);
+  return timeLeft;
+}
+
+function FlashPromoBanner({ promo }) {
+  const timeLeft = useCountdown(promo?.expiresAt);
+  if (!promo || !timeLeft) return null;
+
+  const pad = n => String(n).padStart(2, '0');
+  const discountLabel =
+    promo.type === 'percentage'
+      ? `${promo.value}% de descuento`
+      : `$${Number(promo.value).toLocaleString('es-AR')} de descuento`;
+
+  return (
+    <div className="w-full bg-gradient-to-r from-tertiary/20 via-tertiary/10 to-primary/20 border-b border-tertiary/30 px-4 py-2.5 flex flex-wrap items-center justify-center gap-3 text-center z-20 relative">
+      <span className="text-tertiary text-sm font-black animate-pulse">⚡ PROMO FLASH</span>
+      <span className="text-on-surface text-sm font-bold">{discountLabel}</span>
+      {promo.description && (
+        <span className="text-on-surface-variant text-xs hidden sm:inline">— {promo.description}</span>
+      )}
+      <div className="flex items-center gap-1 font-headline font-black text-sm">
+        <span className="bg-tertiary/20 text-tertiary rounded px-2 py-0.5">{pad(timeLeft.h)}h</span>
+        <span className="text-on-surface-variant">:</span>
+        <span className="bg-tertiary/20 text-tertiary rounded px-2 py-0.5">{pad(timeLeft.m)}m</span>
+        <span className="text-on-surface-variant">:</span>
+        <span className="bg-tertiary/20 text-tertiary rounded px-2 py-0.5">{pad(timeLeft.s)}s</span>
+      </div>
+      <Link
+        to={`/inscripcion?cupon=${promo.code}`}
+        className="text-[10px] font-black uppercase tracking-widest px-3 py-1 rounded-full bg-tertiary/20 text-tertiary border border-tertiary/40 hover:bg-tertiary/30 transition-all"
+      >
+        Usar código: {promo.code}
+      </Link>
+    </div>
+  );
+}
 
 export default function LandingPage() {
+  const [flashPromo, setFlashPromo] = useState(null);
+
+  useEffect(() => {
+    getActiveFlashPromo().then(setFlashPromo).catch(() => {});
+    // Refresh every 2 minutes
+    const id = setInterval(() => getActiveFlashPromo().then(setFlashPromo).catch(() => {}), 120000);
+    return () => clearInterval(id);
+  }, []);
+
   return (
     <div className="relative pt-16">
+      <FlashPromoBanner promo={flashPromo} />
       {/* Hero */}
       <section className="relative min-h-[795px] flex items-center overflow-hidden px-6 lg:px-20">
         <div className="absolute inset-0 z-0" style={{ backgroundImage: 'linear-gradient(#484847 0.5px, transparent 0.5px), linear-gradient(90deg, #484847 0.5px, transparent 0.5px)', backgroundSize: '40px 40px', opacity: 0.1 }} />

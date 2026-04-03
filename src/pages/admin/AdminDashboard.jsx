@@ -3,7 +3,7 @@ import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
 
 export default function AdminDashboard() {
-  const [stats, setStats] = useState({ estudiantes: 0, pagos_pendientes: 0, ingresos: 0, tareas: 0 });
+  const [stats, setStats] = useState({ estudiantes: 0, pagos_pendientes: 0, ingresos: 0, tareas: 0, con_descuento: 0, ahorro_total: 0 });
   const [pagos_recientes, setPagos] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -12,20 +12,25 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [{ count: est }, { count: pend }, { data: pagos }, { data: fin }, { count: tareas }] = await Promise.all([
+        const [{ count: est }, { count: pend }, { data: pagos }, { data: fin }, { count: tareas }, { data: pagosDesc }] = await Promise.all([
           supabase.from('perfiles').select('*', { count: 'exact', head: true }).eq('rol', 'estudiante'),
           supabase.from('pagos').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
           supabase.from('pagos').select('*, perfiles(nombre, apellido)').order('created_at', { ascending: false }).limit(5),
           supabase.from('finanzas').select('monto, tipo'),
           supabase.from('tareas').select('*', { count: 'exact', head: true }),
+          supabase.from('pagos').select('descuento_aplicado').not('cupon_codigo', 'is', null),
         ]);
 
         const ingresos = fin?.filter(f => f.tipo === 'ingreso').reduce((a, b) => a + b.monto, 0) || 0;
-        setStats({ 
-          estudiantes: est || 0, 
-          pagos_pendientes: pend || 0, 
-          ingresos, 
-          tareas: tareas || 0 
+        const con_descuento = pagosDesc?.length || 0;
+        const ahorro_total = pagosDesc?.reduce((sum, p) => sum + (Number(p.descuento_aplicado) || 0), 0) || 0;
+        setStats({
+          estudiantes: est || 0,
+          pagos_pendientes: pend || 0,
+          ingresos,
+          tareas: tareas || 0,
+          con_descuento,
+          ahorro_total,
         });
         setPagos(pagos || []);
 
@@ -59,6 +64,8 @@ export default function AdminDashboard() {
     { label: 'Pagos Pendientes', value: stats.pagos_pendientes, icon: 'pending_actions', color: 'text-error', link: '/admin/estudiantes' },
     { label: 'Ingresos Totales', value: `$${stats.ingresos.toLocaleString()}`, icon: 'account_balance_wallet', color: 'text-secondary', link: '/admin/finanzas' },
     { label: 'Tareas Activas', value: stats.tareas, icon: 'view_kanban', color: 'text-tertiary', link: '/admin/tablero' },
+    { label: 'Inscriptos c/ Descuento', value: stats.con_descuento, icon: 'local_offer', color: 'text-tertiary', link: '/admin/cupones' },
+    { label: 'Ahorro Total Otorgado', value: `$${stats.ahorro_total.toLocaleString()}`, icon: 'savings', color: 'text-error', link: '/admin/cupones' },
   ];
 
   return (
@@ -85,7 +92,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stat Cards */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 xl:grid-cols-6 gap-4">
         {STAT_CARDS.map(s => (
           <Link to={s.link} key={s.label} className="card-hover group">
             <div className="flex items-start justify-between mb-4">
@@ -108,7 +115,7 @@ export default function AdminDashboard() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-outline-variant/20">
-                {['Alumno', 'Concepto', 'Monto', 'Método', 'Estado', 'Fecha'].map(h => (
+                {['Alumno', 'Concepto', 'Monto', 'Cupón', 'Estado', 'Fecha'].map(h => (
                   <th key={h} className="text-left py-3 px-4 text-xs font-bold uppercase tracking-widest text-on-surface-variant">{h}</th>
                 ))}
               </tr>
@@ -122,8 +129,20 @@ export default function AdminDashboard() {
                 <tr key={p.id} className="border-b border-outline-variant/10 hover:bg-surface-variant/30 transition-colors">
                   <td className="py-3 px-4 font-bold">{p.perfiles?.nombre} {p.perfiles?.apellido}</td>
                   <td className="py-3 px-4 text-on-surface-variant">{p.concepto}</td>
-                  <td className="py-3 px-4 font-bold">${Number(p.monto).toLocaleString()}</td>
-                  <td className="py-3 px-4 text-on-surface-variant capitalize">{p.metodo_pago}</td>
+                  <td className="py-3 px-4 font-bold">
+                    {p.descuento_aplicado > 0 ? (
+                      <span>
+                        <span className="line-through text-on-surface-variant text-xs">${Number(p.monto_original).toLocaleString()}</span>
+                        {' '}
+                        <span className="text-tertiary">${Number(p.monto).toLocaleString()}</span>
+                      </span>
+                    ) : `$${Number(p.monto).toLocaleString()}`}
+                  </td>
+                  <td className="py-3 px-4">
+                    {p.cupon_codigo
+                      ? <span className="text-[10px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-tertiary/20 text-tertiary">{p.cupon_codigo}</span>
+                      : <span className="text-on-surface-variant text-xs">—</span>}
+                  </td>
                   <td className="py-3 px-4">
                     <span className={`badge ${p.estado === 'confirmado' ? 'badge-success' : p.estado === 'rechazado' ? 'badge-error' : 'badge-outline'}`}>
                       {p.estado}

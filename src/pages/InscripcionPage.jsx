@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import mpLogo from '../assets/mp.svg';
+import { validateCupon, useCupon } from '../utils/cupones';
 
 const WAPP = '5491162020911';
 const WAPP_MSG = encodeURIComponent('Hola! Quiero inscribirme al curso de moldería con Audaces. Me gustaría recibir más información.');
@@ -12,6 +13,8 @@ const CAMPOS = [
   { id: 'telefono', label: 'WhatsApp / Teléfono', type: 'tel', placeholder: '+54 11 0000-0000' },
 ];
 
+const BASE_TOTAL = 400000;
+
 const PLANES = [
   {
     id: 'completo_mp',
@@ -19,29 +22,32 @@ const PLANES = [
     monto: 400000,
     badge: 'Recomendado',
     badgeColor: 'bg-secondary/20 text-secondary',
-    desc: 'Pagá $400.000 completo por MercadoPago (transferencia, tarjeta, débito).',
+    desc: 'Pagá el total por MercadoPago (transferencia, tarjeta, débito).',
     icon: 'credit_card',
     color: 'border-secondary',
+    ratio: 1,
   },
   {
     id: 'anticipo_50',
     label: 'Anticipo 50% — MercadoPago',
     monto: 200000,
-    badge: '+ $200.000 efectivo',
+    badge: '+ resto en efectivo',
     badgeColor: 'bg-primary/20 text-primary',
-    desc: 'Pagá $200.000 ahora por MercadoPago y $200.000 en efectivo el día del inicio.',
+    desc: 'Pagá el 50% ahora por MercadoPago y el resto en efectivo el día del inicio.',
     icon: 'payments',
     color: 'border-primary',
+    ratio: 0.5,
   },
   {
     id: 'anticipo_25',
     label: 'Anticipo 25% — MercadoPago',
     monto: 100000,
-    badge: '+ $300.000 efectivo',
+    badge: '+ resto en efectivo',
     badgeColor: 'bg-tertiary/20 text-tertiary',
-    desc: 'Pagá $100.000 ahora por MercadoPago y $300.000 en efectivo el día del inicio.',
+    desc: 'Pagá el 25% ahora por MercadoPago y el resto en efectivo el día del inicio.',
     icon: 'account_balance_wallet',
     color: 'border-tertiary',
+    ratio: 0.25,
   },
   {
     id: 'prueba_100',
@@ -52,33 +58,61 @@ const PLANES = [
     desc: 'Plan exclusivo temporal para probar que MercadoPago descuenta dinero real correctamente.',
     icon: 'bug_report',
     color: 'border-error',
+    ratio: null,
   },
 ];
 
+/** Returns the MP amount for a plan after applying coupon discount */
+function getMontoConDescuento(plan, cuponResult) {
+  if (plan.ratio === null || !cuponResult?.valid) return plan.monto;
+  const discountedTotal = cuponResult.finalPrice; // BASE_TOTAL - discount
+  return Math.max(0, Math.round(discountedTotal * plan.ratio));
+}
+
 export default function InscripcionPage() {
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', telefono: '', plan: 'completo_mp', consulta: '' });
-  const [comprobante, setComprobante] = useState(null);
   const [estado, setEstado] = useState('idle');
   const [errMsg, setErrMsg] = useState('');
+  const [testMode, setTestMode] = useState(false);
+
+  // Coupon state
+  const [cuponInput, setCuponInput] = useState('');
+  const [cuponResult, setCuponResult] = useState(null);
+  const [cuponLoading, setCuponLoading] = useState(false);
 
   function handleChange(e) {
     setForm(prev => ({ ...prev, [e.target.name]: e.target.value }));
   }
 
   const planSeleccionado = PLANES.find(p => p.id === form.plan);
+  const montoEfectivo = getMontoConDescuento(planSeleccionado, cuponResult);
 
-  const [testMode, setTestMode] = useState(false);
+  // Remaining cash amount for partial plans
+  function getCashResto(plan) {
+    if (plan.ratio === null || plan.ratio === 1) return 0;
+    const discountedTotal = cuponResult?.valid ? cuponResult.finalPrice : BASE_TOTAL;
+    return Math.max(0, discountedTotal - Math.round(discountedTotal * plan.ratio));
+  }
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const isUrlTest = params.get('test') === 'true';
+    const urlCupon = params.get('cupon');
 
-    // Intentamos traerlo de DB (si falla por permisos RLS o red, no rompe)
-    supabase.from('app_settings').select('value').eq('id', 'test_mode_mp').single().then(({data, error}) => {
+    // Pre-fill coupon from URL (from flash promo banner)
+    if (urlCupon) {
+      const code = urlCupon.toUpperCase();
+      setCuponInput(code);
+      validateCupon(code, BASE_TOTAL).then(result => {
+        if (result.valid) setCuponResult(result);
+      }).catch(() => {});
+    }
+
+    supabase.from('app_settings').select('value').eq('id', 'test_mode_mp').single().then(({ data }) => {
       if (data?.value === true || isUrlTest) {
         setTestMode(true);
       } else {
-        if (form.plan === 'prueba_100') setForm(prev => ({...prev, plan: 'completo_mp'}));
+        if (form.plan === 'prueba_100') setForm(prev => ({ ...prev, plan: 'completo_mp' }));
       }
     }).catch(() => {
       if (isUrlTest) setTestMode(true);
@@ -92,12 +126,33 @@ export default function InscripcionPage() {
     }
   }, []);
 
+  async function handleAplicarCupon() {
+    const code = cuponInput.trim();
+    if (!code) return;
+    setCuponLoading(true);
+    setErrMsg('');
+    try {
+      const result = await validateCupon(code, BASE_TOTAL);
+      setCuponResult(result.valid ? result : null);
+      if (!result.valid) setErrMsg(result.error);
+    } catch {
+      setErrMsg('Error al validar el cupón. Intenta de nuevo.');
+    } finally {
+      setCuponLoading(false);
+    }
+  }
+
+  function handleRemoveCupon() {
+    setCuponInput('');
+    setCuponResult(null);
+    setErrMsg('');
+  }
+
   async function handleSubmit(e) {
     e.preventDefault();
     setEstado('loading');
     setErrMsg('');
     try {
-      // 1. Crear el usuario en Supabase
       const { data: authData, error: authErr } = await supabase.auth.signUp({
         email: form.email,
         password: Math.random().toString(36).slice(-10) + 'A1!',
@@ -109,40 +164,46 @@ export default function InscripcionPage() {
 
       const userId = authData?.user?.id || (await supabase.auth.getUser()).data?.user?.id;
 
-      // 2. Pedirle la Preferencia a nuestro servidor Node (Vercel)
+      const cuponLabel = cuponResult?.valid ? ` | Cupón: ${cuponResult.cupon.code} (${cuponResult.label})` : '';
+
       const res = await fetch('/api/create-preference', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           payer_email: form.email,
           items: [{
-            title: `Inscripción Curso Presencial - ${planSeleccionado?.label}`,
-            unit_price: planSeleccionado?.monto || 400000,
+            title: `Inscripción Curso Moldi Tex - ${planSeleccionado?.label}${cuponLabel}`,
+            unit_price: montoEfectivo,
             quantity: 1,
-            currency_id: 'ARS'
-          }]
-        })
+            currency_id: 'ARS',
+          }],
+        }),
       });
 
       const mpData = await res.json();
       if (!res.ok) throw new Error(mpData.error || 'Error al generar link de pago');
 
-      // 3. Registrar el pago PENDIENTE en la base de datos
       if (userId) {
         await supabase.from('pagos').insert({
           estudiante_id: userId,
-          monto: planSeleccionado?.monto || 400000,
+          monto: montoEfectivo,
+          monto_original: planSeleccionado?.monto || BASE_TOTAL,
+          descuento_aplicado: cuponResult?.valid ? cuponResult.discount : 0,
+          cupon_codigo: cuponResult?.valid ? cuponResult.cupon.code : null,
           moneda: 'ARS',
           metodo_pago: 'mercadopago',
           estado: 'pendiente',
-          concepto: `Inscripción Curso Moldería — ${planSeleccionado?.label}`,
-          notas: `Preferencia MP: ${mpData.id} | Consulta del alumno: ${form.consulta}`,
+          concepto: `Inscripción Curso Moldería — ${planSeleccionado?.label}${cuponLabel}`,
+          notas: `Preferencia MP: ${mpData.id} | Consulta: ${form.consulta}`,
         });
       }
 
-      // 4. Redirigir agresivamente a MercadoPago Seguro
-      window.location.href = mpData.init_point;
+      // Register coupon usage
+      if (cuponResult?.valid) {
+        useCupon(cuponResult.cupon.id);
+      }
 
+      window.location.href = mpData.init_point;
     } catch (err) {
       setEstado('error');
       setErrMsg(err.message || 'Ocurrió un error. Intenta de nuevo.');
@@ -156,7 +217,7 @@ export default function InscripcionPage() {
           <span className="material-symbols-outlined text-secondary text-8xl mb-4">task_alt</span>
           <h2 className="font-headline text-4xl font-black mt-4 mb-3">¡Pago Aprobado!</h2>
           <p className="text-on-surface-variant mb-8 text-lg">
-            Tu lugar ya está asegurado. Te enviamos un correo con todos los detalles de acceso y el comprobante oficial. 
+            Tu lugar ya está asegurado. Te enviamos un correo con todos los detalles de acceso y el comprobante oficial.
           </p>
           <a
             href="/student"
@@ -171,10 +232,12 @@ export default function InscripcionPage() {
   }
 
   const planesActivos = testMode ? PLANES : PLANES.filter(p => p.id !== 'prueba_100');
+  const totalConDescuento = cuponResult?.valid ? cuponResult.finalPrice : BASE_TOTAL;
 
   return (
     <div className="min-h-screen pt-24 pb-32 px-6 lg:px-20">
       <div className="max-w-5xl mx-auto">
+
         {/* Header */}
         <div className="text-center mb-12">
           <span className="badge-error mb-4">Cupos Limitados</span>
@@ -182,43 +245,83 @@ export default function InscripcionPage() {
             Asegura tu <span className="gradient-text">lugar</span> en el aula
           </h1>
           <p className="text-on-surface-variant max-w-xl mx-auto">
-            Este es un <strong>curso 100% presencial</strong>. Elegí tu plan de pago, completá el formulario y completá tu pago online para confirmar tu inscripción.
+            Este es un <strong>curso 100% presencial</strong>. Elegí tu plan de pago, completá el formulario y confirmá tu inscripción.
           </p>
         </div>
+
+        {/* Flash promo hint if coupon applied */}
+        {cuponResult?.valid && (
+          <div className="mb-6 flex items-center gap-3 px-4 py-3 bg-tertiary/10 border border-tertiary/30 rounded-xl">
+            <span className="material-symbols-outlined text-tertiary text-xl">local_offer</span>
+            <div className="flex-1">
+              <p className="text-sm font-bold text-tertiary">
+                Cupón <span className="uppercase tracking-widest">{cuponResult.cupon.code}</span> aplicado — {cuponResult.label}
+              </p>
+              <p className="text-xs text-on-surface-variant">
+                Precio total: <span className="line-through">${BASE_TOTAL.toLocaleString('es-AR')}</span>
+                {' '}→{' '}
+                <span className="font-bold text-on-surface">${totalConDescuento.toLocaleString('es-AR')}</span>
+              </p>
+            </div>
+            <button onClick={handleRemoveCupon} className="text-on-surface-variant hover:text-error transition-colors" title="Quitar cupón">
+              <span className="material-symbols-outlined text-xl">close</span>
+            </button>
+          </div>
+        )}
 
         {/* Planes de pago */}
         <div className="mb-10">
           <h2 className="font-headline font-bold uppercase text-xs tracking-widest text-on-surface-variant mb-4">Elegí tu plan de pago</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {planesActivos.map(plan => (
-              <label
-                key={plan.id}
-                className={`relative cursor-pointer rounded-xl border-2 p-5 transition-all ${
-                  form.plan === plan.id
-                    ? `${plan.color} bg-surface-container-high`
-                    : 'border-outline-variant/20 bg-surface-container hover:border-outline-variant/50'
-                }`}
-              >
-                <input
-                  type="radio"
-                  name="plan"
-                  value={plan.id}
-                  checked={form.plan === plan.id}
-                  onChange={handleChange}
-                  className="sr-only"
-                />
-                {form.plan === plan.id && (
-                  <span className="absolute top-3 right-3 material-symbols-outlined text-sm text-secondary">check_circle</span>
-                )}
-                <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mb-3 ${plan.badgeColor}`}>{plan.badge}</span>
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="material-symbols-outlined text-xl text-on-surface-variant">{plan.icon}</span>
-                  <p className="font-headline font-bold text-sm">{plan.label}</p>
-                </div>
-                <p className="font-headline text-2xl font-black mb-1">${plan.monto.toLocaleString('es-AR')}</p>
-                <p className="text-xs text-on-surface-variant leading-relaxed">{plan.desc}</p>
-              </label>
-            ))}
+            {planesActivos.map(plan => {
+              const monto = getMontoConDescuento(plan, cuponResult);
+              const originalMonto = plan.monto;
+              const hasDiscount = cuponResult?.valid && plan.ratio !== null && monto !== originalMonto;
+              const cashResto = getCashResto(plan);
+
+              return (
+                <label
+                  key={plan.id}
+                  className={`relative cursor-pointer rounded-xl border-2 p-5 transition-all ${
+                    form.plan === plan.id
+                      ? `${plan.color} bg-surface-container-high`
+                      : 'border-outline-variant/20 bg-surface-container hover:border-outline-variant/50'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    name="plan"
+                    value={plan.id}
+                    checked={form.plan === plan.id}
+                    onChange={handleChange}
+                    className="sr-only"
+                  />
+                  {form.plan === plan.id && (
+                    <span className="absolute top-3 right-3 material-symbols-outlined text-sm text-secondary">check_circle</span>
+                  )}
+                  <span className={`inline-block text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded-full mb-3 ${plan.badgeColor}`}>{plan.badge}</span>
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined text-xl text-on-surface-variant">{plan.icon}</span>
+                    <p className="font-headline font-bold text-sm">{plan.label}</p>
+                  </div>
+
+                  {/* Price with optional discount */}
+                  <div className="mb-1">
+                    {hasDiscount && (
+                      <p className="text-xs text-on-surface-variant line-through">${originalMonto.toLocaleString('es-AR')}</p>
+                    )}
+                    <p className={`font-headline text-2xl font-black ${hasDiscount ? 'text-tertiary' : ''}`}>
+                      ${monto.toLocaleString('es-AR')}
+                    </p>
+                    {cashResto > 0 && (
+                      <p className="text-[10px] text-on-surface-variant mt-0.5">+ ${cashResto.toLocaleString('es-AR')} en efectivo el día del inicio</p>
+                    )}
+                  </div>
+
+                  <p className="text-xs text-on-surface-variant leading-relaxed">{plan.desc}</p>
+                </label>
+              );
+            })}
           </div>
         </div>
 
@@ -240,7 +343,41 @@ export default function InscripcionPage() {
               </div>
             ))}
 
-            {/* Eliminamos el bloque viejo de adjuntar comprobante */}
+            {/* Coupon input */}
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">
+                Cupón de descuento (opcional)
+              </label>
+              {cuponResult?.valid ? (
+                <div className="flex items-center gap-2 px-3 py-2.5 bg-tertiary/10 border border-tertiary/30 rounded-xl">
+                  <span className="material-symbols-outlined text-tertiary text-sm">local_offer</span>
+                  <span className="flex-1 text-sm font-bold text-tertiary uppercase tracking-widest">{cuponResult.cupon.code}</span>
+                  <span className="text-xs font-bold text-tertiary">{cuponResult.label}</span>
+                  <button type="button" onClick={handleRemoveCupon} className="text-on-surface-variant hover:text-error transition-colors ml-1">
+                    <span className="material-symbols-outlined text-sm">close</span>
+                  </button>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={cuponInput}
+                    onChange={e => setCuponInput(e.target.value.toUpperCase())}
+                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), handleAplicarCupon())}
+                    placeholder="CÓDIGO"
+                    className="input-field flex-1 uppercase tracking-widest font-bold"
+                  />
+                  <button
+                    type="button"
+                    onClick={handleAplicarCupon}
+                    disabled={!cuponInput.trim() || cuponLoading}
+                    className="px-4 py-2 bg-primary/20 text-primary hover:bg-primary/30 rounded-xl font-headline font-bold uppercase text-xs tracking-widest transition-all disabled:opacity-40 shrink-0"
+                  >
+                    {cuponLoading ? '...' : 'Aplicar'}
+                  </button>
+                </div>
+              )}
+            </div>
 
             <div>
               <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Consulta / Mensaje (opcional)</label>
@@ -259,35 +396,23 @@ export default function InscripcionPage() {
             )}
 
             <button type="submit" disabled={estado === 'loading'} className="group relative overflow-hidden w-full flex items-center justify-center bg-[#009EE3] hover:bg-[#008ACA] active:bg-[#007EB5] transition-all duration-300 border-none text-white h-[60px] rounded-xl font-bold shadow-[0_8px_24px_rgba(0,158,227,0.3)] hover:shadow-[0_12px_28px_rgba(0,158,227,0.4)] disabled:opacity-75 disabled:cursor-not-allowed">
-              {/* Brillo animado estilo Apple/Stripe al hacer hover */}
               <div className="absolute inset-0 -translate-x-[150%] bg-gradient-to-r from-transparent via-white/20 to-transparent group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out" />
-
-              {estado === 'loading'
-                ? (
-                  <div className="flex items-center justify-center gap-3 relative z-10 w-full">
-                    <span className="material-symbols-outlined animate-spin text-xl">refresh</span>
-                    <span className="text-[17px] tracking-wide font-headline">Procesando pago...</span>
+              {estado === 'loading' ? (
+                <div className="flex items-center justify-center gap-3 relative z-10 w-full">
+                  <span className="material-symbols-outlined animate-spin text-xl">refresh</span>
+                  <span className="text-[17px] tracking-wide font-headline">Procesando pago...</span>
+                </div>
+              ) : (
+                <div className="flex items-center justify-center gap-2.5 relative z-10 w-full px-4">
+                  <div className="bg-white rounded-full w-[30px] h-[30px] flex items-center justify-center shadow-sm shrink-0">
+                    <img src={mpLogo} alt="Icono Mercado Pago" className="w-[18px] h-[18px] object-contain select-none ml-[1px]" />
                   </div>
-                ) : (
-                  <div className="flex items-center justify-center gap-2.5 relative z-10 w-full px-4">
-                    {/* Círculo blanco perfecto para el ícono de MP */}
-                    <div className="bg-white rounded-full w-[30px] h-[30px] flex items-center justify-center shadow-sm shrink-0">
-                      <img 
-                        src={mpLogo} 
-                        alt="Icono Mercado Pago" 
-                        className="w-[18px] h-[18px] object-contain select-none ml-[1px]"
-                      />
-                    </div>
-                    
-                    {/* Texto directo y claro */}
-                    <span className="text-[16px] md:text-[17px] tracking-wide font-headline pt-[1px]">
-                      Pagar con Mercado Pago
-                    </span>
-
-                    <span className="material-symbols-outlined text-white/50 text-xl absolute right-5 hidden md:block" title="Compra Protegida">verified_user</span>
-                  </div>
-                )
-              }
+                  <span className="text-[16px] md:text-[17px] tracking-wide font-headline pt-[1px]">
+                    Pagar ${montoEfectivo.toLocaleString('es-AR')} con Mercado Pago
+                  </span>
+                  <span className="material-symbols-outlined text-white/50 text-xl absolute right-5 hidden md:block" title="Compra Protegida">verified_user</span>
+                </div>
+              )}
             </button>
           </form>
 
@@ -295,16 +420,28 @@ export default function InscripcionPage() {
           <div className="lg:col-span-2 space-y-6">
             <div className="card border border-secondary/30">
               <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">Inversión Total</p>
-              <p className="font-headline text-4xl font-black mb-1">$400.000</p>
-              <p className="text-on-surface-variant text-sm line-through mb-3">$650.000 ARS</p>
-              <div className="pt-3 border-t border-outline-variant/20">
+              {cuponResult?.valid ? (
+                <>
+                  <p className="text-sm text-on-surface-variant line-through">${BASE_TOTAL.toLocaleString('es-AR')} ARS</p>
+                  <p className="font-headline text-4xl font-black text-tertiary">${totalConDescuento.toLocaleString('es-AR')}</p>
+                  <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest mt-0.5">{cuponResult.label} aplicado</p>
+                </>
+              ) : (
+                <>
+                  <p className="font-headline text-4xl font-black mb-1">${BASE_TOTAL.toLocaleString('es-AR')}</p>
+                  <p className="text-on-surface-variant text-sm line-through mb-3">$650.000 ARS</p>
+                </>
+              )}
+              <div className="pt-3 border-t border-outline-variant/20 mt-3">
                 <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-2">Plan seleccionado</p>
                 <p className="text-sm font-bold text-secondary">{planSeleccionado?.label}</p>
-                <p className="text-xs text-on-surface-variant mt-1">Anticipo: <span className="font-bold">${planSeleccionado?.monto.toLocaleString('es-AR')}</span></p>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Anticipo MP: <span className="font-bold">${montoEfectivo.toLocaleString('es-AR')}</span>
+                </p>
               </div>
             </div>
 
-            {/* Ubicación */}
+            {/* Location */}
             <div className="card border border-outline-variant/20 space-y-3">
               <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant flex items-center gap-2">
                 <span className="material-symbols-outlined text-primary text-lg">location_on</span>

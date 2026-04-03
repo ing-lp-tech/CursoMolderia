@@ -125,18 +125,46 @@ export default function EstudiantesPage() {
               ) : (
                 <div className="space-y-3">
                   {pagosAlumno.map(p => (
-                    <div key={p.id} className="flex items-center gap-3 p-3 rounded-xl bg-surface-variant">
-                      <div className="flex-1">
-                        <p className="font-bold text-sm">{p.concepto}</p>
-                        <p className="text-xs text-on-surface-variant">${Number(p.monto).toLocaleString()} · {p.metodo_pago} · {new Date(p.created_at).toLocaleDateString('es')}</p>
+                    <div key={p.id} className="p-3 rounded-xl bg-surface-variant space-y-2">
+                      <div className="flex items-start gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-bold text-sm">{p.concepto}</p>
+                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                            {/* Price info */}
+                            {p.descuento_aplicado > 0 ? (
+                              <span className="text-xs text-on-surface-variant">
+                                <span className="line-through">${Number(p.monto_original).toLocaleString()}</span>
+                                {' → '}
+                                <span className="font-bold text-tertiary">${Number(p.monto).toLocaleString()}</span>
+                              </span>
+                            ) : (
+                              <span className="text-xs text-on-surface-variant font-bold">${Number(p.monto).toLocaleString()}</span>
+                            )}
+                            <span className="text-xs text-on-surface-variant">· {p.metodo_pago} · {new Date(p.created_at).toLocaleDateString('es')}</span>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2 shrink-0">
+                          {p.comprobante_url && (
+                            <a href={p.comprobante_url} target="_blank" rel="noreferrer" className="text-secondary hover:underline text-xs">Comprobante</a>
+                          )}
+                          {p.estado === 'pendiente' ? (
+                            <button onClick={() => confirmarPago(p.id)} className="badge badge-secondary cursor-pointer hover:bg-secondary/30">Confirmar</button>
+                          ) : (
+                            <span className={`badge ${p.estado === 'confirmado' ? 'badge-success' : 'badge-error'}`}>{p.estado}</span>
+                          )}
+                        </div>
                       </div>
-                      {p.comprobante_url && (
-                        <a href={p.comprobante_url} target="_blank" rel="noreferrer" className="text-secondary hover:underline text-xs">Ver comprobante</a>
-                      )}
-                      {p.estado === 'pendiente' ? (
-                        <button onClick={() => confirmarPago(p.id)} className="badge badge-secondary cursor-pointer hover:bg-secondary/30">Confirmar</button>
-                      ) : (
-                        <span className={`badge ${p.estado === 'confirmado' ? 'badge-success' : 'badge-error'}`}>{p.estado}</span>
+                      {/* Coupon badge */}
+                      {p.cupon_codigo && (
+                        <div className="flex items-center gap-2">
+                          <span className="material-symbols-outlined text-tertiary text-sm">local_offer</span>
+                          <span className="text-[10px] font-black uppercase tracking-widest text-tertiary">
+                            Cupón: {p.cupon_codigo}
+                          </span>
+                          <span className="text-[10px] text-on-surface-variant">
+                            — Ahorro: ${Number(p.descuento_aplicado).toLocaleString()}
+                          </span>
+                        </div>
                       )}
                     </div>
                   ))}

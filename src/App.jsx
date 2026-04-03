@@ -12,6 +12,7 @@ import AdminDashboard from './pages/admin/AdminDashboard';
 import EstudiantesPage from './pages/admin/EstudiantesPage';
 import FinanzasPage from './pages/admin/FinanzasPage';
 import TablreroKanban from './pages/admin/TablreroKanban';
+import CuponesPage from './pages/admin/CuponesPage';
 import StudentPortal from './pages/student/StudentPortal';
 
 function PublicLayout({ children }) {
@@ -43,6 +44,7 @@ export default function App() {
             <Route index element={<AdminDashboard />} />
             <Route path="estudiantes" element={<EstudiantesPage />} />
             <Route path="finanzas" element={<FinanzasPage />} />
+            <Route path="cupones" element={<CuponesPage />} />
             <Route path="tablero" element={<TablreroKanban />} />
           </Route>
 
