@@ -460,6 +460,35 @@ export default function InscripcionPage() {
               </a>
             </div>
 
+            {/* Fecha de inicio */}
+            <div className="flex items-center gap-3 px-4 py-3 bg-error/10 border border-error/20 rounded-xl">
+              <span className="material-symbols-outlined text-error text-xl shrink-0">calendar_month</span>
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-error">Inicio del Curso</p>
+                <p className="text-sm font-bold text-on-surface">13 de Marzo</p>
+              </div>
+            </div>
+
+            {/* Descuento familiar */}
+            <div className="flex items-start gap-3 px-4 py-3 bg-primary/10 border border-primary/20 rounded-xl">
+              <span className="material-symbols-outlined text-primary text-xl shrink-0">family_restroom</span>
+              <div>
+                <p className="text-xs font-black uppercase tracking-widest text-primary">Inscripción Doble Familiar</p>
+                <p className="text-xs text-on-surface-variant mt-0.5 leading-relaxed">
+                  ¿Venís con un familiar? Consultanos por WhatsApp para obtener un cupón con descuento especial.
+                </p>
+                <a
+                  href={`https://wa.me/5491162020911?text=${encodeURIComponent('Hola! Quiero consultar por el descuento de inscripción doble familiar.')}`}
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex items-center gap-1 mt-1.5 text-[10px] font-bold text-secondary hover:underline uppercase tracking-widest"
+                >
+                  <span className="material-symbols-outlined text-sm">chat</span>
+                  Consultar por WhatsApp
+                </a>
+              </div>
+            </div>
+
             {[
               { icon: 'verified', text: 'Certificado al finalizar' },
               { icon: 'support_agent', text: 'Soporte incluido' },

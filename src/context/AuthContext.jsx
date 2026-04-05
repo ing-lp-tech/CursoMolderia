@@ -2,13 +2,10 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { supabase } from '../lib/supabase';
 
-// Obtenemos los admins desde las variables de entorno + HARCODEAMOS LA SOLUCIÓN DEFINITIVA
-const ADMIN_EMAILS = [
-  'ing.lp.tech@gmail.com',
-  'cristian590@gmail.com',
-  ...(import.meta.env.VITE_ADMIN_EMAILS || '').split(',')
-]
-  .map(email => email.trim().toLowerCase())
+// Admin emails solo desde variable de entorno — nunca hardcodeados en producción
+const ADMIN_EMAILS = (import.meta.env.VITE_ADMIN_EMAILS || '')
+  .split(',')
+  .map(e => e.trim().toLowerCase())
   .filter(Boolean);
 
 const AuthContext = createContext({});
@@ -21,7 +18,6 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Timeout de seguridad: si en 5 segundos no responde Supabase, quitamos el spinner
     const timeout = setTimeout(() => setLoading(false), 5000);
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -44,26 +40,23 @@ export function AuthProvider({ children }) {
     return () => { subscription.unsubscribe(); clearTimeout(timeout); };
   }, []);
 
+  // Auto-logout por inactividad (30 minutos para el admin)
   useEffect(() => {
     let inactivityTimer;
+    const TIMEOUT_MS = 30 * 60 * 1000; // 30 minutos
 
     const resetTimer = () => {
       clearTimeout(inactivityTimer);
       if (user) {
-        // 5 minutos = 5 * 60 * 1000 ms = 300000 ms
-        inactivityTimer = setTimeout(() => {
-          signOut();
-        }, 300000);
+        inactivityTimer = setTimeout(() => signOut(), TIMEOUT_MS);
       }
     };
 
-    const events = ['mousedown', 'mousemove', 'keydown', 'scroll', 'touchstart'];
-
+    const events = ['mousedown', 'keydown', 'scroll', 'touchstart'];
     if (user) {
       resetTimer();
-      events.forEach(e => window.addEventListener(e, resetTimer));
+      events.forEach(e => window.addEventListener(e, resetTimer, { passive: true }));
     }
-
     return () => {
       clearTimeout(inactivityTimer);
       events.forEach(e => window.removeEventListener(e, resetTimer));
@@ -74,56 +67,45 @@ export function AuthProvider({ children }) {
     try {
       const { data, error } = await supabase
         .from('perfiles')
-        .select('*')
+        .select('id, nombre, apellido, email, telefono, rol, activo, created_at')
         .eq('id', userId)
         .single();
-        
       if (error) throw error;
       setPerfil(data);
-    } catch (err) {
-      console.error("Error cargando perfil desde Supabase:", err.message);
+    } catch {
+      // No exponer detalles del error al usuario
     } finally {
       setLoading(false);
     }
   }
 
   async function signIn(email, password) {
-    const result = await supabase.auth.signInWithPassword({ email, password });
-    return result;
+    return supabase.auth.signInWithPassword({ email, password });
   }
 
   async function signOut(e) {
     if (e && e.preventDefault) e.preventDefault();
-    console.log("Cerrando sesión de forma forzada...");
-    
-    // 1. Limpiar TODAS las claves de Supabase en localStorage INMEDIATAMENTE
+
+    // Limpiar tokens de Supabase del storage
     Object.keys(localStorage).forEach(key => {
-      if (key.includes('sb-')) {
-        localStorage.removeItem(key);
-      }
+      if (key.startsWith('sb-')) localStorage.removeItem(key);
     });
 
-    // 2. Limpiar estados de React
     setUser(null);
     setPerfil(null);
 
-    // 3. Forzar redirección INMEDIATAMENTE (el navegador cortará la ejecución aquí)
+    // Redirigir inmediatamente
     window.location.href = '/login';
 
-    // 4. Intentar decirle a Supabase que cierre la sesión en el servidor, 
-    // pero no esperamos a que termine para sacar al usuario de la pantalla.
-    try {
-      await supabase.auth.signOut();
-    } catch (err) {
-      console.warn("Fallo silencioso al cerrar en servidor:", err);
-    }
+    // Notificar a Supabase en background (sin bloquear)
+    supabase.auth.signOut().catch(() => {});
   }
 
-  // Admin si: tabla perfiles dice admin, O metadatos de Auth dicen admin, O email está en lista
+  // Fuente de verdad principal: tabla perfiles en BD (respaldada por RLS)
+  // El email como fallback solo sirve en desarrollo con VITE_ADMIN_EMAILS
   const isAdmin =
     perfil?.rol === 'admin' ||
-    user?.user_metadata?.rol === 'admin' ||
-    ADMIN_EMAILS.includes(user?.email?.toLowerCase());
+    (ADMIN_EMAILS.length > 0 && ADMIN_EMAILS.includes(user?.email?.toLowerCase()));
 
   return (
     <AuthContext.Provider value={{ user, perfil, loading, isAdmin, signIn, signOut }}>

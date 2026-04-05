@@ -1,0 +1,14 @@
+User-agent: *
+Allow: /
+Allow: /temario
+Allow: /ventajas
+Allow: /inscripcion
+
+# Bloquear rutas privadas
+Disallow: /admin/
+Disallow: /portal/
+Disallow: /login
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://molditex.vercel.app/sitemap.xml

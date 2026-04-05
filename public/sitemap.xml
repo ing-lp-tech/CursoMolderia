@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml">
+
+  <url>
+    <loc>https://molditex.vercel.app/</loc>
+    <lastmod>2025-03-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>1.0</priority>
+    <xhtml:link rel="alternate" hreflang="es-AR" href="https://molditex.vercel.app/" />
+  </url>
+
+  <url>
+    <loc>https://molditex.vercel.app/temario</loc>
+    <lastmod>2025-03-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="es-AR" href="https://molditex.vercel.app/temario" />
+  </url>
+
+  <url>
+    <loc>https://molditex.vercel.app/ventajas</loc>
+    <lastmod>2025-03-01</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.8</priority>
+    <xhtml:link rel="alternate" hreflang="es-AR" href="https://molditex.vercel.app/ventajas" />
+  </url>
+
+  <url>
+    <loc>https://molditex.vercel.app/inscripcion</loc>
+    <lastmod>2025-03-01</lastmod>
+    <changefreq>weekly</changefreq>
+    <priority>0.95</priority>
+    <xhtml:link rel="alternate" hreflang="es-AR" href="https://molditex.vercel.app/inscripcion" />
+  </url>
+
+</urlset>
