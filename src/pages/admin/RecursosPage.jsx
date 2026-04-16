@@ -115,46 +115,48 @@ export default function RecursosPage() {
     setGuardando(true);
     setError('');
 
+    // Timeout de seguridad: si la petición a Supabase queda bloqueada por CSP
+    // u otro motivo, el fetch puede quedar pendiente indefinidamente.
+    // Este timer garantiza que el botón siempre se desbloquea.
+    let timeoutId;
+    const timeoutPromise = new Promise((_, reject) => {
+      timeoutId = setTimeout(
+        () => reject(new Error('Tiempo de espera agotado (15s). Verificá tu conexión o los permisos de la tabla.')),
+        15_000
+      );
+    });
+
     try {
       if (!form.titulo.trim() || !form.url.trim()) {
         setError('El título y la URL son obligatorios');
-        setGuardando(false);
         return;
       }
       if (form.tipo === 'video' && !extractVimeoId(form.url)) {
         setError('URL de Vimeo inválida. Usá el formato https://vimeo.com/XXXXXXX');
-        setGuardando(false);
         return;
       }
 
       const payload = {
-        titulo: form.titulo.trim(),
+        titulo:      form.titulo.trim(),
         descripcion: form.descripcion.trim() || null,
-        tipo: form.tipo,
-        url: form.url.trim(),
-        modulo: form.modulo === '' || form.modulo === null ? null : Number(form.modulo),
-        orden: Number(form.orden) || 0,
-        activo: form.activo,
+        tipo:        form.tipo,
+        url:         form.url.trim(),
+        modulo:      form.modulo === '' || form.modulo === null ? null : Number(form.modulo),
+        orden:       Number(form.orden) || 0,
+        activo:      form.activo,
       };
 
-      console.log('[Recursos] Guardando:', payload);
+      const dbCall = editando
+        ? supabase.from('recursos').update(payload).eq('id', editando)
+        : supabase.from('recursos').insert(payload);
 
-      let err = null;
-
-      if (editando) {
-        const result = await supabase.from('recursos').update(payload).eq('id', editando);
-        err = result.error;
-      } else {
-        const result = await supabase.from('recursos').insert(payload);
-        err = result.error;
-      }
-
-      console.log('[Recursos] Error Supabase:', err);
+      // Corre la petición en carrera contra el timeout
+      const { error: err } = await Promise.race([dbCall, timeoutPromise]);
 
       if (err) {
-        if (err.message.includes('relation') || err.message.includes('does not exist')) {
-          setError('La tabla "recursos" no existe. Ejecutá supabase/07_tabla_recursos.sql en Supabase SQL Editor.');
-        } else if (err.message.includes('row-level security') || err.message.includes('violates') || err.code === '42501' || err.code === 'PGRST301') {
+        if (err.message?.includes('relation') || err.message?.includes('does not exist')) {
+          setError('La tabla "recursos" no existe. Ejecutá supabase/07_tabla_recursos.sql en el SQL Editor de Supabase.');
+        } else if (err.message?.includes('row-level security') || err.message?.includes('violates') || err.code === '42501' || err.code === 'PGRST301') {
           setError('Sin permisos de escritura. Ejecutá en Supabase SQL Editor:\nGRANT SELECT, INSERT, UPDATE, DELETE ON public.recursos TO authenticated;');
         } else {
           setError(`Error al guardar: ${err.message}`);
@@ -165,9 +167,9 @@ export default function RecursosPage() {
       setShowModal(false);
       await cargarRecursos();
     } catch (ex) {
-      console.error('[Recursos] Excepción:', ex);
-      setError('Error inesperado: ' + ex.message);
+      setError(ex?.message || 'Error inesperado al guardar.');
     } finally {
+      clearTimeout(timeoutId);
       setGuardando(false);
     }
   }

@@ -30,7 +30,7 @@
         },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.mercadopago.com.ar https://sdk.mercadopago.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.mercadopago.com https://lh3.googleusercontent.com; frame-src https://www.mercadopago.com.ar https://mercadopago.com.ar https://player.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://www.mercadopago.com.ar https://sdk.mercadopago.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https: blob:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://*.supabase.com wss://*.supabase.com https://api.supabase.com https://api.supabase.io https://vimeo.com https://api.vimeo.com https://api.mercadopago.com https://lh3.googleusercontent.com; frame-src https://www.mercadopago.com.ar https://mercadopago.com.ar https://player.vimeo.com; object-src 'none'; base-uri 'self'; form-action 'self'"
         }
       ]
     },

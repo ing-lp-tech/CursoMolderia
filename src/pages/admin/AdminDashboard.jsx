@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { Link } from 'react-router-dom';
 
@@ -12,35 +12,47 @@ export default function AdminDashboard() {
   useEffect(() => {
     async function load() {
       try {
-        const [{ count: est }, { count: pend }, { data: pagos }, { data: fin }, { count: tareas }, { data: pagosDesc }] = await Promise.all([
+        // Consultas independientes para que un error en una no rompa las demás
+        const [
+          { count: est },
+          { data: fin },
+          { data: cupones },
+        ] = await Promise.all([
           supabase.from('perfiles').select('*', { count: 'exact', head: true }).eq('rol', 'estudiante'),
-          supabase.from('pagos').select('*', { count: 'exact', head: true }).eq('estado', 'pendiente'),
-          supabase.from('pagos').select('*, perfiles(nombre, apellido)').order('created_at', { ascending: false }).limit(5),
-          supabase.from('finanzas').select('monto, tipo'),
-          supabase.from('tareas').select('*', { count: 'exact', head: true }),
-          supabase.from('pagos').select('descuento_aplicado').not('cupon_codigo', 'is', null),
+          supabase.from('finanzas_movimientos').select('monto, tipo, monto_pagado, tiene_deuda'),
+          supabase.from('cupones').select('id, usos_actuales').gt('usos_actuales', 0),
         ]);
 
-        const ingresos = fin?.filter(f => f.tipo === 'ingreso').reduce((a, b) => a + b.monto, 0) || 0;
-        const con_descuento = pagosDesc?.length || 0;
-        const ahorro_total = pagosDesc?.reduce((sum, p) => sum + (Number(p.descuento_aplicado) || 0), 0) || 0;
-        setStats({
-          estudiantes: est || 0,
-          pagos_pendientes: pend || 0,
-          ingresos,
-          tareas: tareas || 0,
-          con_descuento,
-          ahorro_total,
-        });
-        setPagos(pagos || []);
+        // Ingresos: lo efectivamente cobrado (monto_pagado si tiene deuda, monto si no)
+        const ingresos = (fin || [])
+          .filter(f => f.tipo === 'ingreso')
+          .reduce((a, b) => a + Number(b.tiene_deuda ? (b.monto_pagado ?? 0) : (b.monto_pagado ?? b.monto ?? 0)), 0);
 
-        // Load config separately so it doesn't break the whole dashboard if missing
-        const { data: config } = await supabase.from('app_settings').select('value').eq('id', 'test_mode_mp').limit(1);
-        if (config && config.length > 0 && config[0].value === true) {
-          setTestMode(true);
-        }
+        // Deudas pendientes de cobro
+        const deudas_pendientes = (fin || [])
+          .filter(f => f.tipo === 'ingreso' && f.tiene_deuda).length;
+
+        // Usos de cupones
+        const con_descuento = (cupones || []).reduce((a, c) => a + (c.usos_actuales || 0), 0);
+
+        setStats({
+          estudiantes:      est || 0,
+          pagos_pendientes: deudas_pendientes,
+          ingresos,
+          tareas:           0, // Tablero usa kanban_state, no una tabla de tareas
+          con_descuento,
+          ahorro_total:     0,
+        });
+        setPagos([]); // La tabla 'pagos' de MercadoPago puede no existir aún
+
+        // Config opcional — si no existe la tabla no crashea
+        try {
+          const { data: config } = await supabase
+            .from('app_settings').select('value').eq('id', 'test_mode_mp').limit(1);
+          if (config?.[0]?.value === true) setTestMode(true);
+        } catch {}
       } catch (error) {
-        console.error("Error cargando dashboard:", error);
+        console.error('Error cargando dashboard:', error);
       } finally {
         setLoading(false);
       }

@@ -405,11 +405,12 @@ export default function FinanzasPage() {
   // Mini modal de abono rápido
   const [abonoTarget, setAbonoTarget] = useState(null); // movimiento activo para abonar
 
-  const [filterTipo, setFilterTipo]   = useState('todos');
-  const [filterMes, setFilterMes]     = useState('');
-  const [filterDeuda, setFilterDeuda] = useState('todos');
-  const [search, setSearch]           = useState('');
-  const [activeTab, setActiveTab]     = useState('movimientos');
+  const [filterTipo, setFilterTipo]         = useState('todos');
+  const [filterMes, setFilterMes]           = useState('');
+  const [filterDeuda, setFilterDeuda]       = useState('todos');
+  const [filterCobrador, setFilterCobrador] = useState('');
+  const [search, setSearch]                 = useState('');
+  const [activeTab, setActiveTab]           = useState('movimientos');
 
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -669,15 +670,28 @@ export default function FinanzasPage() {
 
   const filtered = useMemo(() => {
     let list = movimientos;
-    if (filterTipo !== 'todos') list = list.filter(m => m.tipo === filterTipo);
-    if (filterMes)              list = list.filter(m => m.fecha?.slice(0, 7) === filterMes);
+    if (filterTipo !== 'todos')      list = list.filter(m => m.tipo === filterTipo);
+    if (filterMes)                   list = list.filter(m => m.fecha?.slice(0, 7) === filterMes);
     if (filterDeuda === 'deuda')     list = list.filter(m => m.tiene_deuda);
     if (filterDeuda === 'sin_deuda') list = list.filter(m => !m.tiene_deuda);
+    if (filterCobrador)              list = list.filter(m => m.cobrador === filterCobrador);
     if (search) list = list.filter(m =>
       [m.descripcion, m.categoria, m.notas, m.beneficiario, m.cobrador].join(' ').toLowerCase().includes(search.toLowerCase())
     );
     return list.sort((a, b) => (b.fecha ?? '').localeCompare(a.fecha ?? ''));
-  }, [movimientos, filterTipo, filterMes, filterDeuda, search]);
+  }, [movimientos, filterTipo, filterMes, filterDeuda, filterCobrador, search]);
+
+  const filteredIngresos = useMemo(() =>
+    filtered.filter(m => m.tipo === 'ingreso')
+      .reduce((a, b) => a + Number(b.tiene_deuda ? (b.monto_pagado ?? 0) : (b.monto_pagado ?? b.monto ?? 0)), 0),
+    [filtered]);
+
+  const filteredEgresos = useMemo(() =>
+    filtered.filter(m => m.tipo === 'egreso')
+      .reduce((a, b) => a + Number(b.tiene_deuda ? (b.monto_pagado ?? 0) : (b.monto_pagado ?? b.monto ?? 0)), 0),
+    [filtered]);
+
+  const filteredBalance = filteredIngresos - filteredEgresos;
 
   const catBreakdown = useMemo(() => {
     const map = {};
@@ -786,11 +800,42 @@ export default function FinanzasPage() {
               <option value="">Todos los meses</option>
               {meses.map(m => <option key={m} value={m}>{m}</option>)}
             </select>
-            {(filterTipo !== 'todos' || filterMes || search || filterDeuda !== 'todos') && (
-              <button onClick={() => { setFilterTipo('todos'); setFilterMes(''); setSearch(''); setFilterDeuda('todos'); }}
+            <select value={filterCobrador} onChange={e => setFilterCobrador(e.target.value)} className="input-field py-2 text-sm max-w-[150px]">
+              <option value="">Todos los cobradores</option>
+              {DUENOS.map(d => <option key={d} value={d}>{d}</option>)}
+            </select>
+            {(filterTipo !== 'todos' || filterMes || search || filterDeuda !== 'todos' || filterCobrador) && (
+              <button onClick={() => { setFilterTipo('todos'); setFilterMes(''); setSearch(''); setFilterDeuda('todos'); setFilterCobrador(''); }}
                 className="text-xs text-primary hover:underline font-bold">Limpiar</button>
             )}
             <span className="text-xs text-on-surface-variant self-center ml-auto">{filtered.length} registros</span>
+          </div>
+
+          {/* Totales de la selección actual */}
+          <div className="flex flex-wrap gap-3 mb-4 p-3 rounded-xl bg-surface-container border border-outline-variant/20">
+            <div className="flex items-center gap-2">
+              <span className="material-symbols-outlined text-sm text-on-surface-variant">filter_alt</span>
+              <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Totales filtrados</span>
+            </div>
+            <div className="flex flex-wrap gap-4 ml-1">
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sm text-secondary">trending_up</span>
+                <span className="text-xs text-on-surface-variant">Cobrado:</span>
+                <span className="text-sm font-black text-secondary">${fmt(filteredIngresos)}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sm text-error">trending_down</span>
+                <span className="text-xs text-on-surface-variant">Pagado:</span>
+                <span className="text-sm font-black text-error">${fmt(filteredEgresos)}</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="material-symbols-outlined text-sm text-primary">account_balance_wallet</span>
+                <span className="text-xs text-on-surface-variant">Balance:</span>
+                <span className={`text-sm font-black ${filteredBalance >= 0 ? 'text-primary' : 'text-error'}`}>
+                  {filteredBalance >= 0 ? `+$${fmt(filteredBalance)}` : `-$${fmt(Math.abs(filteredBalance))}`}
+                </span>
+              </div>
+            </div>
           </div>
           <div className="card border border-outline-variant/20 overflow-x-auto p-0">
             {filtered.length === 0 ? (

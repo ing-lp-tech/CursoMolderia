@@ -1,12 +1,12 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { supabase } from '../lib/supabase';
 
-// Obtenemos los admins desde las variables de entorno + HARCODEAMOS LA SOLUCIÓN DEFINITIVA
 const ADMIN_EMAILS = [
   'ing.lp.tech@gmail.com',
   'cristian590@gmail.com',
-  ...(import.meta.env.VITE_ADMIN_EMAILS || '').split(',')
+  ...(import.meta.env.VITE_ADMIN_EMAILS || '').split(','),
 ]
   .map(email => email.trim().toLowerCase())
   .filter(Boolean);
@@ -14,45 +14,62 @@ const ADMIN_EMAILS = [
 export default function LoginPage() {
   const { signIn } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState('');
+  const [email, setEmail]       = useState('');
   const [password, setPassword] = useState('');
   const [showPass, setShowPass] = useState(false);
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [error, setError]       = useState('');
+  const [loading, setLoading]   = useState(false);
 
   async function handleSubmit(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
-    const { data, error: err } = await signIn(email, password);
-    
-    if (err) {
-      setLoading(false);
-      setError(err.message);
-      return;
-    }
 
-    // Chequeamos admin por email (lista env), metadatos de auth o tabla perfiles
-    const userEmail = data?.user?.email?.toLowerCase() || '';
-    const metaRol = data?.user?.user_metadata?.rol;
-    
-    // Traemos el perfil de la DB rápido para ver el rol real
-    let dbRol = null;
     try {
-      const { data: perfilData } = await import('../lib/supabase').then(m => m.supabase)
-        .from('perfiles').select('rol').eq('id', data.user.id).single();
-      dbRol = perfilData?.rol;
-    } catch (err) {
-      // Ignorar
-    }
+      // Timeout de 20s: previene que el botón quede colgado si Supabase no responde
+      const loginTimeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error(
+          'Tiempo de espera agotado (20s). Verificá tu conexión a internet o las credenciales de Supabase en .env.local'
+        )), 20_000)
+      );
 
-    const isUserAdmin = metaRol === 'admin' || dbRol === 'admin' || ADMIN_EMAILS.includes(userEmail);
-    setLoading(false);
+      const { data, error: err } = await Promise.race([
+        signIn(email, password),
+        loginTimeout,
+      ]);
 
-    if (isUserAdmin) {
-      navigate('/admin');
-    } else {
-      navigate('/portal');
+      if (err) {
+        setError(
+          err.message?.includes('Invalid login')
+            ? 'Email o contraseña incorrectos.'
+            : err.message || 'Error al iniciar sesión.'
+        );
+        return;
+      }
+
+      const userEmail = data?.user?.email?.toLowerCase() || '';
+      const metaRol   = data?.user?.user_metadata?.rol;
+
+      // Verificar rol en la tabla perfiles (fallback a lista de emails si falla)
+      let dbRol = null;
+      try {
+        const { data: perfilData } = await supabase
+          .from('perfiles')
+          .select('rol')
+          .eq('id', data.user.id)
+          .single();
+        dbRol = perfilData?.rol ?? null;
+      } catch {
+        // Ignorar — se usa ADMIN_EMAILS como fallback
+      }
+
+      const isUserAdmin = metaRol === 'admin' || dbRol === 'admin' || ADMIN_EMAILS.includes(userEmail);
+
+      navigate(isUserAdmin ? '/admin' : '/portal', { replace: true });
+    } catch (ex) {
+      setError(ex?.message || 'Error inesperado al iniciar sesión.');
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -108,14 +125,14 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <div className="bg-error-container/20 border border-error/30 rounded-lg px-4 py-3 text-sm text-error">
+            <div className="bg-error-container/20 border border-error/30 rounded-lg px-4 py-3 text-sm text-error whitespace-pre-wrap">
               {error}
             </div>
           )}
 
           <button type="submit" disabled={loading} className="btn-primary w-full justify-center flex items-center gap-2">
             {loading
-              ? <><span className="material-symbols-outlined text-sm">refresh</span>Ingresando...</>
+              ? <><span className="material-symbols-outlined text-sm animate-spin">refresh</span>Ingresando...</>
               : <><span className="material-symbols-outlined text-sm">login</span>Ingresar</>
             }
           </button>

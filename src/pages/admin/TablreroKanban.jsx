@@ -160,6 +160,7 @@ export default function TablreroKanban() {
   const [syncStatus, setSyncStatus] = useState('idle'); // 'idle' | 'syncing' | 'ok' | 'error'
   const syncTimerRef = useRef(null);
   const isMountedRef = useRef(true);
+  const isInitialLoadRef = useRef(true); // bloquea sync hasta que Supabase responda
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -170,91 +171,90 @@ export default function TablreroKanban() {
 
   // Guardar en localStorage cada vez que cambia el estado
   useEffect(() => {
-    console.log('[Tablero] Estado actualizado, preparando sync...', 'Tasks:', tasks.length);
     saveLocal(columns, tasks);
-    
-    // Intentar sincronizar con Supabase (debounced)
+
+    // No sincronizar con Supabase hasta que la carga inicial termine
+    // (evita sobreescribir datos reales con estado vacío)
+    if (isInitialLoadRef.current) return;
+
     clearTimeout(syncTimerRef.current);
     syncTimerRef.current = setTimeout(() => {
-      console.log('[Tablero] Timer finalizado, llamando a syncToSupabase...');
       syncToSupabase(columns, tasks);
     }, 1000);
   }, [columns, tasks]);
 
   // ── Supabase sync (background, no bloquea UI) ────────────────────
   async function loadFromSupabase() {
-    console.log('[Tablero] Ejecutando loadFromSupabase() NATIVO');
     setSyncStatus('syncing');
+    let pushLocalToSupabase = false;
     try {
       const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/kanban_state?id=eq.1&select=data`;
       const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      
+
       const res = await fetch(url, {
-        headers: {
-          'apikey': key,
-          'Authorization': `Bearer ${key}`
-        }
+        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
       });
-      
+
       if (!isMountedRef.current) return;
-      if (!res.ok) {
-        throw new Error(`HTTP Error ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const rows = await res.json();
       const resData = rows[0]?.data;
 
-      if (resData) {
-        console.log('[Tablero] Datos recebidos de Supabase NATIVO', resData);
-        if (resData.columns && resData.columns.length > 0) {
-          // NO sobreescribimos si hay mas tareas en local - EVITAR REGRESIONES
-          if ((resData.tasks || []).length >= tasks.length) {
-              setColumns(resData.columns);
-              setTasks(resData.tasks || []);
-              saveLocal(resData.columns, resData.tasks || []);
-          }
+      if (resData?.columns?.length > 0) {
+        const supabaseTasks = resData.tasks || [];
+        if (supabaseTasks.length >= tasks.length) {
+          // Supabase tiene ≥ tareas que local → usar Supabase
+          setColumns(resData.columns);
+          setTasks(supabaseTasks);
+          saveLocal(resData.columns, supabaseTasks);
+        } else if (tasks.length > 0) {
+          // Local tiene más tareas → subir local a Supabase
+          pushLocalToSupabase = true;
         }
+      } else if (tasks.length > 0) {
+        // Supabase no tiene fila o está vacío pero local sí tiene datos → subir local
+        pushLocalToSupabase = true;
       }
       setSyncStatus('ok');
     } catch (err) {
-      console.error('[Tablero] Exception en loadFromSupabase NATIVO', err);
-      if (isMountedRef.current) setSyncStatus(`Exception: ${err?.message}`);
+      if (isMountedRef.current) setSyncStatus(`Error: ${err?.message}`);
+    } finally {
+      isInitialLoadRef.current = false;
+      // Si local ganó el conflicto, forzar sync hacia Supabase ahora
+      if (pushLocalToSupabase) syncToSupabase(columns, tasks);
     }
   }
 
+  // Usa POST + upsert para crear la fila si no existe, o actualizarla si ya existe.
+  // El PATCH anterior fallaba silenciosamente cuando la fila con id=1 no existía.
   async function syncToSupabase(cols, tsks) {
-    console.log('[Tablero] syncToSupabase NATIVO iniciado... columnas:', cols.length, 'tareas:', tsks.length);
     try {
       setSyncStatus('syncing');
-      
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/kanban_state?id=eq.1`;
-      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-      const payload = { data: { columns: cols, tasks: tsks } };
+      const url  = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/kanban_state`;
+      const key  = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
       const res = await fetch(url, {
-        method: 'PATCH',
+        method: 'POST',
         headers: {
           'apikey': key,
           'Authorization': `Bearer ${key}`,
           'Content-Type': 'application/json',
-          'Prefer': 'return=minimal'
+          'Prefer': 'resolution=merge-duplicates,return=minimal',
         },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({ id: 1, data: { columns: cols, tasks: tsks } }),
       });
-      
+
       if (!isMountedRef.current) return;
-      
+
       if (res.ok) {
         setSyncStatus('ok');
-        console.log('[Tablero] ✅ Sincronización NATIVA Exitosa');
       } else {
         const errText = await res.text();
-        console.error('[Tablero] ❌ Error devolviendo Supabase NATIVO:', errText);
-        setSyncStatus(`Sync Error: HTTP ${res.status}`);
+        setSyncStatus(`Sync Error: HTTP ${res.status} – ${errText.slice(0, 80)}`);
       }
     } catch (e) {
-      console.error('[Tablero] 🔥 Exception grave en syncToSupabase NATIVO:', e);
-      if (isMountedRef.current) setSyncStatus(`Sync Code Error: ${e.message}`);
+      if (isMountedRef.current) setSyncStatus(`Sync Error: ${e.message}`);
     }
   }
 
