@@ -188,18 +188,16 @@ export default function TablreroKanban() {
     setSyncStatus('syncing');
     let pushLocalToSupabase = false;
     try {
-      const url = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/kanban_state?id=eq.1&select=data`;
-      const key = import.meta.env.VITE_SUPABASE_ANON_KEY;
-
-      const res = await fetch(url, {
-        headers: { 'apikey': key, 'Authorization': `Bearer ${key}` }
-      });
+      const { data: rows, error } = await supabase
+        .from('kanban_state')
+        .select('data')
+        .eq('id', 1)
+        .limit(1);
 
       if (!isMountedRef.current) return;
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (error) throw error;
 
-      const rows = await res.json();
-      const resData = rows[0]?.data;
+      const resData = rows?.[0]?.data;
 
       if (resData?.columns?.length > 0) {
         const supabaseTasks = resData.tasks || [];
@@ -226,32 +224,21 @@ export default function TablreroKanban() {
     }
   }
 
-  // Usa POST + upsert para crear la fila si no existe, o actualizarla si ya existe.
-  // El PATCH anterior fallaba silenciosamente cuando la fila con id=1 no existía.
+  // Usa upsert para crear la fila si no existe, o actualizarla si ya existe.
   async function syncToSupabase(cols, tsks) {
     try {
       setSyncStatus('syncing');
-      const url  = `${import.meta.env.VITE_SUPABASE_URL}/rest/v1/kanban_state`;
-      const key  = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'apikey': key,
-          'Authorization': `Bearer ${key}`,
-          'Content-Type': 'application/json',
-          'Prefer': 'resolution=merge-duplicates,return=minimal',
-        },
-        body: JSON.stringify({ id: 1, data: { columns: cols, tasks: tsks } }),
-      });
+      const { error } = await supabase
+        .from('kanban_state')
+        .upsert({ id: 1, data: { columns: cols, tasks: tsks } });
 
       if (!isMountedRef.current) return;
 
-      if (res.ok) {
-        setSyncStatus('ok');
+      if (error) {
+        setSyncStatus(`Sync Error: ${error.message}`);
       } else {
-        const errText = await res.text();
-        setSyncStatus(`Sync Error: HTTP ${res.status} – ${errText.slice(0, 80)}`);
+        setSyncStatus('ok');
       }
     } catch (e) {
       if (isMountedRef.current) setSyncStatus(`Sync Error: ${e.message}`);
