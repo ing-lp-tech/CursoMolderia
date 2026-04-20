@@ -37,6 +37,11 @@ export default function EstudiantesPage() {
   const [passError, setPassError] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [copiadoNewPass, setCopiadoNewPass] = useState(false);
+  const [passMode, setPassMode] = useState('random');
+  const [customPassInput, setCustomPassInput] = useState('');
+  const [customPassError, setCustomPassError] = useState('');
+  const [showPasswordDetail, setShowPasswordDetail] = useState(false);
+  const [showCustomPassInput, setShowCustomPassInput] = useState(false);
 
   // ── FETCH — solo cuando 'user' está disponible (sesión JWT lista) ───────────
   useEffect(() => {
@@ -49,7 +54,7 @@ export default function EstudiantesPage() {
       try {
         const { data, error } = await supabase
           .from('perfiles')
-          .select('id, nombre, apellido, email, telefono, activo, created_at')
+          .select('id, nombre, apellido, email, telefono, activo, created_at, ultima_password')
           .eq('rol', 'estudiante')
           .order('created_at', { ascending: false });
 
@@ -69,10 +74,17 @@ export default function EstudiantesPage() {
   async function refrescarLista() {
     const { data } = await supabase
       .from('perfiles')
-      .select('id, nombre, apellido, email, telefono, activo, created_at')
+      .select('id, nombre, apellido, email, telefono, activo, created_at, ultima_password')
       .eq('rol', 'estudiante')
       .order('created_at', { ascending: false });
     setEstudiantes(data || []);
+  }
+
+  function validarPassword(p) {
+    if (p.length < 8) return 'Debe tener al menos 8 caracteres';
+    if (!/[A-Z]/.test(p)) return 'Debe tener al menos una mayúscula';
+    if (!/[0-9]/.test(p)) return 'Debe tener al menos un número';
+    return '';
   }
 
   async function verPagos(est) {
@@ -218,20 +230,31 @@ export default function EstudiantesPage() {
     setPassError('');
     setNewPassword('');
     setCopiadoNewPass(false);
+    setPassMode('random');
+    setCustomPassInput('');
+    setCustomPassError('');
+    setShowCustomPassInput(false);
     setShowPassModal(true);
   }
 
   async function resetearPassword() {
+    if (passMode === 'custom') {
+      const err = validarPassword(customPassInput);
+      if (err) { setCustomPassError(err); return; }
+    }
     setPassStatus('loading');
     setPassError('');
     try {
       const { data: { session } } = await supabase.auth.getSession();
       if (!session) throw new Error('No hay sesión activa');
 
+      const body = { userId: selected.id };
+      if (passMode === 'custom') body.customPassword = customPassInput;
+
       const res = await fetch('/api/reset-password-alumno', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${session.access_token}` },
-        body: JSON.stringify({ userId: selected.id }),
+        body: JSON.stringify(body),
       });
 
       const json = await res.json();
@@ -239,6 +262,8 @@ export default function EstudiantesPage() {
 
       setNewPassword(json.newPassword);
       setPassStatus('success');
+      setSelected(prev => ({ ...prev, ultima_password: json.newPassword }));
+      setEstudiantes(prev => prev.map(e => e.id === selected.id ? { ...e, ultima_password: json.newPassword } : e));
     } catch (err) {
       setPassError(err.message);
       setPassStatus('error');
@@ -342,6 +367,24 @@ export default function EstudiantesPage() {
                 </span>
               </div>
 
+              {/* Contraseña actual */}
+              {selected.ultima_password && (
+                <div className="mb-4 p-3 rounded-xl border border-outline-variant/20 bg-surface-variant/40">
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">Última contraseña asignada</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 font-mono font-bold text-primary tracking-wider">
+                      {showPasswordDetail ? selected.ultima_password : '••••••••'}
+                    </code>
+                    <button onClick={() => setShowPasswordDetail(v => !v)} className="p-1.5 hover:bg-outline-variant/30 rounded-lg transition-all" title={showPasswordDetail ? 'Ocultar' : 'Ver'}>
+                      <span className="material-symbols-outlined text-sm text-on-surface-variant">{showPasswordDetail ? 'visibility_off' : 'visibility'}</span>
+                    </button>
+                    <button onClick={() => { navigator.clipboard.writeText(selected.ultima_password); }} className="p-1.5 hover:bg-outline-variant/30 rounded-lg transition-all" title="Copiar">
+                      <span className="material-symbols-outlined text-sm text-on-surface-variant">content_copy</span>
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {/* Acceso rápido resetear contraseña */}
               <button
                 onClick={abrirResetPass}
@@ -350,7 +393,7 @@ export default function EstudiantesPage() {
                 <span className="material-symbols-outlined text-primary">lock_reset</span>
                 <div>
                   <p className="text-sm font-bold">Resetear contraseña</p>
-                  <p className="text-xs text-on-surface-variant">Generá una nueva contraseña temporal para el alumno</p>
+                  <p className="text-xs text-on-surface-variant">Generá o establecé una nueva contraseña para el alumno</p>
                 </div>
                 <span className="material-symbols-outlined text-on-surface-variant ml-auto text-sm">arrow_forward_ios</span>
               </button>
@@ -557,9 +600,61 @@ export default function EstudiantesPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                <p className="text-sm text-on-surface-variant text-center">
-                  Se generará una nueva contraseña temporal aleatoria. La contraseña actual del alumno dejará de funcionar.
-                </p>
+                {/* Toggle: aleatoria / personalizada */}
+                <div className="flex rounded-xl overflow-hidden border border-outline-variant/30">
+                  <button
+                    type="button"
+                    onClick={() => setPassMode('random')}
+                    className={`flex-1 py-2 text-sm font-bold transition-all ${passMode === 'random' ? 'bg-primary text-white' : 'hover:bg-surface-variant text-on-surface-variant'}`}
+                  >
+                    Aleatoria
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPassMode('custom')}
+                    className={`flex-1 py-2 text-sm font-bold transition-all ${passMode === 'custom' ? 'bg-primary text-white' : 'hover:bg-surface-variant text-on-surface-variant'}`}
+                  >
+                    Personalizada
+                  </button>
+                </div>
+
+                {passMode === 'random' ? (
+                  <p className="text-sm text-on-surface-variant text-center">
+                    Se generará una contraseña aleatoria segura. La contraseña actual del alumno dejará de funcionar.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block">Nueva contraseña</label>
+                    <div className="relative">
+                      <input
+                        type={showCustomPassInput ? 'text' : 'password'}
+                        value={customPassInput}
+                        onChange={e => { setCustomPassInput(e.target.value); setCustomPassError(''); }}
+                        className="input-field pr-10"
+                        placeholder="Ej: Moldi2025"
+                      />
+                      <button type="button" onClick={() => setShowCustomPassInput(v => !v)} className="absolute right-3 top-1/2 -translate-y-1/2 text-on-surface-variant">
+                        <span className="material-symbols-outlined text-base">{showCustomPassInput ? 'visibility_off' : 'visibility'}</span>
+                      </button>
+                    </div>
+                    {customPassError && <p className="text-xs text-error">{customPassError}</p>}
+                    <ul className="text-xs text-on-surface-variant space-y-0.5 mt-1">
+                      <li className={`flex items-center gap-1 ${customPassInput.length >= 8 ? 'text-secondary' : ''}`}>
+                        <span className="material-symbols-outlined text-xs">{customPassInput.length >= 8 ? 'check_circle' : 'radio_button_unchecked'}</span>
+                        Mínimo 8 caracteres
+                      </li>
+                      <li className={`flex items-center gap-1 ${/[A-Z]/.test(customPassInput) ? 'text-secondary' : ''}`}>
+                        <span className="material-symbols-outlined text-xs">{/[A-Z]/.test(customPassInput) ? 'check_circle' : 'radio_button_unchecked'}</span>
+                        Al menos una mayúscula
+                      </li>
+                      <li className={`flex items-center gap-1 ${/[0-9]/.test(customPassInput) ? 'text-secondary' : ''}`}>
+                        <span className="material-symbols-outlined text-xs">{/[0-9]/.test(customPassInput) ? 'check_circle' : 'radio_button_unchecked'}</span>
+                        Al menos un número
+                      </li>
+                    </ul>
+                  </div>
+                )}
+
                 {passStatus === 'error' && (
                   <div className="bg-error/10 border border-error/30 rounded-xl px-3 py-2 text-sm text-error">{passError}</div>
                 )}
@@ -567,9 +662,9 @@ export default function EstudiantesPage() {
                   <button type="button" onClick={() => setShowPassModal(false)} className="btn-secondary flex-1">Cancelar</button>
                   <button type="button" onClick={resetearPassword} disabled={passStatus === 'loading'} className="btn-primary flex-1 flex items-center justify-center gap-2">
                     {passStatus === 'loading' ? (
-                      <><span className="material-symbols-outlined animate-spin text-sm">refresh</span>Generando...</>
+                      <><span className="material-symbols-outlined animate-spin text-sm">refresh</span>Aplicando...</>
                     ) : (
-                      <><span className="material-symbols-outlined text-sm">lock_reset</span>Generar contraseña</>
+                      <><span className="material-symbols-outlined text-sm">lock_reset</span>{passMode === 'custom' ? 'Establecer' : 'Generar'}</>
                     )}
                   </button>
                 </div>

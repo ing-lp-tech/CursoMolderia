@@ -113,7 +113,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: msg });
   }
 
-  // Asegurar que el perfil existe (trigger debería crearlo, pero por las dudas)
   await adminClient.from('perfiles').upsert({
     id: newUser.user.id,
     nombre: nombre.trim(),
@@ -122,6 +121,7 @@ export default async function handler(req, res) {
     telefono: (telefono || '').trim() || null,
     rol: 'estudiante',
     activo: true,
+    ultima_password: tempPassword,
   }, { onConflict: 'id' });
 
   return res.status(200).json({

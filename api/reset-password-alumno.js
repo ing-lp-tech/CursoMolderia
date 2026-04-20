@@ -64,8 +64,21 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'Solo el administrador puede resetear contraseñas' });
   }
 
-  const { userId } = req.body || {};
+  const { userId, customPassword } = req.body || {};
   if (!userId) return res.status(400).json({ error: 'userId es requerido' });
+
+  // Validar contraseña custom si se provee
+  if (customPassword !== undefined) {
+    if (typeof customPassword !== 'string' || customPassword.length < 8) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos 8 caracteres' });
+    }
+    if (!/[A-Z]/.test(customPassword)) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos una mayúscula' });
+    }
+    if (!/[0-9]/.test(customPassword)) {
+      return res.status(400).json({ error: 'La contraseña debe tener al menos un número' });
+    }
+  }
 
   // Verificar que el target sea estudiante
   const { data: target } = await adminClient
@@ -79,17 +92,20 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'No se puede resetear la contraseña de otro administrador' });
   }
 
-  const newPassword = generarPassword();
+  const newPassword = customPassword || generarPassword();
 
   const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, {
     password: newPassword,
-    email_confirm: true,   // forzar confirmación para que pueda loguearse de inmediato
+    email_confirm: true,
   });
 
   if (updateError) {
     console.error('[reset-password] Error:', updateError.message);
     return res.status(500).json({ error: 'Error al resetear contraseña: ' + updateError.message });
   }
+
+  // Guardar contraseña en perfiles para visibilidad del admin
+  await adminClient.from('perfiles').update({ ultima_password: newPassword }).eq('id', userId);
 
   return res.status(200).json({
     success: true,
