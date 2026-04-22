@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { supabase } from '../lib/supabase';
 import mpLogo from '../assets/mp.svg';
 import { validateCupon, useCupon } from '../utils/cupones';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const WAPP = '5491162020911';
 const WAPP_MSG = encodeURIComponent('Hola! Quiero inscribirme al curso de moldería con Audaces. Me gustaría recibir más información.');
@@ -13,54 +14,54 @@ const CAMPOS = [
   { id: 'telefono', label: 'WhatsApp / Teléfono', type: 'tel', placeholder: '+54 11 0000-0000' },
 ];
 
-const BASE_TOTAL = 400000;
-
-const PLANES = [
-  {
-    id: 'completo_mp',
-    label: 'Pago Completo — MercadoPago',
-    monto: 400000,
-    badge: 'Recomendado',
-    badgeColor: 'bg-secondary/20 text-secondary',
-    desc: 'Pagá el total por MercadoPago (transferencia, tarjeta, débito).',
-    icon: 'credit_card',
-    color: 'border-secondary',
-    ratio: 1,
-  },
-  {
-    id: 'anticipo_50',
-    label: 'Anticipo 50% — MercadoPago',
-    monto: 200000,
-    badge: '+ resto en efectivo',
-    badgeColor: 'bg-primary/20 text-primary',
-    desc: 'Pagá el 50% ahora por MercadoPago y el resto en efectivo el día del inicio.',
-    icon: 'payments',
-    color: 'border-primary',
-    ratio: 0.5,
-  },
-  {
-    id: 'anticipo_25',
-    label: 'Anticipo 25% — MercadoPago',
-    monto: 100000,
-    badge: '+ resto en efectivo',
-    badgeColor: 'bg-tertiary/20 text-tertiary',
-    desc: 'Pagá el 25% ahora por MercadoPago y el resto en efectivo el día del inicio.',
-    icon: 'account_balance_wallet',
-    color: 'border-tertiary',
-    ratio: 0.25,
-  },
-  {
-    id: 'prueba_100',
-    label: '⚡ MODO PRUEBA — $100',
-    monto: 100,
-    badge: 'Test Real',
-    badgeColor: 'bg-error/20 text-error',
-    desc: 'Plan exclusivo temporal para probar que MercadoPago descuenta dinero real correctamente.',
-    icon: 'bug_report',
-    color: 'border-error',
-    ratio: null,
-  },
-];
+function buildPlanes(precioBase) {
+  return [
+    {
+      id: 'completo_mp',
+      label: 'Pago Completo — MercadoPago',
+      monto: precioBase,
+      badge: 'Recomendado',
+      badgeColor: 'bg-secondary/20 text-secondary',
+      desc: 'Pagá el total por MercadoPago (transferencia, tarjeta, débito).',
+      icon: 'credit_card',
+      color: 'border-secondary',
+      ratio: 1,
+    },
+    {
+      id: 'anticipo_50',
+      label: 'Anticipo 50% — MercadoPago',
+      monto: Math.round(precioBase * 0.5),
+      badge: '+ resto en efectivo',
+      badgeColor: 'bg-primary/20 text-primary',
+      desc: 'Pagá el 50% ahora por MercadoPago y el resto en efectivo el día del inicio.',
+      icon: 'payments',
+      color: 'border-primary',
+      ratio: 0.5,
+    },
+    {
+      id: 'anticipo_25',
+      label: 'Anticipo 25% — MercadoPago',
+      monto: Math.round(precioBase * 0.25),
+      badge: '+ resto en efectivo',
+      badgeColor: 'bg-tertiary/20 text-tertiary',
+      desc: 'Pagá el 25% ahora por MercadoPago y el resto en efectivo el día del inicio.',
+      icon: 'account_balance_wallet',
+      color: 'border-tertiary',
+      ratio: 0.25,
+    },
+    {
+      id: 'prueba_100',
+      label: '⚡ MODO PRUEBA — $100',
+      monto: 100,
+      badge: 'Test Real',
+      badgeColor: 'bg-error/20 text-error',
+      desc: 'Plan exclusivo temporal para probar que MercadoPago descuenta dinero real correctamente.',
+      icon: 'bug_report',
+      color: 'border-error',
+      ratio: null,
+    },
+  ];
+}
 
 /** Returns the MP amount for a plan after applying coupon discount */
 function getMontoConDescuento(plan, cuponResult) {
@@ -70,6 +71,9 @@ function getMontoConDescuento(plan, cuponResult) {
 }
 
 export default function InscripcionPage() {
+  const { precio_base, precio_tachado, fecha_inicio, test_mode_mp: testModeSetting, loaded } = useAppSettings();
+  const PLANES = buildPlanes(precio_base);
+
   const [form, setForm] = useState({ nombre: '', apellido: '', email: '', telefono: '', plan: 'completo_mp', consulta: '' });
   const [estado, setEstado] = useState('idle');
   const [errMsg, setErrMsg] = useState('');
@@ -87,37 +91,15 @@ export default function InscripcionPage() {
   const planSeleccionado = PLANES.find(p => p.id === form.plan);
   const montoEfectivo = getMontoConDescuento(planSeleccionado, cuponResult);
 
-  // Remaining cash amount for partial plans
   function getCashResto(plan) {
     if (plan.ratio === null || plan.ratio === 1) return 0;
-    const discountedTotal = cuponResult?.valid ? cuponResult.finalPrice : BASE_TOTAL;
+    const discountedTotal = cuponResult?.valid ? cuponResult.finalPrice : precio_base;
     return Math.max(0, discountedTotal - Math.round(discountedTotal * plan.ratio));
   }
 
+  // Status from URL — runs once on mount
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
-    const isUrlTest = params.get('test') === 'true';
-    const urlCupon = params.get('cupon');
-
-    // Pre-fill coupon from URL (from flash promo banner)
-    if (urlCupon) {
-      const code = urlCupon.toUpperCase();
-      setCuponInput(code);
-      validateCupon(code, BASE_TOTAL).then(result => {
-        if (result.valid) setCuponResult(result);
-      }).catch(() => {});
-    }
-
-    supabase.from('app_settings').select('value').eq('id', 'test_mode_mp').single().then(({ data }) => {
-      if (data?.value === true || isUrlTest) {
-        setTestMode(true);
-      } else {
-        if (form.plan === 'prueba_100') setForm(prev => ({ ...prev, plan: 'completo_mp' }));
-      }
-    }).catch(() => {
-      if (isUrlTest) setTestMode(true);
-    });
-
     if (params.get('status') === 'approved' || params.get('status') === 'success') {
       setEstado('success');
     } else if (params.get('status') === 'failure') {
@@ -126,13 +108,35 @@ export default function InscripcionPage() {
     }
   }, []);
 
+  // Test mode + coupon preload — runs after settings are loaded
+  useEffect(() => {
+    if (!loaded) return;
+    const params = new URLSearchParams(window.location.search);
+    const isUrlTest = params.get('test') === 'true';
+
+    if (testModeSetting || isUrlTest) {
+      setTestMode(true);
+    } else {
+      if (form.plan === 'prueba_100') setForm(prev => ({ ...prev, plan: 'completo_mp' }));
+    }
+
+    const urlCupon = params.get('cupon');
+    if (urlCupon) {
+      const code = urlCupon.toUpperCase();
+      setCuponInput(code);
+      validateCupon(code, precio_base).then(result => {
+        if (result.valid) setCuponResult(result);
+      }).catch(() => {});
+    }
+  }, [loaded]); // eslint-disable-line react-hooks/exhaustive-deps
+
   async function handleAplicarCupon() {
     const code = cuponInput.trim();
     if (!code) return;
     setCuponLoading(true);
     setErrMsg('');
     try {
-      const result = await validateCupon(code, BASE_TOTAL);
+      const result = await validateCupon(code, precio_base);
       setCuponResult(result.valid ? result : null);
       if (!result.valid) setErrMsg(result.error);
     } catch {
@@ -187,7 +191,7 @@ export default function InscripcionPage() {
         await supabase.from('pagos').insert({
           estudiante_id: userId,
           monto: montoEfectivo,
-          monto_original: planSeleccionado?.monto || BASE_TOTAL,
+          monto_original: planSeleccionado?.monto || precio_base,
           descuento_aplicado: cuponResult?.valid ? cuponResult.discount : 0,
           cupon_codigo: cuponResult?.valid ? cuponResult.cupon.code : null,
           moneda: 'ARS',
@@ -232,7 +236,7 @@ export default function InscripcionPage() {
   }
 
   const planesActivos = testMode ? PLANES : PLANES.filter(p => p.id !== 'prueba_100');
-  const totalConDescuento = cuponResult?.valid ? cuponResult.finalPrice : BASE_TOTAL;
+  const totalConDescuento = cuponResult?.valid ? cuponResult.finalPrice : precio_base;
 
   return (
     <div className="min-h-screen pt-24 pb-32 px-6 lg:px-20">
@@ -258,7 +262,7 @@ export default function InscripcionPage() {
                 Cupón <span className="uppercase tracking-widest">{cuponResult.cupon.code}</span> aplicado — {cuponResult.label}
               </p>
               <p className="text-xs text-on-surface-variant">
-                Precio total: <span className="line-through">${BASE_TOTAL.toLocaleString('es-AR')}</span>
+                Precio total: <span className="line-through">${precio_base.toLocaleString('es-AR')}</span>
                 {' '}→{' '}
                 <span className="font-bold text-on-surface">${totalConDescuento.toLocaleString('es-AR')}</span>
               </p>
@@ -422,14 +426,14 @@ export default function InscripcionPage() {
               <p className="text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">Inversión Total</p>
               {cuponResult?.valid ? (
                 <>
-                  <p className="text-sm text-on-surface-variant line-through">${BASE_TOTAL.toLocaleString('es-AR')} ARS</p>
+                  <p className="text-sm text-on-surface-variant line-through">${precio_base.toLocaleString('es-AR')} ARS</p>
                   <p className="font-headline text-4xl font-black text-tertiary">${totalConDescuento.toLocaleString('es-AR')}</p>
                   <p className="text-[10px] font-bold text-tertiary uppercase tracking-widest mt-0.5">{cuponResult.label} aplicado</p>
                 </>
               ) : (
                 <>
-                  <p className="font-headline text-4xl font-black mb-1">${BASE_TOTAL.toLocaleString('es-AR')}</p>
-                  <p className="text-on-surface-variant text-sm line-through mb-3">$650.000 ARS</p>
+                  <p className="font-headline text-4xl font-black mb-1">${precio_base.toLocaleString('es-AR')}</p>
+                  <p className="text-on-surface-variant text-sm line-through mb-3">${precio_tachado.toLocaleString('es-AR')} ARS</p>
                 </>
               )}
               <div className="pt-3 border-t border-outline-variant/20 mt-3">
@@ -465,7 +469,7 @@ export default function InscripcionPage() {
               <span className="material-symbols-outlined text-error text-xl shrink-0">calendar_month</span>
               <div>
                 <p className="text-xs font-black uppercase tracking-widest text-error">Inicio del Curso</p>
-                <p className="text-sm font-bold text-on-surface">13 de Marzo</p>
+                <p className="text-sm font-bold text-on-surface">{fecha_inicio}</p>
               </div>
             </div>
 

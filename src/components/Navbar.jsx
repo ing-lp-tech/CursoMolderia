@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const NAV_LINKS = [
   { to: '/',            label: 'Inicio',      icon: 'home' },
@@ -12,7 +13,41 @@ const NAV_LINKS = [
 export default function Navbar() {
   const { pathname }                  = useLocation();
   const { user, isAdmin, signOut }    = useAuth();
+  const { precio_base, fecha_inicio } = useAppSettings();
   const [menuOpen, setMenuOpen]       = useState(false);
+
+  const wappMsg = encodeURIComponent(
+`🔥 ESTO TE PUEDE CAMBIAR LA VIDA
+
+Si estás cansado de perder tiempo, de no avanzar o de sentir que te falta una habilidad real… este curso es para vos.
+
+📅 Arranca el ${fecha_inicio}
+
+No es teoría vacía. Acá vas a aprender moldería digital con software Audaces, aplicado al mundo real, con herramientas y procesos que se usan en la industria.
+
+💻 ¿Qué incluye?
+
+✔️ Plataforma de estudio 24/7
+✔️ Clases presenciales con acompañamiento
+✔️ Material profesional paso a paso
+✔️ Práctica real en PC
+✔️ Prácticas con plotter de tizada para tizado
+✔️ Uso de pizarra digitalizadora
+✔️ Seguimiento personalizado
+✔️ Certificado de cursada
+
+💡 Vas a salir sabiendo hacer. Sin vueltas. Sin perder años.
+
+💰 Inversión: $${precio_base.toLocaleString('es-AR')}
+
+⚠️ Los cupos son limitados y esto no es para todos.
+Es para el que realmente quiere avanzar.
+
+👉 Entrá ahora y asegurá tu lugar:
+https://curso-molderia.vercel.app/
+
+Quiero inscribirme: (Completar nombre y apellido)`
+  );
 
   const isStudent = user && !isAdmin;
 
@@ -306,7 +341,7 @@ export default function Navbar() {
 
       {/* Botón flotante WhatsApp */}
       <a
-        href="https://wa.me/5491162020911?text=Hola!%20Me%20gustar%C3%ADa%20saber%20m%C3%A1s%20sobre%20el%20curso%20de%20molder%C3%ADa%20con%20Audaces."
+        href={`https://wa.me/5491162020911?text=${wappMsg}`}
         target="_blank"
         rel="noreferrer"
         aria-label="Contactar por WhatsApp"

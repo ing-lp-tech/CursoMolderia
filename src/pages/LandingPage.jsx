@@ -4,6 +4,7 @@ import luisBlack from '../assets/luisBlack.png';
 import cristian from '../assets/cristian.jpg';
 import logo from '../assets/logo.png';
 import { getActiveFlashPromo } from '../utils/cupones';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 function useCountdown(targetDate) {
   const [timeLeft, setTimeLeft] = useState(null);
@@ -59,6 +60,7 @@ function FlashPromoBanner({ promo }) {
 }
 
 export default function LandingPage() {
+  const { precio_base, precio_tachado, fecha_inicio } = useAppSettings();
   const [flashPromo, setFlashPromo] = useState(null);
 
   useEffect(() => {
@@ -86,7 +88,7 @@ export default function LandingPage() {
               </div>
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-error/10 border border-error/20">
                 <span className="material-symbols-outlined text-error text-sm">calendar_month</span>
-                <span className="text-error font-label text-[10px] uppercase tracking-[0.2em] font-bold">Inicio: 13 de Marzo</span>
+                <span className="text-error font-label text-[10px] uppercase tracking-[0.2em] font-bold">Inicio: {fecha_inicio}</span>
               </div>
             </div>
 
@@ -107,8 +109,8 @@ export default function LandingPage() {
               <div className="p-6 bg-surface-container border-l-4 border-secondary rounded-lg shadow-2xl">
                 <span className="font-label text-xs text-on-surface-variant uppercase tracking-widest block mb-1">Precio Especial</span>
                 <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-headline font-bold">$400.000</span>
-                  <span className="text-on-surface-variant line-through text-sm">$650.000</span>
+                  <span className="text-4xl font-headline font-bold">${precio_base.toLocaleString('es-AR')}</span>
+                  <span className="text-on-surface-variant line-through text-sm">${precio_tachado.toLocaleString('es-AR')}</span>
                 </div>
               </div>
               <div className="space-y-3">
@@ -264,7 +266,7 @@ export default function LandingPage() {
           </p>
           <div className="inline-block p-[2px] bg-gradient-to-r from-primary via-secondary to-tertiary rounded-xl">
             <Link to="/inscripcion" className="bg-surface block px-12 py-6 rounded-xl font-headline font-bold uppercase tracking-widest text-xl hover:bg-transparent transition-colors">
-              Inscríbete por $400.000
+              Inscríbete por ${precio_base.toLocaleString('es-AR')}
             </Link>
           </div>
           <p className="font-label text-xs text-on-surface-variant uppercase tracking-widest">Garantía de satisfacción de 7 días</p>

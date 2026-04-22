@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { getCupones, addCupon, updateCupon, deleteCupon } from '../../utils/cupones';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 const EMPTY_FORM = {
   code: '',
@@ -13,6 +14,7 @@ const EMPTY_FORM = {
 };
 
 export default function CuponesPage() {
+  const { precio_base } = useAppSettings();
   const [cupones, setCupones] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -271,12 +273,12 @@ export default function CuponesPage() {
               <div className="bg-surface-variant rounded-xl p-3 border border-outline-variant/20">
                 <p className="text-[10px] text-on-surface-variant uppercase tracking-widest font-bold mb-1">Vista previa del descuento</p>
                 <p className="text-sm font-bold">
-                  Precio original: $400.000 →{' '}
+                  Precio original: ${precio_base.toLocaleString('es-AR')} →{' '}
                   <span className="text-secondary">
                     ${Math.max(0,
                       form.type === 'percentage'
-                        ? 400000 - Math.round(400000 * Number(form.value) / 100)
-                        : 400000 - Number(form.value)
+                        ? precio_base - Math.round(precio_base * Number(form.value) / 100)
+                        : precio_base - Number(form.value)
                     ).toLocaleString('es-AR')}
                   </span>
                 </p>

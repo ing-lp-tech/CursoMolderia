@@ -49,7 +49,8 @@ export default function AdminDashboard() {
         try {
           const { data: config } = await supabase
             .from('app_settings').select('value').eq('id', 'test_mode_mp').limit(1);
-          if (config?.[0]?.value === true) setTestMode(true);
+          const v = config?.[0]?.value;
+          if (v === true || v === 'true') setTestMode(true);
         } catch {}
       } catch (error) {
         console.error('Error cargando dashboard:', error);
@@ -63,7 +64,7 @@ export default function AdminDashboard() {
   async function toggleTestMode() {
     const newVal = !testMode;
     setTestMode(newVal);
-    const { error } = await supabase.from('app_settings').upsert({ id: 'test_mode_mp', value: newVal });
+    const { error } = await supabase.from('app_settings').upsert({ id: 'test_mode_mp', value: String(newVal) });
     if (error) {
       console.error("Error guardando el botón:", error);
       alert("Error en Supabase al guardar la config: " + error.message);

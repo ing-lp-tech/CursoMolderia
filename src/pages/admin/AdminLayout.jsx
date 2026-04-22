@@ -10,6 +10,7 @@ const NAV = [
   { to: '/admin/cupones',      label: 'Cupones',      icon: 'confirmation_number' },
   { to: '/admin/certificados', label: 'Certificados', icon: 'workspace_premium' },
   { to: '/admin/tablero',      label: 'Tablero',      icon: 'view_kanban' },
+  { to: '/admin/configuracion', label: 'Configuración', icon: 'tune' },
 ];
 
 export default function AdminLayout() {

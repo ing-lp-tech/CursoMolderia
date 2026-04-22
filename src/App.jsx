@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from './context/AuthContext';
+import { AppSettingsProvider } from './context/AppSettingsContext';
 import Navbar from './components/Navbar';
 import LandingPage from './pages/LandingPage';
 import TemarioPage from './pages/TemarioPage';
@@ -16,8 +17,9 @@ const FinanzasPage     = lazy(() => import('./pages/admin/FinanzasPage'));
 const TablreroKanban   = lazy(() => import('./pages/admin/TablreroKanban'));
 const CuponesPage      = lazy(() => import('./pages/admin/CuponesPage'));
 const CertificadosPage = lazy(() => import('./pages/admin/CertificadosPage'));
-const RecursosPage     = lazy(() => import('./pages/admin/RecursosPage'));
-const StudentPortal    = lazy(() => import('./pages/student/StudentPortal'));
+const RecursosPage      = lazy(() => import('./pages/admin/RecursosPage'));
+const ConfiguracionPage = lazy(() => import('./pages/admin/ConfiguracionPage'));
+const StudentPortal     = lazy(() => import('./pages/student/StudentPortal'));
 
 function PublicLayout({ children }) {
   return (
@@ -42,6 +44,7 @@ function AdminFallback() {
 export default function App() {
   return (
     <BrowserRouter>
+      <AppSettingsProvider>
       <AuthProvider>
         <Routes>
           {/* Public routes — carga inmediata */}
@@ -76,13 +79,15 @@ export default function App() {
             <Route path="recursos"     element={<Suspense fallback={<AdminFallback />}><RecursosPage /></Suspense>} />
             <Route path="cupones"      element={<Suspense fallback={<AdminFallback />}><CuponesPage /></Suspense>} />
             <Route path="certificados" element={<Suspense fallback={<AdminFallback />}><CertificadosPage /></Suspense>} />
-            <Route path="tablero"      element={<Suspense fallback={<AdminFallback />}><TablreroKanban /></Suspense>} />
+            <Route path="tablero"       element={<Suspense fallback={<AdminFallback />}><TablreroKanban /></Suspense>} />
+            <Route path="configuracion" element={<Suspense fallback={<AdminFallback />}><ConfiguracionPage /></Suspense>} />
           </Route>
 
           {/* Catch-all → home */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </AuthProvider>
+      </AppSettingsProvider>
     </BrowserRouter>
   );
 }
