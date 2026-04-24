@@ -72,7 +72,7 @@ export default async function handler(req, res) {
   }
 
   // ── Crear el usuario ────────────────────────────────────────────────────────
-  const { nombre, apellido, email, telefono } = req.body || {};
+  const { nombre, apellido, email, telefono, cursada } = req.body || {};
 
   if (!nombre || !email) return res.status(400).json({ error: 'Nombre y email son requeridos' });
 
@@ -122,6 +122,7 @@ export default async function handler(req, res) {
     rol: 'estudiante',
     activo: true,
     ultima_password: tempPassword,
+    cursada: (cursada || 'Cursada 1').trim(),
   }, { onConflict: 'id' });
 
   return res.status(200).json({

@@ -10,11 +10,12 @@ const METODOS = ['Efectivo', 'Transferencia bancaria', 'Nequi', 'Daviplata', 'Ba
 const DUENOS  = ['Luis', 'Cristian'];
 const TODAY   = new Date().toISOString().slice(0, 10);
 
-const EMPTY_PAGO = { fecha: TODAY, monto: '', metodo: 'Efectivo', notas: '' };
+const EMPTY_PAGO = { fecha: TODAY, monto: '', metodo: 'Efectivo', notas: '', cobrador: '' };
 const EMPTY_FORM = {
   tipo: 'ingreso', categoria: 'Matrícula', descripcion: '', monto: '',
   fecha: TODAY, metodo: 'Transferencia bancaria', notas: '',
   tiene_deuda: false, beneficiario: '', cobrador: '', comprobantes: [], pagos: [],
+  alumno_data: null, // { nombre, apellido, email, telefono, cursada } — solo en Matrícula
 };
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -47,6 +48,53 @@ function saveLocal(d) { try { localStorage.setItem(STORAGE_KEY, JSON.stringify(d
 function toCSV(rows) {
   const cols = ['fecha', 'tipo', 'categoria', 'descripcion', 'monto', 'monto_pagado', 'deuda_restante', 'metodo', 'cobrador', 'tiene_deuda', 'deuda_estado'];
   return [cols.join(','), ...rows.map(r => cols.map(c => `"${r[c] ?? ''}"`).join(','))].join('\n');
+}
+
+// ── Helpers de cobrador ───────────────────────────────────────────────────────
+// Regla única: si el pago tiene cobrador propio → ese. Si no → hereda el del movimiento.
+function cobradorDePago(pago, movCobrador) {
+  return pago.cobrador || movCobrador || 'Sin asignar';
+}
+
+function movMatchesCobrador(m, cobrador) {
+  // Movimiento sin deuda: solo el cobrador del movimiento
+  if (!m.tiene_deuda) return m.cobrador === cobrador;
+  // Con deuda: algún pago (con fallback al cobrador del movimiento) coincide
+  const pagos = m.pagos || [];
+  if (pagos.length === 0) return m.cobrador === cobrador;
+  return pagos.some(p => cobradorDePago(p, m.cobrador) === cobrador);
+}
+
+function montoDeCobradorEnMov(m, cobrador) {
+  if (!m.tiene_deuda) {
+    return m.cobrador === cobrador ? Number(m.monto_pagado ?? m.monto ?? 0) : 0;
+  }
+  const pagos = m.pagos || [];
+  if (pagos.length === 0) {
+    return m.cobrador === cobrador ? Number(m.monto_pagado ?? 0) : 0;
+  }
+  return pagos
+    .filter(p => cobradorDePago(p, m.cobrador) === cobrador)
+    .reduce((s, p) => s + Number(p.monto || 0), 0);
+}
+
+function distribuirPorCobrador(movimientos) {
+  const result = {};
+  DUENOS.forEach(d => { result[d] = 0; });
+  result['Sin asignar'] = 0;
+  movimientos.filter(m => m.tipo === 'ingreso').forEach(m => {
+    const pagos = m.pagos || [];
+    if (m.tiene_deuda && pagos.length > 0) {
+      pagos.forEach(p => {
+        const key = cobradorDePago(p, m.cobrador);
+        result[key] = (result[key] || 0) + Number(p.monto || 0);
+      });
+    } else {
+      const key = m.cobrador || 'Sin asignar';
+      result[key] = (result[key] || 0) + Number(m.monto_pagado ?? m.monto ?? 0);
+    }
+  });
+  return result;
 }
 
 // ── Summary Card ──────────────────────────────────────────────────────────────
@@ -95,14 +143,14 @@ function DebtBar({ monto, montoPagado, deudaRestante, tipo, compact = false }) {
 function QuickAbonoModal({ mov, onClose, onSave, isSaving }) {
   const esMeDeben    = mov.tipo === 'ingreso';
   const deudaRestante = Number(mov.deuda_restante ?? (mov.monto - (mov.monto_pagado || 0)));
-  const [pago, setPago] = useState({ ...EMPTY_PAGO });
+  const [pago, setPago] = useState({ ...EMPTY_PAGO, cobrador: mov.cobrador || '' });
 
   function handleSubmit(e) {
     e.preventDefault();
     const n = Number(pago.monto);
     if (!n || n <= 0) return alert('Ingresá un monto válido.');
     if (n > deudaRestante) return alert(`El abono no puede superar la deuda restante ($${fmt(deudaRestante)}).`);
-    onSave(mov, { id: uid(), fecha: pago.fecha, monto: n, metodo: pago.metodo, notas: pago.notas || '' });
+    onSave(mov, { id: uid(), fecha: pago.fecha, monto: n, metodo: pago.metodo, notas: pago.notas || '', cobrador: pago.cobrador || '' });
   }
 
   return (
@@ -142,6 +190,7 @@ function QuickAbonoModal({ mov, onClose, onSave, isSaving }) {
                 <span className="whitespace-nowrap">{new Date(p.fecha + 'T12:00').toLocaleDateString('es', { day: '2-digit', month: 'short', year: '2-digit' })}</span>
                 <span className="font-bold text-on-surface">${fmt(p.monto)}</span>
                 <span>{p.metodo}</span>
+                {p.cobrador && <span className="px-1.5 py-0.5 rounded bg-primary/20 text-primary font-bold">{p.cobrador}</span>}
                 {p.notas && <span className="italic truncate">{p.notas}</span>}
               </div>
             ))}
@@ -180,11 +229,20 @@ function QuickAbonoModal({ mov, onClose, onSave, isSaving }) {
                 </select>
               </div>
               <div>
-                <label className="text-[10px] text-on-surface-variant block mb-1">Nota (opcional)</label>
-                <input value={pago.notas}
-                  onChange={e => setPago(p => ({ ...p, notas: e.target.value }))}
-                  className="input-field py-2 text-sm" placeholder="ej: 1ª cuota" />
+                <label className="text-[10px] text-on-surface-variant block mb-1">Cobrador</label>
+                <select value={pago.cobrador}
+                  onChange={e => setPago(p => ({ ...p, cobrador: e.target.value }))}
+                  className="input-field py-2 text-sm">
+                  <option value="">— Sin asignar —</option>
+                  {DUENOS.map(d => <option key={d} value={d}>{d}</option>)}
+                </select>
               </div>
+            </div>
+            <div>
+              <label className="text-[10px] text-on-surface-variant block mb-1">Nota (opcional)</label>
+              <input value={pago.notas}
+                onChange={e => setPago(p => ({ ...p, notas: e.target.value }))}
+                className="input-field py-2 text-sm" placeholder="ej: 1ª cuota" />
             </div>
             {/* Botón pagar todo */}
             {deudaRestante > 0 && (
@@ -216,11 +274,26 @@ function QuickAbonoModal({ mov, onClose, onSave, isSaving }) {
 }
 
 // ── Movement Row ──────────────────────────────────────────────────────────────
-function Row({ m, onEdit, onDelete, onAbono }) {
+function Row({ m, onEdit, onDelete, onAbono, filterCobrador }) {
   const done    = m.tiene_deuda && m.deuda_estado === 'pagado';
   const pending = m.tiene_deuda && m.deuda_estado !== 'pagado';
   const montoPagado   = Number(m.monto_pagado ?? (m.tiene_deuda ? 0 : m.monto) ?? 0);
   const deudaRestante = Number(m.deuda_restante ?? 0);
+
+  // Desglose de cobradores: cada pago hereda el cobrador del movimiento si no tiene uno propio
+  const pagos = m.pagos || [];
+  const cobradorBreakdown = pagos.length > 0
+    ? Object.entries(
+        pagos.reduce((acc, p) => {
+          const k = cobradorDePago(p, m.cobrador);
+          acc[k] = (acc[k] || 0) + Number(p.monto || 0);
+          return acc;
+        }, {})
+      )
+    : [];
+
+  // Monto atribuido al cobrador filtrado (para resaltarlo)
+  const montoFiltrado = filterCobrador ? montoDeCobradorEnMov(m, filterCobrador) : null;
 
   return (
     <tr className="border-b border-outline-variant/10 hover:bg-surface-variant/30 transition-colors group">
@@ -243,12 +316,27 @@ function Row({ m, onEdit, onDelete, onAbono }) {
         )}
       </td>
       <td className="py-3 px-4 text-sm text-on-surface-variant">{m.metodo}</td>
-      <td className="py-3 px-4 text-sm text-on-surface-variant">
-        {m.cobrador && (
+      {/* Cobrador: si hay pagos con cobrador propio, muestra el desglose */}
+      <td className="py-3 px-4">
+        {cobradorBreakdown.length > 0 ? (
+          <div className="flex flex-col gap-0.5">
+            {cobradorBreakdown.map(([nombre, monto]) => (
+              <span key={nombre}
+                className={`inline-flex items-center gap-1 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-full w-fit ${
+                  filterCobrador === nombre
+                    ? 'bg-primary/25 text-primary ring-1 ring-primary/40'
+                    : 'bg-primary/10 text-primary'
+                }`}>
+                <span className="material-symbols-outlined text-[9px]">person</span>
+                {nombre}: ${fmt(monto)}
+              </span>
+            ))}
+          </div>
+        ) : m.cobrador ? (
           <span className="inline-flex items-center gap-1 text-[10px] font-bold uppercase bg-primary/10 text-primary px-2 py-0.5 rounded-full">
             <span className="material-symbols-outlined text-[10px]">person</span>{m.cobrador}
           </span>
-        )}
+        ) : null}
       </td>
       <td className="py-3 px-4">
         {pending && (
@@ -264,6 +352,14 @@ function Row({ m, onEdit, onDelete, onAbono }) {
         <span className={`font-black text-sm ${m.tipo === 'ingreso' ? 'text-secondary' : 'text-error'}`}>
           {m.tipo === 'egreso' ? '-' : '+'}${fmt(m.monto)}
         </span>
+        {/* Cuando hay filtro de cobrador, muestra su porción destacada */}
+        {filterCobrador && montoFiltrado !== null && montoFiltrado !== Number(m.monto) && (
+          <div className="mt-0.5">
+            <span className="text-[10px] font-bold text-primary bg-primary/10 px-1.5 py-0.5 rounded">
+              {filterCobrador}: ${fmt(montoFiltrado)}
+            </span>
+          </div>
+        )}
         {m.tiene_deuda && (
           <div className="mt-1 w-28">
             <div className="flex justify-between text-[9px] text-on-surface-variant mb-0.5">
@@ -510,7 +606,7 @@ export default function FinanzasPage() {
 
   function openEdit(m) {
     setEditingId(m.id); setSelectedFiles([]);
-    setNuevoPago({ ...EMPTY_PAGO });
+    setNuevoPago({ ...EMPTY_PAGO, cobrador: m.cobrador || '' });
     setForm({ ...EMPTY_FORM, ...m, pagos: m.pagos || [], comprobantes: m.comprobantes || [] });
     setShowModal(true);
   }
@@ -533,9 +629,9 @@ export default function FinanzasPage() {
     if (Number(form.monto) > 0 && n > localDeudaRestante) {
       return alert(`El abono ($${fmt(n)}) no puede superar la deuda restante ($${fmt(localDeudaRestante)}).`);
     }
-    const pago = { id: uid(), fecha: nuevoPago.fecha, monto: n, metodo: nuevoPago.metodo, notas: nuevoPago.notas || '' };
+    const pago = { id: uid(), fecha: nuevoPago.fecha, monto: n, metodo: nuevoPago.metodo, notas: nuevoPago.notas || '', cobrador: nuevoPago.cobrador || form.cobrador || '' };
     setForm(p => ({ ...p, pagos: [...(p.pagos || []), pago] }));
-    setNuevoPago({ ...EMPTY_PAGO });
+    setNuevoPago({ ...EMPTY_PAGO, cobrador: form.cobrador || '' });
   }
 
   function removePago(pagoId) {
@@ -573,13 +669,26 @@ export default function FinanzasPage() {
     let pagosFinales = form.tiene_deuda ? (form.pagos || []) : [];
     if (form.tiene_deuda && nuevoPago.monto && Number(nuevoPago.monto) > 0) {
       pagosFinales = [...pagosFinales, {
-        id:     uid(),
-        fecha:  nuevoPago.fecha,
-        monto:  Number(nuevoPago.monto),
-        metodo: nuevoPago.metodo,
-        notas:  nuevoPago.notas || '',
+        id:      uid(),
+        fecha:   nuevoPago.fecha,
+        monto:   Number(nuevoPago.monto),
+        metodo:  nuevoPago.metodo,
+        notas:   nuevoPago.notas || '',
+        cobrador: nuevoPago.cobrador || form.cobrador || '',
       }];
     }
+
+    // Construir alumno_data solo si es Matrícula y hay email (campo mínimo requerido)
+    const esMatricula = form.tipo === 'ingreso' && form.categoria === 'Matrícula';
+    const alumnoDataPayload = esMatricula && form.alumno_data?.email
+      ? {
+          nombre:   form.alumno_data.nombre   || '',
+          apellido: form.alumno_data.apellido  || '',
+          email:    form.alumno_data.email     || '',
+          telefono: form.alumno_data.telefono  || '',
+          cursada:  form.alumno_data.cursada   || 'Cursada 1',
+        }
+      : null;
 
     const payload = {
       tipo:         form.tipo,
@@ -594,6 +703,7 @@ export default function FinanzasPage() {
       tiene_deuda:  Boolean(form.tiene_deuda),
       pagos:        pagosFinales,
       comprobantes: finalComprobantes,
+      alumno_data:  alumnoDataPayload,
       // monto_pagado, deuda_restante, deuda_estado ← calculados por trigger
     };
 
@@ -674,7 +784,7 @@ export default function FinanzasPage() {
     if (filterMes)                   list = list.filter(m => m.fecha?.slice(0, 7) === filterMes);
     if (filterDeuda === 'deuda')     list = list.filter(m => m.tiene_deuda);
     if (filterDeuda === 'sin_deuda') list = list.filter(m => !m.tiene_deuda);
-    if (filterCobrador)              list = list.filter(m => m.cobrador === filterCobrador);
+    if (filterCobrador) list = list.filter(m => movMatchesCobrador(m, filterCobrador));
     if (search) list = list.filter(m =>
       [m.descripcion, m.categoria, m.notas, m.beneficiario, m.cobrador].join(' ').toLowerCase().includes(search.toLowerCase())
     );
@@ -682,14 +792,16 @@ export default function FinanzasPage() {
   }, [movimientos, filterTipo, filterMes, filterDeuda, filterCobrador, search]);
 
   const filteredIngresos = useMemo(() =>
-    filtered.filter(m => m.tipo === 'ingreso')
-      .reduce((a, b) => a + Number(b.tiene_deuda ? (b.monto_pagado ?? 0) : (b.monto_pagado ?? b.monto ?? 0)), 0),
-    [filtered]);
+    filtered.filter(m => m.tipo === 'ingreso').reduce((a, m) =>
+      a + (filterCobrador ? montoDeCobradorEnMov(m, filterCobrador) : Number(m.tiene_deuda ? (m.monto_pagado ?? 0) : (m.monto_pagado ?? m.monto ?? 0)))
+    , 0),
+    [filtered, filterCobrador]);
 
   const filteredEgresos = useMemo(() =>
-    filtered.filter(m => m.tipo === 'egreso')
-      .reduce((a, b) => a + Number(b.tiene_deuda ? (b.monto_pagado ?? 0) : (b.monto_pagado ?? b.monto ?? 0)), 0),
-    [filtered]);
+    filtered.filter(m => m.tipo === 'egreso').reduce((a, m) =>
+      a + (filterCobrador ? montoDeCobradorEnMov(m, filterCobrador) : Number(m.tiene_deuda ? (m.monto_pagado ?? 0) : (m.monto_pagado ?? m.monto ?? 0)))
+    , 0),
+    [filtered, filterCobrador]);
 
   const filteredBalance = filteredIngresos - filteredEgresos;
 
@@ -698,6 +810,8 @@ export default function FinanzasPage() {
     movimientos.filter(m => m.tipo === 'egreso').forEach(m => { map[m.categoria] = (map[m.categoria] || 0) + Number(m.monto || 0); });
     return Object.entries(map).sort((a, b) => b[1] - a[1]);
   }, [movimientos]);
+
+  const porCobrador = useMemo(() => distribuirPorCobrador(movimientos), [movimientos]);
 
   function exportCSV() {
     const blob = new Blob([toCSV(filtered)], { type: 'text/csv' });
@@ -854,7 +968,7 @@ export default function FinanzasPage() {
                 </thead>
                 <tbody>
                   {filtered.map(m => (
-                    <Row key={m.id} m={m} onEdit={openEdit} onDelete={handleDelete} onAbono={setAbonoTarget} />
+                    <Row key={m.id} m={m} onEdit={openEdit} onDelete={handleDelete} onAbono={setAbonoTarget} filterCobrador={filterCobrador} />
                   ))}
                 </tbody>
               </table>
@@ -931,6 +1045,42 @@ export default function FinanzasPage() {
       {/* ── Tab: Resumen ── */}
       {activeTab === 'resumen' && (
         <div className="space-y-6">
+
+          {/* Por cobrador */}
+          <div className="card border border-outline-variant/20">
+            <h3 className="font-headline font-bold mb-4 uppercase text-xs tracking-widest text-on-surface-variant">Cobrado por socio</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+              {DUENOS.map(d => {
+                const total = porCobrador[d] || 0;
+                const totalGeneral = ingresosRecibidos || 1;
+                return (
+                  <div key={d} className="bg-surface-variant/40 rounded-xl p-4 border border-outline-variant/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <span className="material-symbols-outlined text-primary text-lg">person</span>
+                      <p className="font-headline font-bold">{d}</p>
+                    </div>
+                    <p className="font-headline text-2xl font-black text-secondary">${fmt(total)}</p>
+                    <div className="mt-2 h-1.5 bg-outline-variant/20 rounded-full overflow-hidden">
+                      <div className="h-full bg-secondary/60 rounded-full transition-all" style={{ width: `${(total / totalGeneral) * 100}%` }} />
+                    </div>
+                    <p className="text-[10px] text-on-surface-variant mt-1">
+                      {totalGeneral > 0 ? Math.round((total / totalGeneral) * 100) : 0}% del total cobrado
+                    </p>
+                  </div>
+                );
+              })}
+              {(porCobrador['Sin asignar'] || 0) > 0 && (
+                <div className="bg-surface-variant/40 rounded-xl p-4 border border-outline-variant/20 opacity-60">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="material-symbols-outlined text-on-surface-variant text-lg">person_off</span>
+                    <p className="font-headline font-bold text-on-surface-variant">Sin asignar</p>
+                  </div>
+                  <p className="font-headline text-2xl font-black text-on-surface-variant">${fmt(porCobrador['Sin asignar'])}</p>
+                </div>
+              )}
+            </div>
+          </div>
+
           <div className="card border border-outline-variant/20">
             <h3 className="font-headline font-bold mb-4 uppercase text-xs tracking-widest text-on-surface-variant">Por mes</h3>
             {meses.length === 0 ? <p className="text-on-surface-variant text-sm">Sin datos</p> : (
@@ -1037,6 +1187,77 @@ export default function FinanzasPage() {
                 <input required value={form.descripcion} onChange={e => setForm(p => ({ ...p, descripcion: e.target.value }))} className="input-field" placeholder="ej: Matrícula de Ana García" />
               </div>
 
+              {/* ── Datos del alumno (solo Matrícula) ── */}
+              {form.tipo === 'ingreso' && form.categoria === 'Matrícula' && (
+                <div className="rounded-xl border-2 border-primary/30 overflow-hidden">
+                  <div className="px-4 py-2.5 bg-primary/8 flex items-center gap-2">
+                    <span className="material-symbols-outlined text-sm text-primary">school</span>
+                    <span className="text-xs font-bold text-primary uppercase tracking-widest">Datos del alumno</span>
+                    <span className="ml-auto text-[10px] text-on-surface-variant">(para dar de alta desde Estudiantes)</span>
+                  </div>
+                  <div className="p-4 space-y-3">
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Nombre</label>
+                        <input
+                          type="text"
+                          value={form.alumno_data?.nombre || ''}
+                          onChange={e => setForm(p => ({ ...p, alumno_data: { ...(p.alumno_data || {}), nombre: e.target.value } }))}
+                          className="input-field py-2 text-sm"
+                          placeholder="María"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Apellido</label>
+                        <input
+                          type="text"
+                          value={form.alumno_data?.apellido || ''}
+                          onChange={e => setForm(p => ({ ...p, alumno_data: { ...(p.alumno_data || {}), apellido: e.target.value } }))}
+                          className="input-field py-2 text-sm"
+                          placeholder="López"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Email *</label>
+                      <input
+                        type="email"
+                        value={form.alumno_data?.email || ''}
+                        onChange={e => setForm(p => ({ ...p, alumno_data: { ...(p.alumno_data || {}), email: e.target.value } }))}
+                        className="input-field py-2 text-sm"
+                        placeholder="maria@mail.com"
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Teléfono / WhatsApp</label>
+                        <input
+                          type="tel"
+                          value={form.alumno_data?.telefono || ''}
+                          onChange={e => setForm(p => ({ ...p, alumno_data: { ...(p.alumno_data || {}), telefono: e.target.value } }))}
+                          className="input-field py-2 text-sm"
+                          placeholder="+54 381..."
+                        />
+                      </div>
+                      <div>
+                        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">N° de cursada</label>
+                        <input
+                          type="text"
+                          value={form.alumno_data?.cursada || ''}
+                          onChange={e => setForm(p => ({ ...p, alumno_data: { ...(p.alumno_data || {}), cursada: e.target.value } }))}
+                          className="input-field py-2 text-sm"
+                          placeholder="Cursada 2"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[10px] text-on-surface-variant flex items-center gap-1">
+                      <span className="material-symbols-outlined text-[12px]">info</span>
+                      El email es requerido para poder dar de alta al alumno luego.
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {/* Monto + Método */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
@@ -1139,6 +1360,7 @@ export default function FinanzasPage() {
                             </span>
                             <span className="font-bold text-sm">${fmt(p.monto)}</span>
                             <span className="text-xs text-on-surface-variant">{p.metodo}</span>
+                            {p.cobrador && <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-primary/20 text-primary">{p.cobrador}</span>}
                             {p.notas && <span className="text-xs italic truncate text-on-surface-variant">{p.notas}</span>}
                             <button type="button" onClick={() => removePago(p.id)}
                               className="ml-auto text-on-surface-variant hover:text-error shrink-0">
@@ -1182,11 +1404,20 @@ export default function FinanzasPage() {
                             </select>
                           </div>
                           <div>
-                            <label className="text-[10px] text-on-surface-variant block mb-1">Nota</label>
-                            <input value={nuevoPago.notas}
-                              onChange={e => setNuevoPago(p => ({ ...p, notas: e.target.value }))}
-                              className="input-field py-1.5 text-sm" placeholder="ej: 1ª cuota" />
+                            <label className="text-[10px] text-on-surface-variant block mb-1">Cobrador</label>
+                            <select value={nuevoPago.cobrador}
+                              onChange={e => setNuevoPago(p => ({ ...p, cobrador: e.target.value }))}
+                              className="input-field py-1.5 text-sm">
+                              <option value="">— Sin asignar —</option>
+                              {DUENOS.map(d => <option key={d} value={d}>{d}</option>)}
+                            </select>
                           </div>
+                        </div>
+                        <div>
+                          <label className="text-[10px] text-on-surface-variant block mb-1">Nota</label>
+                          <input value={nuevoPago.notas}
+                            onChange={e => setNuevoPago(p => ({ ...p, notas: e.target.value }))}
+                            className="input-field py-1.5 text-sm" placeholder="ej: 1ª cuota" />
                         </div>
                         {Number(form.monto) > 0 && localDeudaRestante > 0 && (
                           <button type="button"
