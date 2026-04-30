@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import CostosCalculadora from '../../components/CostosCalculadora';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -170,11 +171,11 @@ export default function EstudiantesPage() {
   function abrirAltaDesde(pendiente, yaExiste = false) {
     const d = pendiente.alumno_data || {};
     setAltaForm({
-      nombre:   d.nombre   || '',
+      nombre: d.nombre || '',
       apellido: d.apellido || '',
-      email:    d.email    || '',
+      email: d.email || '',
       telefono: d.telefono || '',
-      cursada:  d.cursada  || 'Cursada 1',
+      cursada: d.cursada || 'Cursada 1',
     });
     setAltaYaExiste(yaExiste);
     setAltaStatus('idle');
@@ -208,18 +209,18 @@ export default function EstudiantesPage() {
     const nombre = est.nombre || finanzasData.nombre || '';
     const apellido = est.apellido || finanzasData.apellido || '';
     const telefono = est.telefono || finanzasData.telefono || '';
-    
+
     // Preferir cursada de finanzas si en la BD está vacía o es el default 'Cursada 1'
     let cursada = est.cursada;
     if (finanzasData.cursada && (!est.cursada || est.cursada === 'Cursada 1')) {
       cursada = finanzasData.cursada;
     }
 
-    setEditForm({ 
-      nombre, 
-      apellido, 
-      telefono, 
-      cursada: cursada || 'Cursada 1' 
+    setEditForm({
+      nombre,
+      apellido,
+      telefono,
+      cursada: cursada || 'Cursada 1'
     });
     setEditStatus('idle');
     setEditError('');
@@ -358,17 +359,15 @@ export default function EstudiantesPage() {
       <div className="flex gap-1 border-b border-outline-variant/20">
         <button
           onClick={() => setActiveTab('activos')}
-          className={`px-5 py-2.5 font-headline text-xs font-bold uppercase tracking-widest transition-all border-b-2 -mb-px ${
-            activeTab === 'activos' ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-on-surface'
-          }`}
+          className={`px-5 py-2.5 font-headline text-xs font-bold uppercase tracking-widest transition-all border-b-2 -mb-px ${activeTab === 'activos' ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-on-surface'
+            }`}
         >
           Alumnos ({estudiantes.length})
         </button>
         <button
           onClick={() => setActiveTab('pendientes')}
-          className={`px-5 py-2.5 font-headline text-xs font-bold uppercase tracking-widest transition-all border-b-2 -mb-px flex items-center gap-2 ${
-            activeTab === 'pendientes' ? 'text-amber-400 border-amber-400' : 'text-on-surface-variant border-transparent hover:text-on-surface'
-          }`}
+          className={`px-5 py-2.5 font-headline text-xs font-bold uppercase tracking-widest transition-all border-b-2 -mb-px flex items-center gap-2 ${activeTab === 'pendientes' ? 'text-amber-400 border-amber-400' : 'text-on-surface-variant border-transparent hover:text-on-surface'
+            }`}
         >
           Pendientes de Alta
           {pendientes.filter(p => !estudiantes.some(e => e.email === p.alumno_data?.email)).length > 0 && (
@@ -461,146 +460,143 @@ export default function EstudiantesPage() {
       {/* ── Tab: Alumnos activos ── */}
       {activeTab === 'activos' && (
         <>
-      {/* Filtro de cursada — siempre visible en tab Alumnos */}
-      {(() => {
-        const cursadas = [...new Set(estudiantes.map(e => e.cursada).filter(Boolean))].sort();
-        return (
-          <div className="flex items-center gap-2 flex-wrap">
-            <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Cursada:</span>
-            <button
-              onClick={() => setFilterCursada('')}
-              className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                !filterCursada ? 'bg-primary text-white' : 'bg-surface-variant text-on-surface-variant hover:bg-outline-variant/30'
-              }`}
-            >
-              Todas ({estudiantes.length})
-            </button>
-            {cursadas.map(c => (
-              <button
-                key={c}
-                onClick={() => setFilterCursada(filterCursada === c ? '' : c)}
-                className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${
-                  filterCursada === c ? 'bg-secondary text-white' : 'bg-surface-variant text-on-surface-variant hover:bg-outline-variant/30'
-                }`}
-              >
-                {c} ({estudiantes.filter(e => e.cursada === c).length})
-              </button>
-            ))}
-          </div>
-        );
-      })()}
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Lista */}
-        <div className="card border border-outline-variant/20 overflow-y-auto max-h-[70vh]">
-          {loading ? (
-            <div className="flex items-center justify-center py-16">
-              <span className="material-symbols-outlined animate-spin text-3xl text-primary">refresh</span>
-            </div>
-          ) : estudiantes.length === 0 ? (
-            <p className="text-center py-10 text-on-surface-variant">No hay estudiantes registrados.</p>
-          ) : estudiantes.filter(e => !filterCursada || e.cursada === filterCursada).map(est => (
-            <div
-              key={est.id}
-              onClick={() => verPagos(est)}
-              className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all mb-2 ${
-                selected?.id === est.id ? 'bg-primary/10 border border-primary/30' : 'hover:bg-surface-variant'
-              }`}
-            >
-              <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center font-headline font-bold text-primary shrink-0">
-                {(est.nombre?.[0] || est.email[0]).toUpperCase()}
+          {/* Filtro de cursada — siempre visible en tab Alumnos */}
+          {(() => {
+            const cursadas = [...new Set(estudiantes.map(e => e.cursada).filter(Boolean))].sort();
+            return (
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Cursada:</span>
+                <button
+                  onClick={() => setFilterCursada('')}
+                  className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${!filterCursada ? 'bg-primary text-white' : 'bg-surface-variant text-on-surface-variant hover:bg-outline-variant/30'
+                    }`}
+                >
+                  Todas ({estudiantes.length})
+                </button>
+                {cursadas.map(c => (
+                  <button
+                    key={c}
+                    onClick={() => setFilterCursada(filterCursada === c ? '' : c)}
+                    className={`px-3 py-1 rounded-full text-xs font-bold transition-all ${filterCursada === c ? 'bg-secondary text-white' : 'bg-surface-variant text-on-surface-variant hover:bg-outline-variant/30'
+                      }`}
+                  >
+                    {c} ({estudiantes.filter(e => e.cursada === c).length})
+                  </button>
+                ))}
               </div>
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm truncate">{est.nombre} {est.apellido}</p>
-                <p className="text-xs text-on-surface-variant truncate">{est.email}</p>
-                {est.cursada && <p className="text-[10px] text-secondary font-bold uppercase tracking-wide mt-0.5">{est.cursada}</p>}
-              </div>
-              <span className={`badge ${est.activo ? 'badge-success' : 'badge-outline'}`}>
-                {est.activo ? 'Activo' : 'Inactivo'}
-              </span>
-            </div>
-          ))}
-        </div>
+            );
+          })()}
 
-        {/* Detalle */}
-        <div className="card border border-outline-variant/20">
-          {!selected ? (
-            <div className="flex flex-col items-center justify-center h-full py-16 text-center text-on-surface-variant">
-              <span className="material-symbols-outlined text-4xl mb-3">person_search</span>
-              <p className="text-sm">Selecciona un estudiante para ver sus detalles y pagos.</p>
-            </div>
-          ) : (
-            <div>
-              {/* Header del estudiante */}
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex-1 min-w-0">
-                  <h3 className="font-headline font-bold text-xl">{selected.nombre} {selected.apellido}</h3>
-                  <p className="text-on-surface-variant text-sm">{selected.email}</p>
-                  {selected.telefono && <p className="text-on-surface-variant text-sm">{selected.telefono}</p>}
-                  {selected.cursada && (
-                    <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-secondary/15 text-secondary border border-secondary/20">
-                      {selected.cursada}
-                    </span>
-                  )}
-                  <p className="text-xs text-on-surface-variant mt-1">
-                    Alta: {new Date(selected.created_at).toLocaleDateString('es')}
-                  </p>
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Lista */}
+            <div className="card border border-outline-variant/20 overflow-y-auto max-h-[70vh]">
+              {loading ? (
+                <div className="flex items-center justify-center py-16">
+                  <span className="material-symbols-outlined animate-spin text-3xl text-primary">refresh</span>
                 </div>
-                {/* Acciones */}
-                <div className="flex items-center gap-1 shrink-0 ml-3">
-                  <button onClick={() => abrirEditar(selected)} title="Editar datos"
-                    className="p-2 hover:bg-surface-variant rounded-lg transition-all text-on-surface-variant hover:text-primary">
-                    <span className="material-symbols-outlined text-base">edit</span>
-                  </button>
-                  <button onClick={() => toggleActivo(selected)} title={selected.activo ? 'Desactivar' : 'Activar'}
-                    className="p-2 hover:bg-surface-variant rounded-lg transition-all text-on-surface-variant hover:text-secondary">
-                    <span className="material-symbols-outlined text-base">{selected.activo ? 'person_off' : 'how_to_reg'}</span>
-                  </button>
-                  <button onClick={abrirResetPass} title="Resetear contraseña"
-                    className="p-2 hover:bg-primary/10 rounded-lg transition-all text-on-surface-variant hover:text-primary">
-                    <span className="material-symbols-outlined text-base">lock_reset</span>
-                  </button>
-                  <button onClick={() => abrirEliminar(selected)} title="Eliminar alumno"
-                    className="p-2 hover:bg-error/10 rounded-lg transition-all text-on-surface-variant hover:text-error">
-                    <span className="material-symbols-outlined text-base">delete</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Estado */}
-              <div className="mb-5">
-                <span className={`badge ${selected.activo ? 'badge-success' : 'badge-outline'}`}>
-                  {selected.activo ? 'Acceso Activo' : 'Acceso Inactivo'}
-                </span>
-              </div>
-
-              {/* Contraseña actual */}
-              {selected.ultima_password && (
-                <div className="mb-4 p-3 rounded-xl border border-outline-variant/20 bg-surface-variant/40">
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">Última contraseña asignada</p>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 font-mono font-bold text-primary tracking-wider">
-                      {showPasswordDetail ? selected.ultima_password : '••••••••'}
-                    </code>
-                    <button onClick={() => setShowPasswordDetail(v => !v)} className="p-1.5 hover:bg-outline-variant/30 rounded-lg transition-all" title={showPasswordDetail ? 'Ocultar' : 'Ver'}>
-                      <span className="material-symbols-outlined text-sm text-on-surface-variant">{showPasswordDetail ? 'visibility_off' : 'visibility'}</span>
-                    </button>
-                    <button onClick={() => { navigator.clipboard.writeText(selected.ultima_password); }} className="p-1.5 hover:bg-outline-variant/30 rounded-lg transition-all" title="Copiar">
-                      <span className="material-symbols-outlined text-sm text-on-surface-variant">content_copy</span>
-                    </button>
+              ) : estudiantes.length === 0 ? (
+                <p className="text-center py-10 text-on-surface-variant">No hay estudiantes registrados.</p>
+              ) : estudiantes.filter(e => !filterCursada || e.cursada === filterCursada).map(est => (
+                <div
+                  key={est.id}
+                  onClick={() => verPagos(est)}
+                  className={`flex items-center gap-3 p-4 rounded-xl cursor-pointer transition-all mb-2 ${selected?.id === est.id ? 'bg-primary/10 border border-primary/30' : 'hover:bg-surface-variant'
+                    }`}
+                >
+                  <div className="w-10 h-10 rounded-full bg-primary/20 flex items-center justify-center font-headline font-bold text-primary shrink-0">
+                    {(est.nombre?.[0] || est.email[0]).toUpperCase()}
                   </div>
+                  <div className="flex-1 min-w-0">
+                    <p className="font-bold text-sm truncate">{est.nombre} {est.apellido}</p>
+                    <p className="text-xs text-on-surface-variant truncate">{est.email}</p>
+                    {est.cursada && <p className="text-[10px] text-secondary font-bold uppercase tracking-wide mt-0.5">{est.cursada}</p>}
+                  </div>
+                  <span className={`badge ${est.activo ? 'badge-success' : 'badge-outline'}`}>
+                    {est.activo ? 'Activo' : 'Inactivo'}
+                  </span>
                 </div>
-              )}
+              ))}
+            </div>
 
-              {/* Enviar datos de acceso por WhatsApp */}
-              {(() => {
-                const tel = (selected.telefono || '').replace(/\D/g, '');
-                const pass = selected.ultima_password;
-                const nombre = selected.nombre || selected.email;
-                const msg = encodeURIComponent(
-`Hola ${nombre}! 👋 Soy el Ing. Luis, te hablo de parte del curso de moldería digital.
+            {/* Detalle */}
+            <div className="card border border-outline-variant/20">
+              {!selected ? (
+                <div className="flex flex-col items-center justify-center h-full py-16 text-center text-on-surface-variant">
+                  <span className="material-symbols-outlined text-4xl mb-3">person_search</span>
+                  <p className="text-sm">Selecciona un estudiante para ver sus detalles y pagos.</p>
+                </div>
+              ) : (
+                <div>
+                  {/* Header del estudiante */}
+                  <div className="flex items-start justify-between mb-4">
+                    <div className="flex-1 min-w-0">
+                      <h3 className="font-headline font-bold text-xl">{selected.nombre} {selected.apellido}</h3>
+                      <p className="text-on-surface-variant text-sm">{selected.email}</p>
+                      {selected.telefono && <p className="text-on-surface-variant text-sm">{selected.telefono}</p>}
+                      {selected.cursada && (
+                        <span className="inline-block mt-1 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-secondary/15 text-secondary border border-secondary/20">
+                          {selected.cursada}
+                        </span>
+                      )}
+                      <p className="text-xs text-on-surface-variant mt-1">
+                        Alta: {new Date(selected.created_at).toLocaleDateString('es')}
+                      </p>
+                    </div>
+                    {/* Acciones */}
+                    <div className="flex items-center gap-1 shrink-0 ml-3">
+                      <button onClick={() => abrirEditar(selected)} title="Editar datos"
+                        className="p-2 hover:bg-surface-variant rounded-lg transition-all text-on-surface-variant hover:text-primary">
+                        <span className="material-symbols-outlined text-base">edit</span>
+                      </button>
+                      <button onClick={() => toggleActivo(selected)} title={selected.activo ? 'Desactivar' : 'Activar'}
+                        className="p-2 hover:bg-surface-variant rounded-lg transition-all text-on-surface-variant hover:text-secondary">
+                        <span className="material-symbols-outlined text-base">{selected.activo ? 'person_off' : 'how_to_reg'}</span>
+                      </button>
+                      <button onClick={abrirResetPass} title="Resetear contraseña"
+                        className="p-2 hover:bg-primary/10 rounded-lg transition-all text-on-surface-variant hover:text-primary">
+                        <span className="material-symbols-outlined text-base">lock_reset</span>
+                      </button>
+                      <button onClick={() => abrirEliminar(selected)} title="Eliminar alumno"
+                        className="p-2 hover:bg-error/10 rounded-lg transition-all text-on-surface-variant hover:text-error">
+                        <span className="material-symbols-outlined text-base">delete</span>
+                      </button>
+                    </div>
+                  </div>
 
-Tus datos de acceso al portal de Moldi Tex:
+                  {/* Estado */}
+                  <div className="mb-5">
+                    <span className={`badge ${selected.activo ? 'badge-success' : 'badge-outline'}`}>
+                      {selected.activo ? 'Acceso Activo' : 'Acceso Inactivo'}
+                    </span>
+                  </div>
+
+                  {/* Contraseña actual */}
+                  {selected.ultima_password && (
+                    <div className="mb-4 p-3 rounded-xl border border-outline-variant/20 bg-surface-variant/40">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-2">Última contraseña asignada</p>
+                      <div className="flex items-center gap-2">
+                        <code className="flex-1 font-mono font-bold text-primary tracking-wider">
+                          {showPasswordDetail ? selected.ultima_password : '••••••••'}
+                        </code>
+                        <button onClick={() => setShowPasswordDetail(v => !v)} className="p-1.5 hover:bg-outline-variant/30 rounded-lg transition-all" title={showPasswordDetail ? 'Ocultar' : 'Ver'}>
+                          <span className="material-symbols-outlined text-sm text-on-surface-variant">{showPasswordDetail ? 'visibility_off' : 'visibility'}</span>
+                        </button>
+                        <button onClick={() => { navigator.clipboard.writeText(selected.ultima_password); }} className="p-1.5 hover:bg-outline-variant/30 rounded-lg transition-all" title="Copiar">
+                          <span className="material-symbols-outlined text-sm text-on-surface-variant">content_copy</span>
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Enviar datos de acceso por WhatsApp */}
+                  {(() => {
+                    const tel = (selected.telefono || '').replace(/\D/g, '');
+                    const pass = selected.ultima_password;
+                    const nombre = selected.nombre || selected.email;
+                    const msg = encodeURIComponent(
+                      `Hola ${nombre}! 👋 Soy el Ing. Luis, te hablo de parte del curso de moldería digital.
+
+Tus datos de acceso al portal de Molderia Digital:
 
 📧 Email: ${selected.email}
 🔑 Contraseña: ${pass || '(sin contraseña asignada aún)'}
@@ -608,100 +604,104 @@ Tus datos de acceso al portal de Moldi Tex:
 🔗 Ingresá acá: https://curso-molderia.vercel.app/login
 
 Ante cualquier duda escribinos por acá 🙌`
-                );
-                const href = `https://wa.me/${tel}?text=${msg}`;
-                return (
-                  <a
-                    href={pass ? href : undefined}
-                    target="_blank"
-                    rel="noreferrer"
-                    onClick={!pass ? e => { e.preventDefault(); alert('Primero asigná una contraseña al alumno usando "Resetear contraseña".'); } : undefined}
-                    className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all mb-3 text-left ${
-                      pass
-                        ? 'border-[#25D366]/30 hover:border-[#25D366]/60 hover:bg-[#25D366]/5 cursor-pointer'
-                        : 'border-outline-variant/20 opacity-50 cursor-not-allowed'
-                    }`}
+                    );
+                    const href = `https://wa.me/${tel}?text=${msg}`;
+                    return (
+                      <a
+                        href={pass ? href : undefined}
+                        target="_blank"
+                        rel="noreferrer"
+                        onClick={!pass ? e => { e.preventDefault(); alert('Primero asigná una contraseña al alumno usando "Resetear contraseña".'); } : undefined}
+                        className={`w-full flex items-center gap-3 p-3 rounded-xl border transition-all mb-3 text-left ${pass
+                            ? 'border-[#25D366]/30 hover:border-[#25D366]/60 hover:bg-[#25D366]/5 cursor-pointer'
+                            : 'border-outline-variant/20 opacity-50 cursor-not-allowed'
+                          }`}
+                      >
+                        <svg viewBox="0 0 24 24" className="w-5 h-5 fill-[#25D366] shrink-0">
+                          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+                        </svg>
+                        <div className="flex-1">
+                          <p className="text-sm font-bold">Enviar datos de acceso por WhatsApp</p>
+                          <p className="text-xs text-on-surface-variant">
+                            {tel ? `→ ${selected.telefono}` : 'Sin teléfono registrado — igual podés abrir WhatsApp'}
+                          </p>
+                        </div>
+                        <span className="material-symbols-outlined text-on-surface-variant text-sm">arrow_forward_ios</span>
+                      </a>
+                    );
+                  })()}
+
+                  {/* Acceso rápido resetear contraseña */}
+                  <button
+                    onClick={abrirResetPass}
+                    className="w-full flex items-center gap-3 p-3 rounded-xl border border-outline-variant/20 hover:border-primary/30 hover:bg-primary/5 transition-all mb-5 text-left"
                   >
-                    <svg viewBox="0 0 24 24" className="w-5 h-5 fill-[#25D366] shrink-0">
-                      <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.890-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                    </svg>
-                    <div className="flex-1">
-                      <p className="text-sm font-bold">Enviar datos de acceso por WhatsApp</p>
-                      <p className="text-xs text-on-surface-variant">
-                        {tel ? `→ ${selected.telefono}` : 'Sin teléfono registrado — igual podés abrir WhatsApp'}
-                      </p>
+                    <span className="material-symbols-outlined text-primary">lock_reset</span>
+                    <div>
+                      <p className="text-sm font-bold">Resetear contraseña</p>
+                      <p className="text-xs text-on-surface-variant">Generá o establecé una nueva contraseña para el alumno</p>
                     </div>
-                    <span className="material-symbols-outlined text-on-surface-variant text-sm">arrow_forward_ios</span>
-                  </a>
-                );
-              })()}
+                    <span className="material-symbols-outlined text-on-surface-variant ml-auto text-sm">arrow_forward_ios</span>
+                  </button>
 
-              {/* Acceso rápido resetear contraseña */}
-              <button
-                onClick={abrirResetPass}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border border-outline-variant/20 hover:border-primary/30 hover:bg-primary/5 transition-all mb-5 text-left"
-              >
-                <span className="material-symbols-outlined text-primary">lock_reset</span>
-                <div>
-                  <p className="text-sm font-bold">Resetear contraseña</p>
-                  <p className="text-xs text-on-surface-variant">Generá o establecé una nueva contraseña para el alumno</p>
-                </div>
-                <span className="material-symbols-outlined text-on-surface-variant ml-auto text-sm">arrow_forward_ios</span>
-              </button>
-
-              {/* Pagos */}
-              <h4 className="font-headline font-bold text-sm uppercase tracking-widest mb-3">Pagos</h4>
-              {pagosAlumno.length === 0 ? (
-                <p className="text-on-surface-variant text-sm">Este estudiante no tiene pagos registrados.</p>
-              ) : (
-                <div className="space-y-3">
-                  {pagosAlumno.map(p => (
-                    <div key={p.id} className="p-3 rounded-xl bg-surface-variant space-y-2">
-                      <div className="flex items-start gap-3">
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-sm">{p.concepto}</p>
-                          <div className="flex flex-wrap items-center gap-2 mt-0.5">
-                            {p.descuento_aplicado > 0 ? (
-                              <span className="text-xs text-on-surface-variant">
-                                <span className="line-through">${Number(p.monto_original).toLocaleString()}</span>
-                                {' → '}
-                                <span className="font-bold text-tertiary">${Number(p.monto).toLocaleString()}</span>
-                              </span>
-                            ) : (
-                              <span className="text-xs text-on-surface-variant font-bold">${Number(p.monto).toLocaleString()}</span>
-                            )}
-                            <span className="text-xs text-on-surface-variant">
-                              · {p.metodo_pago} · {new Date(p.created_at).toLocaleDateString('es')}
-                            </span>
+                  {/* Pagos */}
+                  <h4 className="font-headline font-bold text-sm uppercase tracking-widest mb-3">Pagos</h4>
+                  {pagosAlumno.length === 0 ? (
+                    <p className="text-on-surface-variant text-sm">Este estudiante no tiene pagos registrados.</p>
+                  ) : (
+                    <div className="space-y-3">
+                      {pagosAlumno.map(p => (
+                        <div key={p.id} className="p-3 rounded-xl bg-surface-variant space-y-2">
+                          <div className="flex items-start gap-3">
+                            <div className="flex-1 min-w-0">
+                              <p className="font-bold text-sm">{p.concepto}</p>
+                              <div className="flex flex-wrap items-center gap-2 mt-0.5">
+                                {p.descuento_aplicado > 0 ? (
+                                  <span className="text-xs text-on-surface-variant">
+                                    <span className="line-through">${Number(p.monto_original).toLocaleString()}</span>
+                                    {' → '}
+                                    <span className="font-bold text-tertiary">${Number(p.monto).toLocaleString()}</span>
+                                  </span>
+                                ) : (
+                                  <span className="text-xs text-on-surface-variant font-bold">${Number(p.monto).toLocaleString()}</span>
+                                )}
+                                <span className="text-xs text-on-surface-variant">
+                                  · {p.metodo_pago} · {new Date(p.created_at).toLocaleDateString('es')}
+                                </span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-2 shrink-0">
+                              {p.comprobante_url && (
+                                <a href={p.comprobante_url} target="_blank" rel="noreferrer" className="text-secondary hover:underline text-xs">Comprobante</a>
+                              )}
+                              {p.estado === 'pendiente' ? (
+                                <button onClick={() => confirmarPago(p.id)} className="badge badge-secondary cursor-pointer hover:bg-secondary/30">Confirmar</button>
+                              ) : (
+                                <span className={`badge ${p.estado === 'confirmado' ? 'badge-success' : 'badge-error'}`}>{p.estado}</span>
+                              )}
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-2 shrink-0">
-                          {p.comprobante_url && (
-                            <a href={p.comprobante_url} target="_blank" rel="noreferrer" className="text-secondary hover:underline text-xs">Comprobante</a>
-                          )}
-                          {p.estado === 'pendiente' ? (
-                            <button onClick={() => confirmarPago(p.id)} className="badge badge-secondary cursor-pointer hover:bg-secondary/30">Confirmar</button>
-                          ) : (
-                            <span className={`badge ${p.estado === 'confirmado' ? 'badge-success' : 'badge-error'}`}>{p.estado}</span>
+                          {p.cupon_codigo && (
+                            <div className="flex items-center gap-2">
+                              <span className="material-symbols-outlined text-tertiary text-sm">local_offer</span>
+                              <span className="text-[10px] font-black uppercase tracking-widest text-tertiary">Cupón: {p.cupon_codigo}</span>
+                              <span className="text-[10px] text-on-surface-variant">— Ahorro: ${Number(p.descuento_aplicado).toLocaleString()}</span>
+                            </div>
                           )}
                         </div>
-                      </div>
-                      {p.cupon_codigo && (
-                        <div className="flex items-center gap-2">
-                          <span className="material-symbols-outlined text-tertiary text-sm">local_offer</span>
-                          <span className="text-[10px] font-black uppercase tracking-widest text-tertiary">Cupón: {p.cupon_codigo}</span>
-                          <span className="text-[10px] text-on-surface-variant">— Ahorro: ${Number(p.descuento_aplicado).toLocaleString()}</span>
-                        </div>
-                      )}
+                      ))}
                     </div>
-                  ))}
+                  )}
+
+                  {/* Calculadora de Costos */}
+                  <div className="mt-6 pt-5 border-t border-outline-variant/20">
+                    <CostosCalculadora estudianteId={selected.id} />
+                  </div>
                 </div>
               )}
             </div>
-          )}
-        </div>
-      </div>
-      </>
+          </div>
+        </>
       )}
 
       {/* ── MODAL: DAR DE ALTA ── */}
@@ -750,10 +750,10 @@ Ante cualquier duda escribinos por acá 🙌`
             ) : (
               <form onSubmit={darDeAlta} className="space-y-4">
                 {[
-                  { id: 'nombre',   label: 'Nombre',              type: 'text',  placeholder: 'María' },
-                  { id: 'apellido', label: 'Apellido',            type: 'text',  placeholder: 'López' },
-                  { id: 'email',    label: 'Email',               type: 'email', placeholder: 'maria@mail.com', required: true },
-                  { id: 'telefono', label: 'Teléfono / WhatsApp', type: 'tel',   placeholder: '+54 381...' },
+                  { id: 'nombre', label: 'Nombre', type: 'text', placeholder: 'María' },
+                  { id: 'apellido', label: 'Apellido', type: 'text', placeholder: 'López' },
+                  { id: 'email', label: 'Email', type: 'email', placeholder: 'maria@mail.com', required: true },
+                  { id: 'telefono', label: 'Teléfono / WhatsApp', type: 'tel', placeholder: '+54 381...' },
                 ].map(f => (
                   <div key={f.id}>
                     <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">{f.label}</label>
@@ -771,7 +771,7 @@ Ante cualquier duda escribinos por acá 🙌`
                     placeholder="Ej: Cursada 1"
                   />
                   <datalist id="cursadas-list">
-                    {['Cursada 1','Cursada 2','Cursada 3','Cursada 4','Cursada 5'].map(c => (
+                    {['Cursada 1', 'Cursada 2', 'Cursada 3', 'Cursada 4', 'Cursada 5'].map(c => (
                       <option key={c} value={c} />
                     ))}
                   </datalist>
@@ -831,8 +831,8 @@ Ante cualquier duda escribinos por acá 🙌`
             </div>
             <form onSubmit={guardarEdicion} className="space-y-4">
               {[
-                { id: 'nombre',   label: 'Nombre',              type: 'text', required: true },
-                { id: 'apellido', label: 'Apellido',            type: 'text' },
+                { id: 'nombre', label: 'Nombre', type: 'text', required: true },
+                { id: 'apellido', label: 'Apellido', type: 'text' },
                 { id: 'telefono', label: 'Teléfono / WhatsApp', type: 'tel' },
               ].map(f => (
                 <div key={f.id}>
@@ -850,7 +850,7 @@ Ante cualquier duda escribinos por acá 🙌`
                   placeholder="Ej: Cursada 1"
                 />
                 <datalist id="cursadas-edit-list">
-                  {['Cursada 1','Cursada 2','Cursada 3','Cursada 4','Cursada 5'].map(c => (
+                  {['Cursada 1', 'Cursada 2', 'Cursada 3', 'Cursada 4', 'Cursada 5'].map(c => (
                     <option key={c} value={c} />
                   ))}
                 </datalist>

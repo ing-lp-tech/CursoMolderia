@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../lib/supabase';
+import CostosCalculadora from '../../components/CostosCalculadora';
 
 const TIPO_ICON  = { video: 'play_circle', pdf: 'picture_as_pdf', link: 'link' };
 const TIPO_COLOR = { video: 'text-primary', pdf: 'text-secondary', link: 'text-tertiary' };
@@ -38,10 +39,11 @@ export default function StudentPortal() {
   const { user, perfil, signOut } = useAuth();
   const nombre = perfil?.nombre || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Estudiante';
 
-  const [recursos, setRecursos] = useState([]);
+  const [activeTab, setActiveTab]       = useState('recursos');
+  const [recursos, setRecursos]         = useState([]);
   const [loadingRecursos, setLoadingRecursos] = useState(true);
   const [videoAbierto, setVideoAbierto] = useState(null);
-  const [thumbnails, setThumbnails] = useState({}); // { [recurso.id]: thumbnailUrl }
+  const [thumbnails, setThumbnails]     = useState({});
 
   useEffect(() => {
     let isMounted = true;
@@ -146,6 +148,28 @@ export default function StudentPortal() {
         ) : (
           /* ── Contenido activo ── */
           <>
+            {/* Tabs de navegación */}
+            <div className="flex gap-1 border-b border-outline-variant/20 mb-8">
+              {[['recursos', 'Mis Recursos', 'video_library'], ['costos', 'Calculadora de Costos', 'calculate']].map(([val, label, icon]) => (
+                <button key={val} onClick={() => setActiveTab(val)}
+                  className={`flex items-center gap-2 px-4 py-2.5 font-headline text-xs font-bold uppercase tracking-widest transition-all border-b-2 -mb-px ${
+                    activeTab === val ? 'text-primary border-primary' : 'text-on-surface-variant border-transparent hover:text-on-surface'
+                  }`}>
+                  <span className="material-symbols-outlined text-sm">{icon}</span>
+                  {label}
+                </button>
+              ))}
+            </div>
+
+            {/* Tab: Calculadora de Costos */}
+            {activeTab === 'costos' && (
+              <div className="card border border-outline-variant/20">
+                <CostosCalculadora estudianteId={user?.id} />
+              </div>
+            )}
+
+            {/* Tab: Recursos */}
+            {activeTab === 'recursos' && <>
             {/* Video abierto (lightbox) */}
             {videoAbierto && (
               <div className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4" onClick={() => setVideoAbierto(null)}>
@@ -278,6 +302,7 @@ export default function StudentPortal() {
                 })}
               </div>
             )}
+            </>}
           </>
         )}
 
