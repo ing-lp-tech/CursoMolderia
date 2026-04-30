@@ -20,22 +20,23 @@
   --color-surface-container-highest: #262626;
   --color-surface-variant:           #262626;
   --color-surface-bright:            #2c2c2c;
-  --color-surface-tint:              #b89fff;
+  --color-surface-tint:              #5B8CE8;
 
   --color-on-background:             #ffffff;
   --color-on-surface:                #ffffff;
   --color-on-surface-variant:        #adaaaa;
 
-  --color-primary:                   #b89fff;
-  --color-primary-dim:               #834fff;
-  --color-primary-container:         #ac8eff;
-  --color-primary-fixed:             #ac8eff;
-  --color-primary-fixed-dim:         #a07dff;
-  --color-on-primary:                #37008e;
-  --color-on-primary-container:      #2a0070;
+  /* ── Azul Francia ── */
+  --color-primary:                   #5B8CE8;
+  --color-primary-dim:               #3268D6;
+  --color-primary-container:         #7AA8F5;
+  --color-primary-fixed:             #7AA8F5;
+  --color-primary-fixed-dim:         #6499F2;
+  --color-on-primary:                #001A5E;
+  --color-on-primary-container:      #001040;
   --color-on-primary-fixed:          #000000;
-  --color-on-primary-fixed-variant:  #350088;
-  --color-inverse-primary:           #6d23f9;
+  --color-on-primary-fixed-variant:  #002080;
+  --color-inverse-primary:           #2D68D0;
 
   --color-secondary:                 #00e3fd;
   --color-secondary-dim:             #00d4ec;
@@ -47,15 +48,16 @@
   --color-on-secondary-fixed:        #003a42;
   --color-on-secondary-fixed-variant: #005964;
 
-  --color-tertiary:                  #ff51fa;
-  --color-tertiary-dim:              #ff51fa;
-  --color-tertiary-container:        #fe00fe;
-  --color-tertiary-fixed:            #ff81f5;
-  --color-tertiary-fixed-dim:        #ff61f8;
-  --color-on-tertiary:               #400040;
-  --color-on-tertiary-container:     #230023;
-  --color-on-tertiary-fixed:         #320032;
-  --color-on-tertiary-fixed-variant: #6a006a;
+  /* ── Azul claro como terciario ── */
+  --color-tertiary:                  #64B5F6;
+  --color-tertiary-dim:              #42A5F5;
+  --color-tertiary-container:        #90CAF9;
+  --color-tertiary-fixed:            #90CAF9;
+  --color-tertiary-fixed-dim:        #64B5F6;
+  --color-on-tertiary:               #0D3B6E;
+  --color-on-tertiary-container:     #072952;
+  --color-on-tertiary-fixed:         #0A3260;
+  --color-on-tertiary-fixed-variant: #1565C0;
 
   --color-error:                     #ff6e84;
   --color-error-dim:                 #d73357;

@@ -1,6 +1,51 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 
+// Colores certificado
+const C1 = '#0B1D6A'; // navy oscuro
+const C2 = '#1A3499'; // navy medio
+const C3 = '#3A5CD6'; // azul acento
+
+// ── Ícono birrete SVG ──────────────────────────────────────────────────────
+function GradCap({ size = 58, color = C1 }) {
+  return (
+    <svg viewBox="0 0 64 52" style={{ width: size, height: size * 0.81 }} fill={color}>
+      <polygon points="32,2 62,16 32,30 2,16" />
+      <path d="M18,22 L18,38 C18,44 24,48 32,48 C40,48 46,44 46,38 L46,22 L32,30 Z" />
+      <line x1="57" y1="16" x2="57" y2="36" stroke={color} strokeWidth="3" strokeLinecap="round" />
+      <circle cx="57" cy="39" r="4" />
+    </svg>
+  );
+}
+
+// ── Sello circular con birrete ─────────────────────────────────────────────
+function Seal({ size = 92, color = C1 }) {
+  return (
+    <svg viewBox="0 0 100 100" style={{ width: size, height: size }}>
+      <circle cx="50" cy="50" r="47" fill="none" stroke={color} strokeWidth="2.5" />
+      <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeWidth="0.8" opacity="0.4" />
+      {/* Laurel izquierdo */}
+      {[[-20,10],[-28,2],[-24,20],[-18,28]].map(([rx,ry],i)=>(
+        <ellipse key={`l${i}`} cx={50+rx} cy={50+ry} rx="4.5" ry="9"
+          fill={color} opacity="0.85"
+          transform={`rotate(${-50+i*15} ${50+rx} ${50+ry})`} />
+      ))}
+      {/* Laurel derecho */}
+      {[[20,10],[28,2],[24,20],[18,28]].map(([rx,ry],i)=>(
+        <ellipse key={`r${i}`} cx={50+rx} cy={50+ry} rx="4.5" ry="9"
+          fill={color} opacity="0.85"
+          transform={`rotate(${50-i*15} ${50+rx} ${50+ry})`} />
+      ))}
+      <polygon points="50,24 66,33 50,42 34,33" fill={color} />
+      <path d="M38,36 L38,49 C38,53 43,57 50,57 C57,57 62,53 62,49 L62,36 L50,42 Z" fill={color} />
+      <line x1="63" y1="33" x2="63" y2="44" stroke={color} strokeWidth="2.5" strokeLinecap="round" />
+      <circle cx="63" cy="46" r="2.5" fill={color} />
+    </svg>
+  );
+}
+
+// ── Certificado ────────────────────────────────────────────────────────────
+// 600×900 px → proporción 2:3 = 20×30 cm (encuadra perfectamente)
 function CertificadoPreview({ nombreCertificado, fecha, firmante1, firmante2, cargo1, cargo2 }) {
   const nombre = nombreCertificado || 'Nombre del Estudiante';
   const fechaFormateada = fecha
@@ -10,133 +55,153 @@ function CertificadoPreview({ nombreCertificado, fecha, firmante1, firmante2, ca
   return (
     <div
       id="certificado-preview"
-      style={{
-        width: '842px', height: '595px',
-        background: '#ffffff', position: 'relative',
-        overflow: 'hidden', fontFamily: 'Georgia, serif',
-        boxSizing: 'border-box', flexShrink: 0,
-      }}
+      style={{ width: '600px', height: '900px', background: '#ffffff', position: 'relative', overflow: 'hidden', fontFamily: 'Georgia, serif', boxSizing: 'border-box', flexShrink: 0 }}
     >
-      {/* Top-right decorative corner */}
-      <div style={{
-        position: 'absolute', top: 0, right: 0,
-        width: '220px', height: '220px',
-        background: 'linear-gradient(225deg, #1a237e 0%, #283593 50%, transparent 100%)',
-        clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
-      }} />
-      <div style={{
-        position: 'absolute', top: 0, right: 0,
-        width: '180px', height: '180px',
-        background: 'linear-gradient(225deg, #b89fff 0%, transparent 80%)',
-        clipPath: 'polygon(100% 0, 0 0, 100% 100%)',
-        opacity: 0.5,
-      }} />
+      {/* ── Líneas curvas de fondo (decorativas) ── */}
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.035 }} viewBox="0 0 600 900" preserveAspectRatio="none">
+        {[...Array(10)].map((_, i) => (
+          <path key={i} d={`M${-80 + i*88},0 Q${60 + i*88},450 ${-80 + i*88},900`}
+            fill="none" stroke={C1} strokeWidth="1.2" />
+        ))}
+      </svg>
 
-      {/* Bottom-left decorative corner */}
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0,
-        width: '200px', height: '200px',
-        background: 'linear-gradient(45deg, #1a237e 0%, #283593 50%, transparent 100%)',
-        clipPath: 'polygon(0 100%, 0 0, 100% 100%)',
-      }} />
-      <div style={{
-        position: 'absolute', bottom: 0, left: 0,
-        width: '160px', height: '160px',
-        background: 'linear-gradient(45deg, #b89fff 0%, transparent 80%)',
-        clipPath: 'polygon(0 100%, 0 0, 100% 100%)',
-        opacity: 0.4,
-      }} />
+      {/* ── Esquina superior derecha (3 capas) ── */}
+      <div style={{ position: 'absolute', top: 0, right: 0, width: '240px', height: '320px',
+        background: C1, clipPath: 'polygon(100% 0, 20% 0, 100% 55%)' }} />
+      <div style={{ position: 'absolute', top: 0, right: 0, width: '185px', height: '240px',
+        background: C2, clipPath: 'polygon(100% 0, 44% 0, 100% 62%)' }} />
+      <div style={{ position: 'absolute', top: 0, right: 0, width: '120px', height: '160px',
+        background: C3, opacity: 0.75, clipPath: 'polygon(100% 0, 62% 0, 100% 68%)' }} />
+      {/* tira lateral derecha */}
+      <div style={{ position: 'absolute', top: 0, right: 0, width: '14px', height: '330px',
+        background: `linear-gradient(to bottom, ${C1}, transparent)` }} />
 
-      {/* Gold border */}
-      <div style={{ position: 'absolute', inset: '16px', border: '2px solid #b89fff', pointerEvents: 'none' }} />
+      {/* ── Esquina inferior izquierda (3 capas) ── */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '240px', height: '320px',
+        background: C1, clipPath: 'polygon(0 100%, 0 45%, 80% 100%)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '185px', height: '240px',
+        background: C2, clipPath: 'polygon(0 100%, 0 38%, 56% 100%)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '120px', height: '160px',
+        background: C3, opacity: 0.75, clipPath: 'polygon(0 100%, 0 32%, 38% 100%)' }} />
+      {/* tira lateral izquierda */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '14px', height: '330px',
+        background: `linear-gradient(to top, ${C1}, transparent)` }} />
 
-      {/* Logo + brand top-left */}
-      <div style={{ position: 'absolute', top: '32px', left: '40px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-        <div style={{
-          width: '36px', height: '36px', borderRadius: '50%',
-          background: 'linear-gradient(135deg, #b89fff, #6d23f9)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          color: 'white', fontWeight: 900, fontSize: '14px', fontFamily: 'sans-serif',
-        }}>MT</div>
-        <div>
-          <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '13px', letterSpacing: '3px', color: '#1a237e', textTransform: 'uppercase' }}>
-            MOLDI TEX
-          </div>
-          <div style={{ fontFamily: 'sans-serif', fontSize: '8px', letterSpacing: '2px', color: '#555', textTransform: 'uppercase' }}>
-            Academia de Moldería Digital
-          </div>
-        </div>
+      {/* ── Borde interior sutil ── */}
+      <div style={{ position: 'absolute', inset: '12px', border: `1px solid ${C1}`, opacity: 0.13, pointerEvents: 'none' }} />
+
+      {/* ── Banner inferior ── */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50px', background: C1, zIndex: 10,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
+        <svg viewBox="0 0 24 24" style={{ width: '16px', height: '16px', fill: 'white', opacity: 0.85 }}>
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>
+        <span style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '11px', letterSpacing: '3px', color: 'white', textTransform: 'uppercase' }}>
+          ¡FELICITACIONES POR ESTE GRAN LOGRO!
+        </span>
       </div>
 
-      {/* Main content */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'center',
-        paddingTop: '20px', gap: '0px',
-      }}>
-        <div style={{ fontFamily: 'sans-serif', fontSize: '13px', letterSpacing: '8px', color: '#444', textTransform: 'uppercase', fontWeight: 400, marginBottom: '4px' }}>
-          CERTIFICADO DE
-        </div>
-        <div style={{ fontFamily: 'sans-serif', fontSize: '38px', letterSpacing: '6px', color: '#1a237e', textTransform: 'uppercase', fontWeight: 900, lineHeight: 1, marginBottom: '16px' }}>
-          FINALIZACIÓN
-        </div>
+      {/* ── Contenido principal ── */}
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
+        paddingTop: '52px', paddingBottom: '100px', paddingLeft: '44px', paddingRight: '44px' }}>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '18px' }}>
-          <div style={{ width: '60px', height: '1px', background: '#b89fff' }} />
-          <div style={{ color: '#b89fff', fontSize: '14px' }}>✦</div>
-          <div style={{ width: '60px', height: '1px', background: '#b89fff' }} />
-        </div>
+        {/* Birrete */}
+        <GradCap size={58} color={C1} />
+        <div style={{ height: '18px' }} />
 
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: '13px', color: '#666', fontStyle: 'italic', marginBottom: '8px' }}>
+        {/* CERTIFICADO */}
+        <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '56px', color: C1, letterSpacing: '5px', textTransform: 'uppercase', lineHeight: 1 }}>
+          CERTIFICADO
+        </div>
+        <div style={{ height: '10px' }} />
+
+        {/* — DE CURSO DE — */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+          <div style={{ width: '52px', height: '1.5px', background: C1 }} />
+          <span style={{ fontFamily: 'sans-serif', fontSize: '12px', letterSpacing: '4px', color: C1, fontWeight: 500 }}>DE CURSO DE</span>
+          <div style={{ width: '52px', height: '1.5px', background: C1 }} />
+        </div>
+        <div style={{ height: '8px' }} />
+
+        {/* MOLDERÍA DIGITAL */}
+        <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '36px', color: C1, letterSpacing: '3px', textTransform: 'uppercase', lineHeight: 1 }}>
+          MOLDERÍA DIGITAL
+        </div>
+        <div style={{ height: '20px' }} />
+
+        {/* — ♦ — */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div style={{ width: '68px', height: '1.5px', background: C1 }} />
+          <span style={{ color: C1, fontSize: '14px', fontFamily: 'sans-serif' }}>♦</span>
+          <div style={{ width: '68px', height: '1.5px', background: C1 }} />
+        </div>
+        <div style={{ height: '22px' }} />
+
+        {/* otorgado a */}
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: '#555', fontStyle: 'italic' }}>
           otorgado a
         </div>
+        <div style={{ height: '14px' }} />
 
-        <div style={{
-          fontFamily: '"Brush Script MT", "Dancing Script", cursive, Georgia, serif',
-          fontSize: nombre.length > 22 ? '38px' : '50px',
-          color: '#1a237e', lineHeight: 1.1, marginBottom: '6px',
-          maxWidth: '520px', textAlign: 'center',
-        }}>
+        {/* Nombre */}
+        <div style={{ fontFamily: '"Brush Script MT", "Dancing Script", cursive',
+          fontSize: nombre.length > 22 ? '52px' : '66px',
+          color: C1, lineHeight: 1.1, textAlign: 'center', maxWidth: '480px' }}>
           {nombre}
         </div>
+        <div style={{ height: '8px' }} />
 
-        <div style={{ width: '380px', height: '1px', background: '#b89fff', marginBottom: '14px' }} />
+        {/* Línea bajo nombre */}
+        <div style={{ width: '380px', height: '1.5px', background: C1, opacity: 0.22 }} />
+        <div style={{ height: '22px' }} />
 
-        <div style={{ fontFamily: 'sans-serif', fontSize: '11px', fontWeight: 700, color: '#333', letterSpacing: '1px', textAlign: 'center', marginBottom: '4px' }}>
-          por completar satisfactoriamente el
+        {/* Texto completación */}
+        <div style={{ fontFamily: 'sans-serif', fontSize: '12px', color: '#555', textAlign: 'center' }}>
+          por haber completado satisfactoriamente el
         </div>
-        <div style={{ fontFamily: 'sans-serif', fontSize: '13px', fontWeight: 900, color: '#1a237e', letterSpacing: '2px', textAlign: 'center', textTransform: 'uppercase', marginBottom: '4px' }}>
-          Curso Presencial Audaces Vestuario 7.5
+        <div style={{ height: '6px' }} />
+        <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '13px', color: C1, letterSpacing: '2px', textTransform: 'uppercase', textAlign: 'center' }}>
+          CURSO DE MOLDERÍA DIGITAL.
         </div>
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: '11px', fontStyle: 'italic', color: '#555', marginBottom: '24px' }}>
+        <div style={{ height: '8px' }} />
+        <div style={{ fontFamily: 'Georgia, serif', fontSize: '11px', fontStyle: 'italic', color: '#666', textAlign: 'center' }}>
           {fechaFormateada}
         </div>
-      </div>
 
-      {/* Signatures */}
-      <div style={{
-        position: 'absolute', bottom: '44px', left: 0, right: 0,
-        display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end',
-        paddingLeft: '80px', paddingRight: '80px',
-      }}>
-        {[
-          { nombre: firmante1 || 'Luis P.', cargo: cargo1 || 'Ing. Electrónico · Co-Fundador' },
-          { nombre: firmante2 || 'Cristian', cargo: cargo2 || 'Docente · Co-Fundador' },
-        ].map((f, idx) => (
-          <div key={idx} style={{ textAlign: 'center', minWidth: '160px' }}>
-            <div style={{ fontFamily: '"Brush Script MT", cursive, Georgia, serif', fontSize: '22px', color: '#1a237e', lineHeight: 1.2, marginBottom: '4px' }}>
-              {f.nombre}
+        {/* Espacio flexible */}
+        <div style={{ flex: 1, minHeight: '24px' }} />
+
+        {/* Firmas */}
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end' }}>
+
+          <div style={{ textAlign: 'center', minWidth: '148px' }}>
+            <div style={{ fontFamily: '"Brush Script MT", cursive', fontSize: '28px', color: C1, lineHeight: 1.3 }}>
+              {firmante1 || 'Luis P.'}
             </div>
-            <div style={{ width: '100%', height: '1px', background: '#b89fff', marginBottom: '6px' }} />
-            <div style={{ fontFamily: 'sans-serif', fontWeight: 700, fontSize: '10px', color: '#222', letterSpacing: '0.5px' }}>
-              {f.nombre}
+            <div style={{ width: '100%', height: '1px', background: C1, opacity: 0.35, marginBottom: '6px' }} />
+            <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '10px', color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {firmante1 || 'Luis P.'}
             </div>
-            <div style={{ fontFamily: 'sans-serif', fontSize: '8px', color: '#666', marginTop: '2px', letterSpacing: '0.5px' }}>
-              {f.cargo}
+            <div style={{ fontFamily: 'sans-serif', fontSize: '9px', color: '#666', textTransform: 'uppercase', marginTop: '2px' }}>
+              {cargo1 || 'Ing. Electrónico · Co-Fundador'}
             </div>
           </div>
-        ))}
+
+          <Seal size={90} color={C1} />
+
+          <div style={{ textAlign: 'center', minWidth: '148px' }}>
+            <div style={{ fontFamily: '"Brush Script MT", cursive', fontSize: '28px', color: C1, lineHeight: 1.3 }}>
+              {firmante2 || 'Cristian'}
+            </div>
+            <div style={{ width: '100%', height: '1px', background: C1, opacity: 0.35, marginBottom: '6px' }} />
+            <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '10px', color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {firmante2 || 'Cristian'}
+            </div>
+            <div style={{ fontFamily: 'sans-serif', fontSize: '9px', color: '#666', textTransform: 'uppercase', marginTop: '2px' }}>
+              {cargo2 || 'Docente · Co-Fundador'}
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -214,15 +279,23 @@ export default function CertificadosPage() {
   function handleImprimir() {
     const contenido = document.getElementById('certificado-preview');
     if (!contenido) return;
-    const win = window.open('', '_blank', 'width=1000,height=700');
+    const win = window.open('', '_blank', 'width=700,height=1000');
+    win.document.open();
     win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8">
       <title>Certificado — ${nombreCertificado}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: white; display: flex; justify-content: center; align-items: center; min-height: 100vh; }
-        @media print { body { margin: 0; } @page { size: A4 landscape; margin: 0; } }
-      </style></head><body>${contenido.outerHTML}
-      <script>window.onload = function() { window.print(); }<\/script>
+        body { background: white; display: flex; justify-content: center; align-items: flex-start; }
+        @media print {
+          body { margin: 0; }
+          @page { size: 20cm 30cm; margin: 0; }
+          #certificado-preview { width: 20cm !important; height: 30cm !important; }
+        }
+      </style></head><body>
+      <div style="transform-origin: top center;">
+        ${contenido.outerHTML}
+      </div>
+      <script>window.onload = function() { setTimeout(function(){ window.print(); }, 600); }<\/script>
       </body></html>`);
     win.document.close();
   }
@@ -406,10 +479,10 @@ export default function CertificadosPage() {
                 </button>
               </div>
 
-              {/* Preview container — scaled down */}
+              {/* Preview container — escalado a retrato 20×30 */}
               <div
                 className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-2xl bg-white"
-                style={{ transform: 'scale(0.72)', transformOrigin: 'top left', width: '139%', marginBottom: '-160px' }}
+                style={{ transform: 'scale(0.60)', transformOrigin: 'top left', width: '100%', marginBottom: '-360px' }}
               >
                 <CertificadoPreview
                   nombreCertificado={nombreCertificado}
