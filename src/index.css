@@ -134,7 +134,7 @@
   }
 
   .gradient-text {
-    background: linear-gradient(135deg, #b89fff 0%, #00e3fd 100%);
+    background: linear-gradient(135deg, #5B8CE8 0%, #00e3fd 100%);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -144,8 +144,8 @@
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
-    background: linear-gradient(135deg, #b89fff 0%, #ac8eff 100%);
-    color: #37008e;
+    background: linear-gradient(135deg, #5B8CE8 0%, #3268D6 100%);
+    color: #ffffff;
     padding: 0.75rem 2rem;
     border-radius: 0.5rem;
     font-family: var(--font-headline);
@@ -153,7 +153,7 @@
     font-size: 0.75rem;
     letter-spacing: 0.15em;
     text-transform: uppercase;
-    box-shadow: 0 8px 32px rgba(184, 159, 255, 0.3);
+    box-shadow: 0 8px 32px rgba(91, 140, 232, 0.35);
     transition: all 0.2s;
     cursor: pointer;
     border: none;
@@ -161,7 +161,7 @@
   }
 
   .btn-primary:hover {
-    box-shadow: 0 12px 40px rgba(184, 159, 255, 0.45);
+    box-shadow: 0 12px 40px rgba(91, 140, 232, 0.5);
     transform: translateY(-1px);
   }
 

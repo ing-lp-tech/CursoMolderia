@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import luisBlack from '../assets/luisBlack.png';
 import cristian from '../assets/cristian.jpg';
 import logo from '../assets/logo.png';
+import heroMolderia from '../assets/hero-molderia.jpg.jpg';
 import { getActiveFlashPromo } from '../utils/cupones';
 import { useAppSettings } from '../context/AppSettingsContext';
 
@@ -125,9 +126,9 @@ export default function LandingPage() {
           <div className="lg:col-span-5 relative">
             <div className="relative rounded-xl overflow-hidden border border-outline-variant/15 shadow-2xl">
               <img
-                src="https://lh3.googleusercontent.com/aida-public/AB6AXuB06807Lx5qzZwLDyGP9g4gYgk9aVch71b8R9TKTLYdRnjzhPruKG6phBBMuh6ei6nwA3jKpWuYoCdQEJaHCw2VzmCsvGJ6qAjTMCp-VLGxkwvxX5U7sJdIEOdqTeDr9t-ieHMk-kB4LhFhDKT2J1h7lDimP3x-5JZKzl4A-Xlf0TLsO0XoFz9Ox0QpNKZfqssgk5j_BKaWuXMBvMWeoh4o3hJHiy5zjbQkysMQxvVHAvaYbB4KZPadzFJf3Nku9hYeTmG6J1kg064"
+                src={heroMolderia}
                 alt="Proceso de moldería digital en Audaces"
-                className="w-full h-[500px] object-cover opacity-80 hover:opacity-100 transition-opacity duration-700"
+                className="w-full h-[500px] object-cover opacity-90 hover:opacity-100 transition-opacity duration-700"
               />
               <div className="absolute inset-0 bg-gradient-to-tr from-surface/80 to-transparent" />
               <div className="absolute bottom-6 left-6 right-6 p-4 glass-panel rounded-xl border border-white/5">

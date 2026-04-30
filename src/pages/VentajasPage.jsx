@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useAppSettings } from '../context/AppSettingsContext';
 
 const VENTAJAS = [
   { icon: 'cloud_done', title: 'Cero Espacio Físico', desc: 'Miles de molderías almacenadas en la nube, organizadas y accesibles instantáneamente.', color: 'text-secondary', span: 'md:col-span-2' },
@@ -24,6 +25,7 @@ const COMPARACION = {
 };
 
 export default function VentajasPage() {
+  const { precio_base } = useAppSettings();
   return (
     <div className="min-h-screen pt-24 pb-32 px-6 lg:px-20">
       <div className="max-w-6xl mx-auto">
@@ -121,7 +123,7 @@ export default function VentajasPage() {
           <h2 className="font-headline text-4xl md:text-5xl font-black mb-4 tracking-tighter">Inicia tu transformación</h2>
           <p className="text-on-surface-variant mb-10 max-w-md mx-auto">Domina las herramientas que las grandes marcas usan para optimizar sus procesos.</p>
           <Link to="/inscripcion" className="btn-primary inline-flex items-center gap-2 text-lg px-12 py-5">
-            RESERVAR VACANTE — $400.000
+            RESERVAR VACANTE — ${precio_base.toLocaleString('es-AR')}
           </Link>
         </div>
       </div>
