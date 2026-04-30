@@ -5,70 +5,70 @@
 
 @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700;900&family=Inter:wght@300;400;500;600;700&display=swap');
 @import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
-
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;800;900&family=Great+Vibes&display=swap');
 @import "tailwindcss";
 
 @theme {
   /* ── Stitch Color Tokens ── */
-  --color-background:                #0e0e0e;
-  --color-surface:                   #0e0e0e;
-  --color-surface-dim:               #0e0e0e;
-  --color-surface-container-lowest:  #000000;
-  --color-surface-container-low:     #131313;
-  --color-surface-container:         #1a1a1a;
-  --color-surface-container-high:    #20201f;
+  --color-background: #0e0e0e;
+  --color-surface: #0e0e0e;
+  --color-surface-dim: #0e0e0e;
+  --color-surface-container-lowest: #000000;
+  --color-surface-container-low: #131313;
+  --color-surface-container: #1a1a1a;
+  --color-surface-container-high: #20201f;
   --color-surface-container-highest: #262626;
-  --color-surface-variant:           #262626;
-  --color-surface-bright:            #2c2c2c;
-  --color-surface-tint:              #5B8CE8;
+  --color-surface-variant: #262626;
+  --color-surface-bright: #2c2c2c;
+  --color-surface-tint: #5B8CE8;
 
-  --color-on-background:             #ffffff;
-  --color-on-surface:                #ffffff;
-  --color-on-surface-variant:        #adaaaa;
+  --color-on-background: #ffffff;
+  --color-on-surface: #ffffff;
+  --color-on-surface-variant: #adaaaa;
 
   /* ── Azul Francia ── */
-  --color-primary:                   #5B8CE8;
-  --color-primary-dim:               #3268D6;
-  --color-primary-container:         #7AA8F5;
-  --color-primary-fixed:             #7AA8F5;
-  --color-primary-fixed-dim:         #6499F2;
-  --color-on-primary:                #001A5E;
-  --color-on-primary-container:      #001040;
-  --color-on-primary-fixed:          #000000;
-  --color-on-primary-fixed-variant:  #002080;
-  --color-inverse-primary:           #2D68D0;
+  --color-primary: #5B8CE8;
+  --color-primary-dim: #3268D6;
+  --color-primary-container: #7AA8F5;
+  --color-primary-fixed: #7AA8F5;
+  --color-primary-fixed-dim: #6499F2;
+  --color-on-primary: #001A5E;
+  --color-on-primary-container: #001040;
+  --color-on-primary-fixed: #000000;
+  --color-on-primary-fixed-variant: #002080;
+  --color-inverse-primary: #2D68D0;
 
-  --color-secondary:                 #00e3fd;
-  --color-secondary-dim:             #00d4ec;
-  --color-secondary-container:       #006875;
-  --color-secondary-fixed:           #26e6ff;
-  --color-secondary-fixed-dim:       #00d7f0;
-  --color-on-secondary:              #004d57;
-  --color-on-secondary-container:    #e8fbff;
-  --color-on-secondary-fixed:        #003a42;
+  --color-secondary: #00e3fd;
+  --color-secondary-dim: #00d4ec;
+  --color-secondary-container: #006875;
+  --color-secondary-fixed: #26e6ff;
+  --color-secondary-fixed-dim: #00d7f0;
+  --color-on-secondary: #004d57;
+  --color-on-secondary-container: #e8fbff;
+  --color-on-secondary-fixed: #003a42;
   --color-on-secondary-fixed-variant: #005964;
 
   /* ── Azul claro como terciario ── */
-  --color-tertiary:                  #64B5F6;
-  --color-tertiary-dim:              #42A5F5;
-  --color-tertiary-container:        #90CAF9;
-  --color-tertiary-fixed:            #90CAF9;
-  --color-tertiary-fixed-dim:        #64B5F6;
-  --color-on-tertiary:               #0D3B6E;
-  --color-on-tertiary-container:     #072952;
-  --color-on-tertiary-fixed:         #0A3260;
+  --color-tertiary: #64B5F6;
+  --color-tertiary-dim: #42A5F5;
+  --color-tertiary-container: #90CAF9;
+  --color-tertiary-fixed: #90CAF9;
+  --color-tertiary-fixed-dim: #64B5F6;
+  --color-on-tertiary: #0D3B6E;
+  --color-on-tertiary-container: #072952;
+  --color-on-tertiary-fixed: #0A3260;
   --color-on-tertiary-fixed-variant: #1565C0;
 
-  --color-error:                     #ff6e84;
-  --color-error-dim:                 #d73357;
-  --color-error-container:           #a70138;
-  --color-on-error:                  #490013;
-  --color-on-error-container:        #ffb2b9;
+  --color-error: #ff6e84;
+  --color-error-dim: #d73357;
+  --color-error-container: #a70138;
+  --color-on-error: #490013;
+  --color-on-error-container: #ffb2b9;
 
-  --color-outline:                   #767575;
-  --color-outline-variant:           #484847;
-  --color-inverse-surface:           #fcf9f8;
-  --color-inverse-on-surface:        #565555;
+  --color-outline: #767575;
+  --color-outline-variant: #484847;
+  --color-inverse-surface: #fcf9f8;
+  --color-inverse-on-surface: #565555;
 
   /* ── Typography ── */
   --font-headline: "Space Grotesk", sans-serif;
@@ -100,7 +100,12 @@
     max-width: 100%;
   }
 
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     font-family: var(--font-headline);
   }
 

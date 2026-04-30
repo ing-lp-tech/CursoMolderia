@@ -25,16 +25,16 @@ function Seal({ size = 92, color = C1 }) {
       <circle cx="50" cy="50" r="47" fill="none" stroke={color} strokeWidth="2.5" />
       <circle cx="50" cy="50" r="40" fill="none" stroke={color} strokeWidth="0.8" opacity="0.4" />
       {/* Laurel izquierdo */}
-      {[[-20,10],[-28,2],[-24,20],[-18,28]].map(([rx,ry],i)=>(
-        <ellipse key={`l${i}`} cx={50+rx} cy={50+ry} rx="4.5" ry="9"
+      {[[-20, 10], [-28, 2], [-24, 20], [-18, 28]].map(([rx, ry], i) => (
+        <ellipse key={`l${i}`} cx={50 + rx} cy={50 + ry} rx="4.5" ry="9"
           fill={color} opacity="0.85"
-          transform={`rotate(${-50+i*15} ${50+rx} ${50+ry})`} />
+          transform={`rotate(${-50 + i * 15} ${50 + rx} ${50 + ry})`} />
       ))}
       {/* Laurel derecho */}
-      {[[20,10],[28,2],[24,20],[18,28]].map(([rx,ry],i)=>(
-        <ellipse key={`r${i}`} cx={50+rx} cy={50+ry} rx="4.5" ry="9"
+      {[[20, 10], [28, 2], [24, 20], [18, 28]].map(([rx, ry], i) => (
+        <ellipse key={`r${i}`} cx={50 + rx} cy={50 + ry} rx="4.5" ry="9"
           fill={color} opacity="0.85"
-          transform={`rotate(${50-i*15} ${50+rx} ${50+ry})`} />
+          transform={`rotate(${50 - i * 15} ${50 + rx} ${50 + ry})`} />
       ))}
       <polygon points="50,24 66,33 50,42 34,33" fill={color} />
       <path d="M38,36 L38,49 C38,53 43,57 50,57 C57,57 62,53 62,49 L62,36 L50,42 Z" fill={color} />
@@ -48,159 +48,265 @@ function Seal({ size = 92, color = C1 }) {
 // 600×900 px → proporción 2:3 = 20×30 cm (encuadra perfectamente)
 function CertificadoPreview({ nombreCertificado, fecha, firmante1, firmante2, cargo1, cargo2 }) {
   const nombre = nombreCertificado || 'Nombre del Estudiante';
+
   const fechaFormateada = fecha
-    ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' })
-    : new Date().toLocaleDateString('es-AR', { day: 'numeric', month: 'long', year: 'numeric' });
+    ? new Date(fecha + 'T12:00:00').toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    })
+    : new Date().toLocaleDateString('es-AR', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric'
+    });
 
   return (
     <div
       id="certificado-preview"
-      style={{ width: '600px', height: '900px', background: '#ffffff', position: 'relative', overflow: 'hidden', fontFamily: 'Georgia, serif', boxSizing: 'border-box', flexShrink: 0 }}
+      style={{
+        width: '600px',
+        height: '900px',
+        background: '#ffffff',
+        position: 'relative',
+        overflow: 'hidden',
+        fontFamily: 'Montserrat, sans-serif',
+        boxSizing: 'border-box',
+        flexShrink: 0
+      }}
     >
-      {/* ── Líneas curvas de fondo (decorativas) ── */}
-      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.035 }} viewBox="0 0 600 900" preserveAspectRatio="none">
-        {[...Array(10)].map((_, i) => (
-          <path key={i} d={`M${-80 + i*88},0 Q${60 + i*88},450 ${-80 + i*88},900`}
-            fill="none" stroke={C1} strokeWidth="1.2" />
+
+      {/* FONDO LÍNEAS */}
+      <svg style={{ position: 'absolute', inset: 0, opacity: 0.04 }} viewBox="0 0 600 900">
+        {[...Array(12)].map((_, i) => (
+          <path
+            key={i}
+            d={`M${-100 + i * 80},0 Q${80 + i * 80},450 ${-100 + i * 80},900`}
+            fill="none"
+            stroke={C1}
+            strokeWidth="1"
+          />
         ))}
       </svg>
 
-      {/* ── Esquina superior derecha (3 capas) ── */}
-      <div style={{ position: 'absolute', top: 0, right: 0, width: '240px', height: '320px',
-        background: C1, clipPath: 'polygon(100% 0, 20% 0, 100% 55%)' }} />
-      <div style={{ position: 'absolute', top: 0, right: 0, width: '185px', height: '240px',
-        background: C2, clipPath: 'polygon(100% 0, 44% 0, 100% 62%)' }} />
-      <div style={{ position: 'absolute', top: 0, right: 0, width: '120px', height: '160px',
-        background: C3, opacity: 0.75, clipPath: 'polygon(100% 0, 62% 0, 100% 68%)' }} />
-      {/* tira lateral derecha */}
-      <div style={{ position: 'absolute', top: 0, right: 0, width: '14px', height: '330px',
-        background: `linear-gradient(to bottom, ${C1}, transparent)` }} />
+      {/* ESQUINAS (mantenemos tus proporciones pero más finas) */}
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: '240px',
+        height: '320px',
+        background: C1,
+        clipPath: 'polygon(100% 0, 20% 0, 100% 55%)'
+      }} />
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: '185px',
+        height: '240px',
+        background: C2,
+        clipPath: 'polygon(100% 0, 44% 0, 100% 62%)'
+      }} />
+      <div style={{
+        position: 'absolute',
+        top: 0,
+        right: 0,
+        width: '120px',
+        height: '160px',
+        background: C3,
+        opacity: 0.7,
+        clipPath: 'polygon(100% 0, 62% 0, 100% 68%)'
+      }} />
 
-      {/* ── Esquina inferior izquierda (3 capas) ── */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '240px', height: '320px',
-        background: C1, clipPath: 'polygon(0 100%, 0 45%, 80% 100%)' }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '185px', height: '240px',
-        background: C2, clipPath: 'polygon(0 100%, 0 38%, 56% 100%)' }} />
-      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '120px', height: '160px',
-        background: C3, opacity: 0.75, clipPath: 'polygon(0 100%, 0 32%, 38% 100%)' }} />
-      {/* tira lateral izquierda */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '14px', height: '330px',
-        background: `linear-gradient(to top, ${C1}, transparent)` }} />
+      <div style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        width: '240px',
+        height: '320px',
+        background: C1,
+        clipPath: 'polygon(0 100%, 0 45%, 80% 100%)'
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        width: '185px',
+        height: '240px',
+        background: C2,
+        clipPath: 'polygon(0 100%, 0 38%, 56% 100%)'
+      }} />
+      <div style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        width: '120px',
+        height: '160px',
+        background: C3,
+        opacity: 0.7,
+        clipPath: 'polygon(0 100%, 0 32%, 38% 100%)'
+      }} />
 
-      {/* ── Borde interior sutil ── */}
-      <div style={{ position: 'absolute', inset: '12px', border: `1px solid ${C1}`, opacity: 0.13, pointerEvents: 'none' }} />
+      {/* BORDE */}
+      <div style={{
+        position: 'absolute',
+        inset: '12px',
+        border: `1px solid ${C1}`,
+        opacity: 0.15
+      }} />
 
-      {/* ── Banner inferior ── */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '50px', background: C1, zIndex: 10,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px' }}>
-        <svg viewBox="0 0 24 24" style={{ width: '16px', height: '16px', fill: 'white', opacity: 0.85 }}>
-          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
-        </svg>
-        <span style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '11px', letterSpacing: '3px', color: 'white', textTransform: 'uppercase' }}>
+      {/* FOOTER */}
+      <div style={{
+        position: 'absolute',
+        bottom: 0,
+        left: 0,
+        right: 0,
+        height: '50px',
+        background: C1,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        gap: '10px'
+      }}>
+        <span style={{
+          color: 'white',
+          fontWeight: 800,
+          fontSize: '11px',
+          letterSpacing: '3px'
+        }}>
           ¡FELICITACIONES POR ESTE GRAN LOGRO!
         </span>
       </div>
 
-      {/* ── Contenido principal ── */}
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column', alignItems: 'center',
-        paddingTop: '52px', paddingBottom: '100px', paddingLeft: '44px', paddingRight: '44px' }}>
+      {/* CONTENIDO */}
+      <div style={{
+        position: 'absolute',
+        inset: 0,
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        padding: '55px 44px 100px'
+      }}>
 
-        {/* Birrete */}
         <GradCap size={58} color={C1} />
-        <div style={{ height: '18px' }} />
 
-        {/* CERTIFICADO */}
-        <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '56px', color: C1, letterSpacing: '5px', textTransform: 'uppercase', lineHeight: 1 }}>
+        <div style={{
+          fontWeight: 900,
+          fontSize: '56px',
+          letterSpacing: '6px',
+          color: C1,
+          marginTop: '10px'
+        }}>
           CERTIFICADO
         </div>
-        <div style={{ height: '10px' }} />
 
-        {/* — DE CURSO DE — */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-          <div style={{ width: '52px', height: '1.5px', background: C1 }} />
-          <span style={{ fontFamily: 'sans-serif', fontSize: '12px', letterSpacing: '4px', color: C1, fontWeight: 500 }}>DE CURSO DE</span>
-          <div style={{ width: '52px', height: '1.5px', background: C1 }} />
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: '12px',
+          marginTop: '6px'
+        }}>
+          <div style={{ width: '60px', height: '1px', background: C1 }} />
+          <span style={{ fontSize: '11px', letterSpacing: '3px' }}>
+            DE CURSO DE
+          </span>
+          <div style={{ width: '60px', height: '1px', background: C1 }} />
         </div>
-        <div style={{ height: '8px' }} />
 
-        {/* MOLDERÍA DIGITAL */}
-        <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '36px', color: C1, letterSpacing: '3px', textTransform: 'uppercase', lineHeight: 1 }}>
+        <div style={{
+          fontWeight: 900,
+          fontSize: '36px',
+          letterSpacing: '3px',
+          color: C1,
+          marginTop: '8px'
+        }}>
           MOLDERÍA DIGITAL
         </div>
-        <div style={{ height: '20px' }} />
 
-        {/* — ♦ — */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div style={{ width: '68px', height: '1.5px', background: C1 }} />
-          <span style={{ color: C1, fontSize: '14px', fontFamily: 'sans-serif' }}>♦</span>
-          <div style={{ width: '68px', height: '1.5px', background: C1 }} />
-        </div>
-        <div style={{ height: '22px' }} />
+        <div style={{ margin: '18px 0', color: C1 }}>♦</div>
 
-        {/* otorgado a */}
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: '14px', color: '#555', fontStyle: 'italic' }}>
+        <div style={{
+          fontStyle: 'italic',
+          fontSize: '14px',
+          color: '#666'
+        }}>
           otorgado a
         </div>
-        <div style={{ height: '14px' }} />
 
-        {/* Nombre */}
-        <div style={{ fontFamily: '"Brush Script MT", "Dancing Script", cursive',
+        <div style={{
+          fontFamily: 'Great Vibes',
           fontSize: nombre.length > 22 ? '52px' : '66px',
-          color: C1, lineHeight: 1.1, textAlign: 'center', maxWidth: '480px' }}>
+          color: C1,
+          marginTop: '8px',
+          textAlign: 'center'
+        }}>
           {nombre}
         </div>
-        <div style={{ height: '8px' }} />
 
-        {/* Línea bajo nombre */}
-        <div style={{ width: '380px', height: '1.5px', background: C1, opacity: 0.22 }} />
-        <div style={{ height: '22px' }} />
+        <div style={{
+          width: '380px',
+          height: '1px',
+          background: C1,
+          opacity: 0.25,
+          margin: '10px 0 20px'
+        }} />
 
-        {/* Texto completación */}
-        <div style={{ fontFamily: 'sans-serif', fontSize: '12px', color: '#555', textAlign: 'center' }}>
+        <div style={{ fontSize: '12px', color: '#666' }}>
           por haber completado satisfactoriamente el
         </div>
-        <div style={{ height: '6px' }} />
-        <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '13px', color: C1, letterSpacing: '2px', textTransform: 'uppercase', textAlign: 'center' }}>
+
+        <div style={{
+          fontWeight: 800,
+          fontSize: '13px',
+          letterSpacing: '2px',
+          color: C1
+        }}>
           CURSO DE MOLDERÍA DIGITAL.
         </div>
-        <div style={{ height: '8px' }} />
-        <div style={{ fontFamily: 'Georgia, serif', fontSize: '11px', fontStyle: 'italic', color: '#666', textAlign: 'center' }}>
+
+        <div style={{
+          fontSize: '11px',
+          fontStyle: 'italic',
+          color: '#666',
+          marginTop: '6px',
+        }}>
           {fechaFormateada}
         </div>
 
-        {/* Espacio flexible */}
-        <div style={{ flex: 1, minHeight: '24px' }} />
+        <div style={{ flex: 0.5 }} />
 
-        {/* Firmas */}
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end' }}>
+        {/* FIRMAS */}
+        <div style={{
+          width: '100%',
+          display: 'flex',
+          justifyContent: 'space-around',
+          alignItems: 'flex-end',
 
-          <div style={{ textAlign: 'center', minWidth: '148px' }}>
-            <div style={{ fontFamily: '"Brush Script MT", cursive', fontSize: '28px', color: C1, lineHeight: 1.3 }}>
+        }}>
+
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: 'Great Vibes', fontSize: '28px' }}>
               {firmante1 || 'Luis P.'}
             </div>
-            <div style={{ width: '100%', height: '1px', background: C1, opacity: 0.35, marginBottom: '6px' }} />
-            <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '10px', color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {firmante1 || 'Luis P.'}
-            </div>
-            <div style={{ fontFamily: 'sans-serif', fontSize: '9px', color: '#666', textTransform: 'uppercase', marginTop: '2px' }}>
+            <div style={{ height: '1px', background: C1, width: '140px', margin: '5px auto' }} />
+            <div style={{ fontSize: '10px' }}>
               {cargo1 || 'Ing. Electrónico · Co-Fundador'}
             </div>
           </div>
 
-          <Seal size={90} color={C1} />
+          <Seal size={100} color={C1} />
 
-          <div style={{ textAlign: 'center', minWidth: '148px' }}>
-            <div style={{ fontFamily: '"Brush Script MT", cursive', fontSize: '28px', color: C1, lineHeight: 1.3 }}>
+          <div style={{ textAlign: 'center' }}>
+            <div style={{ fontFamily: 'Great Vibes', fontSize: '28px' }}>
               {firmante2 || 'Cristian'}
             </div>
-            <div style={{ width: '100%', height: '1px', background: C1, opacity: 0.35, marginBottom: '6px' }} />
-            <div style={{ fontFamily: 'sans-serif', fontWeight: 900, fontSize: '10px', color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {firmante2 || 'Cristian'}
-            </div>
-            <div style={{ fontFamily: 'sans-serif', fontSize: '9px', color: '#666', textTransform: 'uppercase', marginTop: '2px' }}>
+            <div style={{ height: '1px', background: C1, width: '140px', margin: '5px auto' }} />
+            <div style={{ fontSize: '10px' }}>
               {cargo2 || 'Docente · Co-Fundador'}
             </div>
           </div>
+
         </div>
       </div>
     </div>
@@ -356,13 +462,11 @@ export default function CertificadosPage() {
               <button
                 key={est.id}
                 onClick={() => handleSelectEstudiante(est)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-b border-outline-variant/10 last:border-0 ${
-                  selected?.id === est.id ? 'bg-primary/15 text-primary' : 'hover:bg-surface-variant text-on-surface'
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left transition-all border-b border-outline-variant/10 last:border-0 ${selected?.id === est.id ? 'bg-primary/15 text-primary' : 'hover:bg-surface-variant text-on-surface'
+                  }`}
               >
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-headline font-bold text-sm shrink-0 ${
-                  selected?.id === est.id ? 'bg-primary/30 text-primary' : 'bg-surface-variant text-on-surface-variant'
-                }`}>
+                <div className={`w-9 h-9 rounded-full flex items-center justify-center font-headline font-bold text-sm shrink-0 ${selected?.id === est.id ? 'bg-primary/30 text-primary' : 'bg-surface-variant text-on-surface-variant'
+                  }`}>
                   {(est.nombre?.[0] || est.email?.[0] || '?').toUpperCase()}
                 </div>
                 <div className="flex-1 min-w-0">
@@ -424,11 +528,10 @@ export default function CertificadosPage() {
               <button
                 onClick={handleEmitirYGuardar}
                 disabled={guardando || !nombreCertificado.trim()}
-                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-headline font-bold uppercase text-xs tracking-widest transition-all ${
-                  guardadoOk
-                    ? 'bg-secondary/20 text-secondary'
-                    : 'bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-50'
-                }`}
+                className={`w-full flex items-center justify-center gap-2 py-2.5 rounded-xl font-headline font-bold uppercase text-xs tracking-widest transition-all ${guardadoOk
+                  ? 'bg-secondary/20 text-secondary'
+                  : 'bg-primary/20 text-primary hover:bg-primary/30 disabled:opacity-50'
+                  }`}
               >
                 <span className="material-symbols-outlined text-base">
                   {guardadoOk ? 'check_circle' : guardando ? 'hourglass_top' : 'workspace_premium'}
