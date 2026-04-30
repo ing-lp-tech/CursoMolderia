@@ -488,8 +488,8 @@ export default function EstudiantesPage() {
           })()}
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Lista */}
-            <div className="card border border-outline-variant/20 overflow-y-auto max-h-[70vh]">
+            {/* Lista — oculta en mobile cuando hay un estudiante seleccionado */}
+            <div className={`card border border-outline-variant/20 overflow-y-auto max-h-[70vh] ${selected ? 'hidden lg:block' : ''}`}>
               {loading ? (
                 <div className="flex items-center justify-center py-16">
                   <span className="material-symbols-outlined animate-spin text-3xl text-primary">refresh</span>
@@ -518,8 +518,15 @@ export default function EstudiantesPage() {
               ))}
             </div>
 
-            {/* Detalle */}
-            <div className="card border border-outline-variant/20">
+            {/* Detalle — en mobile se muestra como overlay cuando hay estudiante seleccionado */}
+            <div className={`
+              lg:block
+              ${selected
+                ? 'fixed inset-0 z-40 bg-surface-container overflow-y-auto p-4 lg:static lg:inset-auto lg:z-auto lg:bg-transparent lg:overflow-visible lg:p-0'
+                : 'hidden lg:block'
+              }
+              card border border-outline-variant/20
+            `}>
               {!selected ? (
                 <div className="flex flex-col items-center justify-center h-full py-16 text-center text-on-surface-variant">
                   <span className="material-symbols-outlined text-4xl mb-3">person_search</span>
@@ -527,6 +534,14 @@ export default function EstudiantesPage() {
                 </div>
               ) : (
                 <div>
+                  {/* Botón Volver — solo visible en mobile */}
+                  <button
+                    onClick={() => { setSelected(null); setPagosAlumno([]); }}
+                    className="lg:hidden flex items-center gap-2 text-sm font-bold text-on-surface-variant hover:text-on-surface mb-4 -mt-1"
+                  >
+                    <span className="material-symbols-outlined text-base">arrow_back</span>
+                    Volver a la lista
+                  </button>
                   {/* Header del estudiante */}
                   <div className="flex items-start justify-between mb-4">
                     <div className="flex-1 min-w-0">
@@ -817,8 +832,8 @@ Ante cualquier duda escribinos por acá 🙌`
 
       {/* ── MODAL: EDITAR ── */}
       {showEditModal && selected && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-container w-full max-w-md rounded-2xl p-6 space-y-4 border border-outline-variant/30">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-surface-container w-full max-w-md rounded-2xl p-6 space-y-4 border border-outline-variant/30 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="font-headline font-bold text-lg">Editar Alumno</h3>
               <button type="button" onClick={() => setShowEditModal(false)} className="text-on-surface-variant hover:text-on-surface">
@@ -874,8 +889,8 @@ Ante cualquier duda escribinos por acá 🙌`
 
       {/* ── MODAL: RESETEAR CONTRASEÑA ── */}
       {showPassModal && selected && (
-        <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="bg-surface-container w-full max-w-md rounded-2xl p-6 space-y-4 border border-outline-variant/30">
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="bg-surface-container w-full max-w-md rounded-2xl p-6 space-y-4 border border-outline-variant/30 max-h-[90vh] overflow-y-auto">
             <div className="flex items-center justify-between">
               <h3 className="font-headline font-bold text-lg">Resetear Contraseña</h3>
               <button type="button" onClick={() => setShowPassModal(false)} className="text-on-surface-variant hover:text-on-surface">
