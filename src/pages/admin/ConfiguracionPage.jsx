@@ -9,6 +9,7 @@ export default function ConfiguracionPage() {
     precio_tachado: '',
     fecha_inicio: '',
     test_mode_mp: false,
+    site_url: 'https://www.molderia-digital.com',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -23,10 +24,11 @@ export default function ConfiguracionPage() {
         if (data) {
           const map = Object.fromEntries(data.map(r => [r.id, r.value]));
           setForm({
-            precio_base: map.precio_base ?? '400000',
+            precio_base:    map.precio_base    ?? '400000',
             precio_tachado: map.precio_tachado ?? '650000',
-            fecha_inicio: map.fecha_inicio ?? '13 de Marzo',
-            test_mode_mp: map.test_mode_mp === true || map.test_mode_mp === 'true',
+            fecha_inicio:   map.fecha_inicio   ?? '13 de Marzo',
+            test_mode_mp:   map.test_mode_mp === true || map.test_mode_mp === 'true',
+            site_url:       map.site_url ?? 'https://www.molderia-digital.com',
           });
         }
         setLoading(false);
@@ -45,6 +47,7 @@ export default function ConfiguracionPage() {
       { id: 'precio_tachado', value: String(Number(form.precio_tachado)) },
       { id: 'fecha_inicio',   value: form.fecha_inicio.trim() },
       { id: 'test_mode_mp',   value: String(form.test_mode_mp) },
+      { id: 'site_url',       value: form.site_url.trim() },
     ];
 
     const { error: err } = await supabase
@@ -180,6 +183,22 @@ export default function ConfiguracionPage() {
             />
             <p className="text-[10px] text-on-surface-variant mt-1.5">
               Aparece en el badge de la landing y en el sidebar de inscripción.
+            </p>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">
+              URL del sitio web
+            </label>
+            <input
+              type="url"
+              value={form.site_url}
+              onChange={e => setForm(p => ({ ...p, site_url: e.target.value }))}
+              className="input-field"
+              placeholder="https://www.molderia-digital.com"
+            />
+            <p className="text-[10px] text-on-surface-variant mt-1.5">
+              Link que se envía por WhatsApp al consultar o al compartir datos de acceso a alumnos.
             </p>
           </div>
         </div>

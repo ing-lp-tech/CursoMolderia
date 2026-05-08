@@ -6,6 +6,7 @@ const DEFAULTS = {
   precio_tachado: 650000,
   fecha_inicio: '13 de Marzo',
   test_mode_mp: false,
+  site_url: 'https://www.molderia-digital.com',
 };
 
 const AppSettingsContext = createContext({ ...DEFAULTS, loaded: false, refetch: () => {} });
@@ -17,6 +18,7 @@ function parseSettings(data) {
     precio_tachado: map.precio_tachado ? Number(map.precio_tachado) : DEFAULTS.precio_tachado,
     fecha_inicio:   map.fecha_inicio   || DEFAULTS.fecha_inicio,
     test_mode_mp:   map.test_mode_mp === true || map.test_mode_mp === 'true',
+    site_url:       map.site_url       || DEFAULTS.site_url,
   };
 }
 

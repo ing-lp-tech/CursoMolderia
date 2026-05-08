@@ -13,7 +13,7 @@ const NAV_LINKS = [
 export default function Navbar() {
   const { pathname }                  = useLocation();
   const { user, isAdmin, signOut }    = useAuth();
-  const { precio_base, fecha_inicio } = useAppSettings();
+  const { precio_base, fecha_inicio, site_url } = useAppSettings();
   const [menuOpen, setMenuOpen]       = useState(false);
 
   const wappMsg = encodeURIComponent(
@@ -44,7 +44,7 @@ No es teoría vacía. Acá vas a aprender moldería digital con software Audaces
 Es para el que realmente quiere avanzar.
 
 👉 Entrá ahora y asegurá tu lugar:
-https://curso-molderia.vercel.app/
+${site_url}
 
 Quiero inscribirme: (Completar nombre y apellido)`
   );

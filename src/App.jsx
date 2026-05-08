@@ -34,8 +34,8 @@ function AdminFallback() {
   return (
     <div className="flex items-center justify-center min-h-screen bg-[#0f0f1a]">
       <div className="flex flex-col items-center gap-3">
-        <div className="w-8 h-8 border-2 border-[#5B8CE8] border-t-transparent rounded-full animate-spin" />
-        <p className="text-[#5B8CE8] text-sm">Cargando...</p>
+        <div className="w-8 h-8 border-2 border-[#b89fff] border-t-transparent rounded-full animate-spin" />
+        <p className="text-[#b89fff] text-sm">Cargando...</p>
       </div>
     </div>
   );

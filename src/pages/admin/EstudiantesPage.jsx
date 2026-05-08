@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import CostosCalculadora from '../../components/CostosCalculadora';
+import { useAppSettings } from '../../context/AppSettingsContext';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -9,6 +10,7 @@ const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 export default function EstudiantesPage() {
   // ← Clave: leer 'user' del contexto para saber cuándo la sesión está lista
   const { user } = useAuth();
+  const { site_url } = useAppSettings();
 
   const [estudiantes, setEstudiantes] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -616,7 +618,7 @@ Tus datos de acceso al portal de Molderia Digital:
 📧 Email: ${selected.email}
 🔑 Contraseña: ${pass || '(sin contraseña asignada aún)'}
 
-🔗 Ingresá acá: https://curso-molderia.vercel.app/login
+🔗 Ingresá acá: ${site_url}/login
 
 Ante cualquier duda escribinos por acá 🙌`
                     );

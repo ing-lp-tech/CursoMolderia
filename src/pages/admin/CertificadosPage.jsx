@@ -46,7 +46,7 @@ function Seal({ size = 92, color = C1 }) {
 
 // ── Certificado ────────────────────────────────────────────────────────────
 // 600×900 px → proporción 2:3 = 20×30 cm (encuadra perfectamente)
-function CertificadoPreview({ nombreCertificado, fecha, firmante1, firmante2, cargo1, cargo2 }) {
+function CertificadoPreview({ nombreCertificado, fecha, firmante1, firmante2, cargo1, cargo2, modalidad = 'Presencial' }) {
   const nombre = nombreCertificado || 'Nombre del Estudiante';
 
   const fechaFormateada = fecha
@@ -61,248 +61,213 @@ function CertificadoPreview({ nombreCertificado, fecha, firmante1, firmante2, ca
       year: 'numeric'
     });
 
+  // 842 × 595 px — A4 landscape (30 × 21 cm)
   return (
-    <div
-      id="certificado-preview"
-      style={{
-        width: '600px',
-        height: '900px',
-        background: '#ffffff',
-        position: 'relative',
-        overflow: 'hidden',
-        fontFamily: 'Montserrat, sans-serif',
-        boxSizing: 'border-box',
-        flexShrink: 0
-      }}
-    >
+    <div id="certificado-preview" style={{
+      width: '842px', height: '595px', background: '#ffffff',
+      position: 'relative', overflow: 'hidden',
+      fontFamily: 'sans-serif', boxSizing: 'border-box', flexShrink: 0,
+    }}>
 
-      {/* FONDO LÍNEAS */}
-      <svg style={{ position: 'absolute', inset: 0, opacity: 0.04 }} viewBox="0 0 600 900">
-        {[...Array(12)].map((_, i) => (
-          <path
-            key={i}
-            d={`M${-100 + i * 80},0 Q${80 + i * 80},450 ${-100 + i * 80},900`}
-            fill="none"
-            stroke={C1}
-            strokeWidth="1"
-          />
+      {/* ── Ilustración de fondo: moldería digital ── */}
+      <svg style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', opacity: 0.07 }} viewBox="0 0 842 595" fill="none">
+        {/* Grid técnico */}
+        <defs>
+          <pattern id="cgrid" width="28" height="28" patternUnits="userSpaceOnUse">
+            <path d="M 28 0 L 0 0 0 28" stroke="#1a1a2e" strokeWidth="0.3"/>
+          </pattern>
+        </defs>
+        <rect width="842" height="595" fill="url(#cgrid)" opacity="0.6"/>
+
+        {/* ── Pieza delantera de corpiño (bodice front) ── */}
+        {/* Escote */}
+        <path d="M 380,82 Q 421,118 462,82" stroke="#1a1a2e" strokeWidth="1.6"/>
+        {/* Hombros */}
+        <line x1="320" y1="82" x2="380" y2="82" stroke="#1a1a2e" strokeWidth="1.6"/>
+        <line x1="462" y1="82" x2="522" y2="82" stroke="#1a1a2e" strokeWidth="1.6"/>
+        {/* Sisa izquierda */}
+        <path d="M 320,82 Q 295,120 300,178" stroke="#1a1a2e" strokeWidth="1.6"/>
+        {/* Sisa derecha */}
+        <path d="M 522,82 Q 547,120 542,178" stroke="#1a1a2e" strokeWidth="1.6"/>
+        {/* Costado izquierdo */}
+        <path d="M 300,178 Q 292,290 298,410" stroke="#1a1a2e" strokeWidth="1.6"/>
+        {/* Costado derecho */}
+        <path d="M 542,178 Q 550,290 544,410" stroke="#1a1a2e" strokeWidth="1.6"/>
+        {/* Dobladillo */}
+        <line x1="298" y1="410" x2="544" y2="410" stroke="#1a1a2e" strokeWidth="1.6"/>
+        {/* Línea de cintura (punteada) */}
+        <line x1="300" y1="275" x2="542" y2="275" stroke="#1a1a2e" strokeWidth="0.9" strokeDasharray="6,4"/>
+        {/* Centro delantero (punteado) */}
+        <line x1="421" y1="118" x2="421" y2="410" stroke="#1a1a2e" strokeWidth="0.9" strokeDasharray="4,4"/>
+        {/* Seno dart izquierdo */}
+        <path d="M 380,275 L 400,220 L 420,275" stroke="#1a1a2e" strokeWidth="0.9"/>
+        {/* Seno dart derecho */}
+        <path d="M 462,275 L 442,220 L 422,275" stroke="#1a1a2e" strokeWidth="0.9"/>
+
+        {/* ── Líneas de medida ── */}
+        {/* Vertical izquierda */}
+        <line x1="272" y1="82" x2="272" y2="410" stroke="#1a1a2e" strokeWidth="0.7"/>
+        <line x1="267" y1="82"  x2="277" y2="82"  stroke="#1a1a2e" strokeWidth="1"/>
+        <line x1="267" y1="275" x2="277" y2="275" stroke="#1a1a2e" strokeWidth="1"/>
+        <line x1="267" y1="410" x2="277" y2="410" stroke="#1a1a2e" strokeWidth="1"/>
+        {/* Horizontal superior */}
+        <line x1="320" y1="58" x2="522" y2="58" stroke="#1a1a2e" strokeWidth="0.7"/>
+        <line x1="320" y1="53" x2="320" y2="63" stroke="#1a1a2e" strokeWidth="1"/>
+        <line x1="522" y1="53" x2="522" y2="63" stroke="#1a1a2e" strokeWidth="1"/>
+        <line x1="421" y1="53" x2="421" y2="63" stroke="#1a1a2e" strokeWidth="1"/>
+
+        {/* ── Puntos de referencia ── */}
+        {[[421,118],[320,82],[522,82],[298,410],[544,410],[421,275],[300,178],[542,178]].map(([x,y],i) => (
+          <circle key={i} cx={x} cy={y} r="2.8" fill="#1a1a2e"/>
         ))}
+        {/* Cruces de referencia */}
+        {[[421,82],[421,410]].map(([x,y],i) => (
+          <g key={i}>
+            <line x1={x-6} y1={y} x2={x+6} y2={y} stroke="#1a1a2e" strokeWidth="1"/>
+            <line x1={x} y1={y-6} x2={x} y2={y+6} stroke="#1a1a2e" strokeWidth="1"/>
+          </g>
+        ))}
+
+        {/* ── Pieza manga (arriba izquierda) ── */}
+        <path d="M 120,90 Q 160,60 200,90 Q 220,130 210,190 L 130,190 Q 120,130 120,90 Z" stroke="#1a1a2e" strokeWidth="1.4"/>
+        <line x1="160" y1="60" x2="160" y2="190" stroke="#1a1a2e" strokeWidth="0.7" strokeDasharray="4,3"/>
+        <line x1="120" y1="145" x2="210" y2="145" stroke="#1a1a2e" strokeWidth="0.7" strokeDasharray="4,3"/>
+        <circle cx="160" cy="90" r="2" fill="#1a1a2e"/>
+
+        {/* ── Pieza trasera parcial (derecha) ── */}
+        <path d="M 640,100 Q 660,90 700,100 Q 720,180 710,340 L 650,340 Q 640,180 640,100 Z" stroke="#1a1a2e" strokeWidth="1.4"/>
+        <line x1="675" y1="90" x2="675" y2="340" stroke="#1a1a2e" strokeWidth="0.7" strokeDasharray="4,3"/>
+        <circle cx="675" cy="100" r="2" fill="#1a1a2e"/>
+        <circle cx="640" cy="220" r="2" fill="#1a1a2e"/>
+        <circle cx="710" cy="220" r="2" fill="#1a1a2e"/>
+
+        {/* ── Flecha de cursor digital (sutil, arriba derecha) ── */}
+        <polygon points="758,48 758,88 766,82 774,98 779,96 771,80 780,76" stroke="#1a1a2e" strokeWidth="1" fill="#1a1a2e" opacity="0.5"/>
       </svg>
 
-      {/* ESQUINAS (mantenemos tus proporciones pero más finas) */}
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        width: '240px',
-        height: '320px',
-        background: C1,
-        clipPath: 'polygon(100% 0, 20% 0, 100% 55%)'
-      }} />
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        width: '185px',
-        height: '240px',
-        background: C2,
-        clipPath: 'polygon(100% 0, 44% 0, 100% 62%)'
-      }} />
-      <div style={{
-        position: 'absolute',
-        top: 0,
-        right: 0,
-        width: '120px',
-        height: '160px',
-        background: C3,
-        opacity: 0.7,
-        clipPath: 'polygon(100% 0, 62% 0, 100% 68%)'
-      }} />
+      {/* ── Esquina superior derecha ── */}
+      <div style={{ position: 'absolute', top: 0, right: 0, width: '210px', height: '200px', background: C1, clipPath: 'polygon(100% 0, 20% 0, 100% 65%)' }} />
+      <div style={{ position: 'absolute', top: 0, right: 0, width: '160px', height: '150px', background: C2, clipPath: 'polygon(100% 0, 45% 0, 100% 72%)' }} />
+      <div style={{ position: 'absolute', top: 0, right: 0, width: '100px', height: '100px', background: C3, opacity: 0.75, clipPath: 'polygon(100% 0, 65% 0, 100% 78%)' }} />
+      <div style={{ position: 'absolute', top: 0, right: 0, width: '12px', height: '210px', background: `linear-gradient(to bottom, ${C1}, transparent)` }} />
 
-      <div style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        width: '240px',
-        height: '320px',
-        background: C1,
-        clipPath: 'polygon(0 100%, 0 45%, 80% 100%)'
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        width: '185px',
-        height: '240px',
-        background: C2,
-        clipPath: 'polygon(0 100%, 0 38%, 56% 100%)'
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        width: '120px',
-        height: '160px',
-        background: C3,
-        opacity: 0.7,
-        clipPath: 'polygon(0 100%, 0 32%, 38% 100%)'
-      }} />
+      {/* ── Esquina inferior izquierda ── */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '210px', height: '200px', background: C1, clipPath: 'polygon(0 100%, 0 35%, 80% 100%)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '160px', height: '150px', background: C2, clipPath: 'polygon(0 100%, 0 28%, 55% 100%)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '100px', height: '100px', background: C3, opacity: 0.75, clipPath: 'polygon(0 100%, 0 22%, 35% 100%)' }} />
+      <div style={{ position: 'absolute', bottom: 0, left: 0, width: '12px', height: '210px', background: `linear-gradient(to top, ${C1}, transparent)` }} />
 
-      {/* BORDE */}
-      <div style={{
-        position: 'absolute',
-        inset: '12px',
-        border: `1px solid ${C1}`,
-        opacity: 0.15
-      }} />
+      {/* ── Borde interior sutil ── */}
+      <div style={{ position: 'absolute', inset: '12px', border: `1px solid ${C1}`, opacity: 0.14, pointerEvents: 'none' }} />
 
-      {/* FOOTER */}
-      <div style={{
-        position: 'absolute',
-        bottom: 0,
-        left: 0,
-        right: 0,
-        height: '50px',
-        background: C1,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        gap: '10px'
-      }}>
-        <span style={{
-          color: 'white',
-          fontWeight: 800,
-          fontSize: '11px',
-          letterSpacing: '3px'
-        }}>
+      {/* ── Banner inferior ── */}
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '38px', background: C1, zIndex: 10,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+        <svg viewBox="0 0 24 24" style={{ width: '14px', height: '14px', fill: 'white', opacity: 0.85 }}>
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>
+        <span style={{ color: 'white', fontWeight: 900, fontSize: '10px', letterSpacing: '4px' }}>
           ¡FELICITACIONES POR ESTE GRAN LOGRO!
         </span>
+        <svg viewBox="0 0 24 24" style={{ width: '14px', height: '14px', fill: 'white', opacity: 0.85 }}>
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+        </svg>
       </div>
 
-      {/* CONTENIDO */}
-      <div style={{
-        position: 'absolute',
-        inset: 0,
-        display: 'flex',
-        flexDirection: 'column',
-        alignItems: 'center',
-        padding: '55px 44px 100px'
-      }}>
+      {/* ── Contenido principal ── */}
+      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', paddingBottom: '50px', paddingTop: '24px', paddingLeft: '60px', paddingRight: '60px' }}>
 
-        <GradCap size={58} color={C1} />
-
-        <div style={{
-          fontWeight: 900,
-          fontSize: '56px',
-          letterSpacing: '6px',
-          color: C1,
-          marginTop: '10px'
-        }}>
-          CERTIFICADO
+        {/* Birrete + CERTIFICADO */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '4px' }}>
+          <GradCap size={38} color={C1} />
+          <div style={{ fontWeight: 900, fontSize: '42px', letterSpacing: '8px', color: C1, lineHeight: 1 }}>
+            CERTIFICADO
+          </div>
+          <GradCap size={38} color={C1} />
         </div>
 
-        <div style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: '12px',
-          marginTop: '6px'
-        }}>
-          <div style={{ width: '60px', height: '1px', background: C1 }} />
-          <span style={{ fontSize: '11px', letterSpacing: '3px' }}>
-            DE CURSO DE
-          </span>
-          <div style={{ width: '60px', height: '1px', background: C1 }} />
+        {/* — DE CURSO DE — / MOLDERÍA DIGITAL */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '2px' }}>
+          <div style={{ width: '50px', height: '1.5px', background: C1 }} />
+          <span style={{ fontSize: '10px', letterSpacing: '5px', color: C1, fontWeight: 500 }}>DE CURSO DE</span>
+          <div style={{ width: '50px', height: '1.5px', background: C1 }} />
         </div>
-
-        <div style={{
-          fontWeight: 900,
-          fontSize: '36px',
-          letterSpacing: '3px',
-          color: C1,
-          marginTop: '8px'
-        }}>
+        <div style={{ fontWeight: 900, fontSize: '26px', letterSpacing: '5px', color: C1, lineHeight: 1, marginBottom: '8px' }}>
           MOLDERÍA DIGITAL
         </div>
 
-        <div style={{ margin: '18px 0', color: C1 }}>♦</div>
-
-        <div style={{
-          fontStyle: 'italic',
-          fontSize: '14px',
-          color: '#666'
-        }}>
-          otorgado a
+        {/* — ♦ — */}
+        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '10px' }}>
+          <div style={{ width: '100px', height: '1.5px', background: C1 }} />
+          <span style={{ color: C1, fontSize: '12px' }}>♦</span>
+          <div style={{ width: '100px', height: '1.5px', background: C1 }} />
         </div>
 
-        <div style={{
-          fontFamily: 'Great Vibes',
-          fontSize: nombre.length > 22 ? '52px' : '66px',
-          color: C1,
-          marginTop: '8px',
-          textAlign: 'center'
-        }}>
+        {/* otorgado a + nombre */}
+        <div style={{ fontStyle: 'italic', fontSize: '12px', color: '#666', marginBottom: '6px' }}>otorgado a</div>
+        <div style={{ fontFamily: '"Brush Script MT", "Dancing Script", cursive',
+          fontSize: nombre.length > 22 ? '42px' : '52px',
+          color: C1, lineHeight: 1.1, textAlign: 'center', maxWidth: '540px', marginBottom: '5px' }}>
           {nombre}
         </div>
+        <div style={{ width: '420px', height: '1.5px', background: C1, opacity: 0.2, marginBottom: '10px' }} />
 
-        <div style={{
-          width: '380px',
-          height: '1px',
-          background: C1,
-          opacity: 0.25,
-          margin: '10px 0 20px'
-        }} />
-
-        <div style={{ fontSize: '12px', color: '#666' }}>
+        {/* Texto de finalización */}
+        <div style={{ fontSize: '11px', color: '#555', textAlign: 'center', marginBottom: '3px' }}>
           por haber completado satisfactoriamente el
         </div>
-
-        <div style={{
-          fontWeight: 800,
-          fontSize: '13px',
-          letterSpacing: '2px',
-          color: C1
-        }}>
+        <div style={{ fontWeight: 900, fontSize: '12px', color: C1, letterSpacing: '2px', textAlign: 'center', marginBottom: '3px' }}>
           CURSO DE MOLDERÍA DIGITAL.
         </div>
-
-        <div style={{
-          fontSize: '11px',
-          fontStyle: 'italic',
-          color: '#666',
-          marginTop: '6px',
-        }}>
+        <div style={{ fontStyle: 'italic', fontSize: '10px', color: '#777', marginBottom: '10px' }}>
           {fechaFormateada}
         </div>
 
-        <div style={{ flex: 0.5 }} />
+        {/* ── Barra de detalles ── */}
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '0',
+          borderTop: `1px solid ${C1}`, borderBottom: `1px solid ${C1}`,
+          paddingTop: '7px', paddingBottom: '7px', marginBottom: '12px', opacity: 0.85 }}>
+          {[
+            { label: 'MODALIDAD', value: `100% ${modalidad}` },
+            { label: 'MÓDULOS', value: '8 completados' },
+          ].map((d, i) => (
+            <div key={i} style={{ flex: 1, textAlign: 'center',
+              borderRight: i < 1 ? `1px solid ${C1}` : 'none' }}>
+              <div style={{ fontSize: '7.5px', fontWeight: 900, letterSpacing: '1.5px', color: C1,
+                textTransform: 'uppercase', marginBottom: '2px' }}>{d.label}</div>
+              <div style={{ fontSize: '10px', fontWeight: 700, color: '#222' }}>{d.value}</div>
+            </div>
+          ))}
+        </div>
 
-        {/* FIRMAS */}
-        <div style={{
-          width: '100%',
-          display: 'flex',
-          justifyContent: 'space-around',
-          alignItems: 'flex-end',
+        {/* ── Firmas ── */}
+        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end' }}>
 
-        }}>
-
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: 'Great Vibes', fontSize: '28px' }}>
+          <div style={{ textAlign: 'center', minWidth: '170px' }}>
+            <div style={{ fontFamily: '"Brush Script MT", cursive', fontSize: '26px', color: C1, lineHeight: 1.3 }}>
               {firmante1 || 'Luis P.'}
             </div>
-            <div style={{ height: '1px', background: C1, width: '140px', margin: '5px auto' }} />
-            <div style={{ fontSize: '10px' }}>
+            <div style={{ height: '1px', background: C1, opacity: 0.3, margin: '4px 0' }} />
+            <div style={{ fontWeight: 900, fontSize: '9px', color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {firmante1 || 'Luis P.'}
+            </div>
+            <div style={{ fontSize: '8px', color: '#666', textTransform: 'uppercase', marginTop: '2px' }}>
               {cargo1 || 'Ing. Electrónico · Co-Fundador'}
             </div>
           </div>
 
-          <Seal size={100} color={C1} />
+          <Seal size={76} color={C1} />
 
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ fontFamily: 'Great Vibes', fontSize: '28px' }}>
+          <div style={{ textAlign: 'center', minWidth: '170px' }}>
+            <div style={{ fontFamily: '"Brush Script MT", cursive', fontSize: '26px', color: C1, lineHeight: 1.3 }}>
               {firmante2 || 'Cristian'}
             </div>
-            <div style={{ height: '1px', background: C1, width: '140px', margin: '5px auto' }} />
-            <div style={{ fontSize: '10px' }}>
+            <div style={{ height: '1px', background: C1, opacity: 0.3, margin: '4px 0' }} />
+            <div style={{ fontWeight: 900, fontSize: '9px', color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {firmante2 || 'Cristian'}
+            </div>
+            <div style={{ fontSize: '8px', color: '#666', textTransform: 'uppercase', marginTop: '2px' }}>
               {cargo2 || 'Docente · Co-Fundador'}
             </div>
           </div>
@@ -326,6 +291,7 @@ export default function CertificadosPage() {
   const [firmante2, setFirmante2] = useState('Cristian');
   const [cargo1, setCargo1] = useState('Ing. Electrónico · Co-Fundador');
   const [cargo2, setCargo2] = useState('Docente · Co-Fundador');
+  const [modalidad, setModalidad] = useState('Presencial');
 
   // Historial de certificados
   const [certHistorial, setCertHistorial] = useState([]);
@@ -391,11 +357,11 @@ export default function CertificadosPage() {
       <title>Certificado — ${nombreCertificado}</title>
       <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { background: white; display: flex; justify-content: center; align-items: flex-start; }
+        body { background: white; display: flex; justify-content: center; align-items: center; }
         @media print {
           body { margin: 0; }
-          @page { size: 20cm 30cm; margin: 0; }
-          #certificado-preview { width: 20cm !important; height: 30cm !important; }
+          @page { size: A4 landscape; margin: 0; }
+          #certificado-preview { width: 29.7cm !important; height: 21cm !important; }
         }
       </style></head><body>
       <div style="transform-origin: top center;">
@@ -505,6 +471,18 @@ export default function CertificadosPage() {
                 <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className="input-field" />
               </div>
 
+              <div>
+                <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Modalidad</label>
+                <div className="flex rounded-xl overflow-hidden border border-outline-variant/30">
+                  {['Presencial', 'Virtual'].map(m => (
+                    <button key={m} type="button" onClick={() => setModalidad(m)}
+                      className={`flex-1 py-2 text-xs font-bold transition-all ${modalidad === m ? 'bg-primary text-white' : 'text-on-surface-variant hover:bg-surface-variant'}`}>
+                      {m}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-2 gap-2">
                 <div>
                   <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Firmante 1</label>
@@ -585,7 +563,7 @@ export default function CertificadosPage() {
               {/* Preview container — escalado a retrato 20×30 */}
               <div
                 className="rounded-xl overflow-hidden border border-outline-variant/20 shadow-2xl bg-white"
-                style={{ transform: 'scale(0.60)', transformOrigin: 'top left', width: '100%', marginBottom: '-360px' }}
+                style={{ transform: 'scale(0.68)', transformOrigin: 'top left', width: '147%', marginBottom: '-190px' }}
               >
                 <CertificadoPreview
                   nombreCertificado={nombreCertificado}
@@ -594,6 +572,7 @@ export default function CertificadosPage() {
                   firmante2={firmante2}
                   cargo1={cargo1}
                   cargo2={cargo2}
+                  modalidad={modalidad}
                 />
               </div>
 
