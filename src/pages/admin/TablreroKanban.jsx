@@ -188,7 +188,7 @@ export default function TablreroKanban() {
     setSyncStatus('syncing');
     let pushLocalToSupabase = false;
     try {
-n ag      const { data: rows, error } = await supabase
+      const { data: rows, error } = await supabase
         .from('kanban_state')
         .select('data')
         .eq('id', 1)
