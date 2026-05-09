@@ -46,7 +46,7 @@ function Seal({ size = 92, color = C1 }) {
 
 // ── Certificado ────────────────────────────────────────────────────────────
 // 600×900 px → proporción 2:3 = 20×30 cm (encuadra perfectamente)
-function CertificadoPreview({ nombreCertificado, fecha, firmante1, firmante2, cargo1, cargo2, modalidad = 'Presencial' }) {
+function CertificadoPreview({ nombreCertificado, fecha, lugar, firmante1, firmante2, cargo1, cargo2, modalidad = 'Presencial' }) {
   const nombre = nombreCertificado || 'Nombre del Estudiante';
 
   const fechaFormateada = fecha
@@ -175,104 +175,118 @@ function CertificadoPreview({ nombreCertificado, fecha, firmante1, firmante2, ca
       </div>
 
       {/* ── Contenido principal ── */}
-      <div style={{ position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', paddingBottom: '50px', paddingTop: '24px', paddingLeft: '60px', paddingRight: '60px' }}>
+      <div style={{
+        position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
+        alignItems: 'center', justifyContent: 'flex-start',
+        paddingTop: '36px', paddingBottom: '52px', paddingLeft: '70px', paddingRight: '70px',
+        gap: '18px',
+      }}>
 
-        {/* Birrete + CERTIFICADO */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '4px' }}>
-          <GradCap size={38} color={C1} />
-          <div style={{ fontWeight: 900, fontSize: '42px', letterSpacing: '8px', color: C1, lineHeight: 1 }}>
-            CERTIFICADO
+        {/* ── BLOQUE SUPERIOR: título ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <GradCap size={44} color={C1} />
+            <div style={{ fontWeight: 900, fontSize: '50px', letterSpacing: '9px', color: C1, lineHeight: 1 }}>
+              CERTIFICADO
+            </div>
+            <GradCap size={44} color={C1} />
           </div>
-          <GradCap size={38} color={C1} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+            <div style={{ width: '55px', height: '1.5px', background: C1 }} />
+            <span style={{ fontSize: '11px', letterSpacing: '5px', color: C1, fontWeight: 600 }}>DE CURSO DE</span>
+            <div style={{ width: '55px', height: '1.5px', background: C1 }} />
+          </div>
+          <div style={{ fontWeight: 900, fontSize: '30px', letterSpacing: '6px', color: C1, lineHeight: 1 }}>
+            MOLDERÍA DIGITAL
+          </div>
         </div>
 
-        {/* — DE CURSO DE — / MOLDERÍA DIGITAL */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '2px' }}>
-          <div style={{ width: '50px', height: '1.5px', background: C1 }} />
-          <span style={{ fontSize: '10px', letterSpacing: '5px', color: C1, fontWeight: 500 }}>DE CURSO DE</span>
-          <div style={{ width: '50px', height: '1.5px', background: C1 }} />
-        </div>
-        <div style={{ fontWeight: 900, fontSize: '26px', letterSpacing: '5px', color: C1, lineHeight: 1, marginBottom: '8px' }}>
-          MOLDERÍA DIGITAL
-        </div>
-
-        {/* — ♦ — */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '10px' }}>
-          <div style={{ width: '100px', height: '1.5px', background: C1 }} />
-          <span style={{ color: C1, fontSize: '12px' }}>♦</span>
-          <div style={{ width: '100px', height: '1.5px', background: C1 }} />
-        </div>
-
-        {/* otorgado a + nombre */}
-        <div style={{ fontStyle: 'italic', fontSize: '12px', color: '#666', marginBottom: '6px' }}>otorgado a</div>
-        <div style={{ fontFamily: '"Brush Script MT", "Dancing Script", cursive',
-          fontSize: nombre.length > 22 ? '42px' : '52px',
-          color: C1, lineHeight: 1.1, textAlign: 'center', maxWidth: '540px', marginBottom: '5px' }}>
-          {nombre}
-        </div>
-        <div style={{ width: '420px', height: '1.5px', background: C1, opacity: 0.2, marginBottom: '10px' }} />
-
-        {/* Texto de finalización */}
-        <div style={{ fontSize: '11px', color: '#555', textAlign: 'center', marginBottom: '3px' }}>
-          por haber completado satisfactoriamente el
-        </div>
-        <div style={{ fontWeight: 900, fontSize: '12px', color: C1, letterSpacing: '2px', textAlign: 'center', marginBottom: '3px' }}>
-          CURSO DE MOLDERÍA DIGITAL.
-        </div>
-        <div style={{ fontStyle: 'italic', fontSize: '10px', color: '#777', marginBottom: '10px' }}>
-          {fechaFormateada}
-        </div>
-
-        {/* ── Barra de detalles ── */}
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'center', gap: '0',
-          borderTop: `1px solid ${C1}`, borderBottom: `1px solid ${C1}`,
-          paddingTop: '7px', paddingBottom: '7px', marginBottom: '12px', opacity: 0.85 }}>
-          {[
-            { label: 'MODALIDAD', value: `100% ${modalidad}` },
-            { label: 'MÓDULOS', value: '8 completados' },
-          ].map((d, i) => (
-            <div key={i} style={{ flex: 1, textAlign: 'center',
-              borderRight: i < 1 ? `1px solid ${C1}` : 'none' }}>
-              <div style={{ fontSize: '7.5px', fontWeight: 900, letterSpacing: '1.5px', color: C1,
-                textTransform: 'uppercase', marginBottom: '2px' }}>{d.label}</div>
-              <div style={{ fontSize: '10px', fontWeight: 700, color: '#222' }}>{d.value}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* ── Firmas ── */}
-        <div style={{ width: '100%', display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end' }}>
-
-          <div style={{ textAlign: 'center', minWidth: '170px' }}>
-            <div style={{ fontFamily: '"Brush Script MT", cursive', fontSize: '26px', color: C1, lineHeight: 1.3 }}>
-              {firmante1 || 'Luis P.'}
-            </div>
-            <div style={{ height: '1px', background: C1, opacity: 0.3, margin: '4px 0' }} />
-            <div style={{ fontWeight: 900, fontSize: '9px', color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {firmante1 || 'Luis P.'}
-            </div>
-            <div style={{ fontSize: '8px', color: '#666', textTransform: 'uppercase', marginTop: '2px' }}>
-              {cargo1 || 'Ing. Electrónico · Co-Fundador'}
-            </div>
+        {/* ── BLOQUE CENTRAL: nombre ── */}
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '14px' }}>
+            <div style={{ width: '110px', height: '1.5px', background: C1 }} />
+            <span style={{ color: C1, fontSize: '14px' }}>♦</span>
+            <div style={{ width: '110px', height: '1.5px', background: C1 }} />
           </div>
 
-          <Seal size={76} color={C1} />
+          <div style={{ fontStyle: 'italic', fontSize: '14px', color: '#555', marginBottom: '8px', letterSpacing: '1px' }}>
+            otorgado a
+          </div>
+          <div style={{
+            fontFamily: '"Brush Script MT", "Dancing Script", cursive',
+            fontSize: nombre.length > 22 ? '54px' : '66px',
+            color: C1, lineHeight: 1.1, textAlign: 'center', maxWidth: '600px',
+          }}>
+            {nombre}
+          </div>
+          <div style={{ width: '460px', height: '1.5px', background: C1, opacity: 0.25, margin: '10px 0' }} />
 
-          <div style={{ textAlign: 'center', minWidth: '170px' }}>
-            <div style={{ fontFamily: '"Brush Script MT", cursive', fontSize: '26px', color: C1, lineHeight: 1.3 }}>
-              {firmante2 || 'Cristian'}
-            </div>
-            <div style={{ height: '1px', background: C1, opacity: 0.3, margin: '4px 0' }} />
-            <div style={{ fontWeight: 900, fontSize: '9px', color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-              {firmante2 || 'Cristian'}
-            </div>
-            <div style={{ fontSize: '8px', color: '#666', textTransform: 'uppercase', marginTop: '2px' }}>
-              {cargo2 || 'Docente · Co-Fundador'}
-            </div>
+          <div style={{ fontSize: '13px', color: '#555', textAlign: 'center', marginBottom: '4px' }}>
+            por haber completado satisfactoriamente el
+          </div>
+          <div style={{ fontWeight: 900, fontSize: '14px', color: C1, letterSpacing: '2.5px', textAlign: 'center', marginBottom: '5px' }}>
+            CURSO DE MOLDERÍA DIGITAL.
+          </div>
+          <div style={{ fontStyle: 'italic', fontSize: '12px', color: '#777' }}>
+            {lugar ? `${lugar}, ${fechaFormateada}` : fechaFormateada}
+          </div>
+        </div>
+
+        {/* ── BLOQUE INFERIOR: detalles + firmas ── */}
+        <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: '10px' }}>
+
+          {/* Barra modalidad/módulos */}
+          <div style={{
+            display: 'flex', justifyContent: 'center',
+            borderTop: `1px solid ${C1}`, borderBottom: `1px solid ${C1}`,
+            paddingTop: '7px', paddingBottom: '7px', opacity: 0.9,
+          }}>
+            {[
+              { label: 'MODALIDAD', value: `100% ${modalidad}` },
+              { label: 'MÓDULOS', value: '8 completados' },
+            ].map((d, i) => (
+              <div key={i} style={{
+                flex: 1, textAlign: 'center',
+                borderRight: i < 1 ? `1px solid ${C1}` : 'none',
+              }}>
+                <div style={{ fontSize: '8.5px', fontWeight: 900, letterSpacing: '2px', color: C1, textTransform: 'uppercase', marginBottom: '3px' }}>{d.label}</div>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: '#222' }}>{d.value}</div>
+              </div>
+            ))}
           </div>
 
+          {/* Firmas */}
+          <div style={{ display: 'flex', justifyContent: 'space-around', alignItems: 'flex-end' }}>
+            <div style={{ textAlign: 'center', minWidth: '190px' }}>
+              <div style={{ fontFamily: '"Brush Script MT", cursive', fontSize: '30px', color: C1, lineHeight: 1.3 }}>
+                {firmante1 || 'Luis P.'}
+              </div>
+              <div style={{ height: '1px', background: C1, opacity: 0.3, margin: '4px 0' }} />
+              <div style={{ fontWeight: 900, fontSize: '10px', color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                {firmante1 || 'Luis P.'}
+              </div>
+              <div style={{ fontSize: '9px', color: '#666', textTransform: 'uppercase', marginTop: '2px' }}>
+                {cargo1 || 'Ing. Electrónico · Co-Fundador'}
+              </div>
+            </div>
+
+            <Seal size={80} color={C1} />
+
+            <div style={{ textAlign: 'center', minWidth: '190px' }}>
+              <div style={{ fontFamily: '"Brush Script MT", cursive', fontSize: '30px', color: C1, lineHeight: 1.3 }}>
+                {firmante2 || 'Cristian'}
+              </div>
+              <div style={{ height: '1px', background: C1, opacity: 0.3, margin: '4px 0' }} />
+              <div style={{ fontWeight: 900, fontSize: '10px', color: '#111', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                {firmante2 || 'Cristian'}
+              </div>
+              <div style={{ fontSize: '9px', color: '#666', textTransform: 'uppercase', marginTop: '2px' }}>
+                {cargo2 || 'Docente · Co-Fundador'}
+              </div>
+            </div>
+          </div>
         </div>
+
       </div>
     </div>
   );
@@ -292,6 +306,7 @@ export default function CertificadosPage() {
   const [cargo1, setCargo1] = useState('Ing. Electrónico · Co-Fundador');
   const [cargo2, setCargo2] = useState('Docente · Co-Fundador');
   const [modalidad, setModalidad] = useState('Presencial');
+  const [lugar, setLugar] = useState('Buenos Aires');
 
   // Historial de certificados
   const [certHistorial, setCertHistorial] = useState([]);
@@ -330,6 +345,7 @@ export default function CertificadosPage() {
       estudiante_id: selected.id,
       nombre_en_certificado: nombreCertificado.trim(),
       fecha_emision: fecha,
+      lugar,
       firmante1, firmante2, cargo1, cargo2,
     });
 
@@ -466,9 +482,15 @@ export default function CertificadosPage() {
                 <p className="text-[10px] text-on-surface-variant mt-1">Podés editar el nombre si hay tildes o formato especial.</p>
               </div>
 
-              <div>
-                <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Fecha de emisión</label>
-                <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className="input-field" />
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Lugar</label>
+                  <input type="text" value={lugar} onChange={e => setLugar(e.target.value)} placeholder="Ciudad" className="input-field text-sm" />
+                </div>
+                <div>
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant block mb-1">Fecha de emisión</label>
+                  <input type="date" value={fecha} onChange={e => setFecha(e.target.value)} className="input-field" />
+                </div>
               </div>
 
               <div>
@@ -568,6 +590,7 @@ export default function CertificadosPage() {
                 <CertificadoPreview
                   nombreCertificado={nombreCertificado}
                   fecha={fecha}
+                  lugar={lugar}
                   firmante1={firmante1}
                   firmante2={firmante2}
                   cargo1={cargo1}
