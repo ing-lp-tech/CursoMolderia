@@ -74,75 +74,75 @@ function CertificadoPreview({ nombreCertificado, fecha, lugar, firmante1, firman
         {/* Grid técnico */}
         <defs>
           <pattern id="cgrid" width="28" height="28" patternUnits="userSpaceOnUse">
-            <path d="M 28 0 L 0 0 0 28" stroke="#1a1a2e" strokeWidth="0.3"/>
+            <path d="M 28 0 L 0 0 0 28" stroke="#1a1a2e" strokeWidth="0.3" />
           </pattern>
         </defs>
-        <rect width="842" height="595" fill="url(#cgrid)" opacity="0.6"/>
+        <rect width="842" height="595" fill="url(#cgrid)" opacity="0.6" />
 
         {/* ── Pieza delantera de corpiño (bodice front) ── */}
         {/* Escote */}
-        <path d="M 380,82 Q 421,118 462,82" stroke="#1a1a2e" strokeWidth="1.6"/>
+        <path d="M 380,82 Q 421,118 462,82" stroke="#1a1a2e" strokeWidth="1.6" />
         {/* Hombros */}
-        <line x1="320" y1="82" x2="380" y2="82" stroke="#1a1a2e" strokeWidth="1.6"/>
-        <line x1="462" y1="82" x2="522" y2="82" stroke="#1a1a2e" strokeWidth="1.6"/>
+        <line x1="320" y1="82" x2="380" y2="82" stroke="#1a1a2e" strokeWidth="1.6" />
+        <line x1="462" y1="82" x2="522" y2="82" stroke="#1a1a2e" strokeWidth="1.6" />
         {/* Sisa izquierda */}
-        <path d="M 320,82 Q 295,120 300,178" stroke="#1a1a2e" strokeWidth="1.6"/>
+        <path d="M 320,82 Q 295,120 300,178" stroke="#1a1a2e" strokeWidth="1.6" />
         {/* Sisa derecha */}
-        <path d="M 522,82 Q 547,120 542,178" stroke="#1a1a2e" strokeWidth="1.6"/>
+        <path d="M 522,82 Q 547,120 542,178" stroke="#1a1a2e" strokeWidth="1.6" />
         {/* Costado izquierdo */}
-        <path d="M 300,178 Q 292,290 298,410" stroke="#1a1a2e" strokeWidth="1.6"/>
+        <path d="M 300,178 Q 292,290 298,410" stroke="#1a1a2e" strokeWidth="1.6" />
         {/* Costado derecho */}
-        <path d="M 542,178 Q 550,290 544,410" stroke="#1a1a2e" strokeWidth="1.6"/>
+        <path d="M 542,178 Q 550,290 544,410" stroke="#1a1a2e" strokeWidth="1.6" />
         {/* Dobladillo */}
-        <line x1="298" y1="410" x2="544" y2="410" stroke="#1a1a2e" strokeWidth="1.6"/>
+        <line x1="298" y1="410" x2="544" y2="410" stroke="#1a1a2e" strokeWidth="1.6" />
         {/* Línea de cintura (punteada) */}
-        <line x1="300" y1="275" x2="542" y2="275" stroke="#1a1a2e" strokeWidth="0.9" strokeDasharray="6,4"/>
+        <line x1="300" y1="275" x2="542" y2="275" stroke="#1a1a2e" strokeWidth="0.9" strokeDasharray="6,4" />
         {/* Centro delantero (punteado) */}
-        <line x1="421" y1="118" x2="421" y2="410" stroke="#1a1a2e" strokeWidth="0.9" strokeDasharray="4,4"/>
+        <line x1="421" y1="118" x2="421" y2="410" stroke="#1a1a2e" strokeWidth="0.9" strokeDasharray="4,4" />
         {/* Seno dart izquierdo */}
-        <path d="M 380,275 L 400,220 L 420,275" stroke="#1a1a2e" strokeWidth="0.9"/>
+        <path d="M 380,275 L 400,220 L 420,275" stroke="#1a1a2e" strokeWidth="0.9" />
         {/* Seno dart derecho */}
-        <path d="M 462,275 L 442,220 L 422,275" stroke="#1a1a2e" strokeWidth="0.9"/>
+        <path d="M 462,275 L 442,220 L 422,275" stroke="#1a1a2e" strokeWidth="0.9" />
 
         {/* ── Líneas de medida ── */}
         {/* Vertical izquierda */}
-        <line x1="272" y1="82" x2="272" y2="410" stroke="#1a1a2e" strokeWidth="0.7"/>
-        <line x1="267" y1="82"  x2="277" y2="82"  stroke="#1a1a2e" strokeWidth="1"/>
-        <line x1="267" y1="275" x2="277" y2="275" stroke="#1a1a2e" strokeWidth="1"/>
-        <line x1="267" y1="410" x2="277" y2="410" stroke="#1a1a2e" strokeWidth="1"/>
+        <line x1="272" y1="82" x2="272" y2="410" stroke="#1a1a2e" strokeWidth="0.7" />
+        <line x1="267" y1="82" x2="277" y2="82" stroke="#1a1a2e" strokeWidth="1" />
+        <line x1="267" y1="275" x2="277" y2="275" stroke="#1a1a2e" strokeWidth="1" />
+        <line x1="267" y1="410" x2="277" y2="410" stroke="#1a1a2e" strokeWidth="1" />
         {/* Horizontal superior */}
-        <line x1="320" y1="58" x2="522" y2="58" stroke="#1a1a2e" strokeWidth="0.7"/>
-        <line x1="320" y1="53" x2="320" y2="63" stroke="#1a1a2e" strokeWidth="1"/>
-        <line x1="522" y1="53" x2="522" y2="63" stroke="#1a1a2e" strokeWidth="1"/>
-        <line x1="421" y1="53" x2="421" y2="63" stroke="#1a1a2e" strokeWidth="1"/>
+        <line x1="320" y1="58" x2="522" y2="58" stroke="#1a1a2e" strokeWidth="0.7" />
+        <line x1="320" y1="53" x2="320" y2="63" stroke="#1a1a2e" strokeWidth="1" />
+        <line x1="522" y1="53" x2="522" y2="63" stroke="#1a1a2e" strokeWidth="1" />
+        <line x1="421" y1="53" x2="421" y2="63" stroke="#1a1a2e" strokeWidth="1" />
 
         {/* ── Puntos de referencia ── */}
-        {[[421,118],[320,82],[522,82],[298,410],[544,410],[421,275],[300,178],[542,178]].map(([x,y],i) => (
-          <circle key={i} cx={x} cy={y} r="2.8" fill="#1a1a2e"/>
+        {[[421, 118], [320, 82], [522, 82], [298, 410], [544, 410], [421, 275], [300, 178], [542, 178]].map(([x, y], i) => (
+          <circle key={i} cx={x} cy={y} r="2.8" fill="#1a1a2e" />
         ))}
         {/* Cruces de referencia */}
-        {[[421,82],[421,410]].map(([x,y],i) => (
+        {[[421, 82], [421, 410]].map(([x, y], i) => (
           <g key={i}>
-            <line x1={x-6} y1={y} x2={x+6} y2={y} stroke="#1a1a2e" strokeWidth="1"/>
-            <line x1={x} y1={y-6} x2={x} y2={y+6} stroke="#1a1a2e" strokeWidth="1"/>
+            <line x1={x - 6} y1={y} x2={x + 6} y2={y} stroke="#1a1a2e" strokeWidth="1" />
+            <line x1={x} y1={y - 6} x2={x} y2={y + 6} stroke="#1a1a2e" strokeWidth="1" />
           </g>
         ))}
 
         {/* ── Pieza manga (arriba izquierda) ── */}
-        <path d="M 120,90 Q 160,60 200,90 Q 220,130 210,190 L 130,190 Q 120,130 120,90 Z" stroke="#1a1a2e" strokeWidth="1.4"/>
-        <line x1="160" y1="60" x2="160" y2="190" stroke="#1a1a2e" strokeWidth="0.7" strokeDasharray="4,3"/>
-        <line x1="120" y1="145" x2="210" y2="145" stroke="#1a1a2e" strokeWidth="0.7" strokeDasharray="4,3"/>
-        <circle cx="160" cy="90" r="2" fill="#1a1a2e"/>
+        <path d="M 120,90 Q 160,60 200,90 Q 220,130 210,190 L 130,190 Q 120,130 120,90 Z" stroke="#1a1a2e" strokeWidth="1.4" />
+        <line x1="160" y1="60" x2="160" y2="190" stroke="#1a1a2e" strokeWidth="0.7" strokeDasharray="4,3" />
+        <line x1="120" y1="145" x2="210" y2="145" stroke="#1a1a2e" strokeWidth="0.7" strokeDasharray="4,3" />
+        <circle cx="160" cy="90" r="2" fill="#1a1a2e" />
 
         {/* ── Pieza trasera parcial (derecha) ── */}
-        <path d="M 640,100 Q 660,90 700,100 Q 720,180 710,340 L 650,340 Q 640,180 640,100 Z" stroke="#1a1a2e" strokeWidth="1.4"/>
-        <line x1="675" y1="90" x2="675" y2="340" stroke="#1a1a2e" strokeWidth="0.7" strokeDasharray="4,3"/>
-        <circle cx="675" cy="100" r="2" fill="#1a1a2e"/>
-        <circle cx="640" cy="220" r="2" fill="#1a1a2e"/>
-        <circle cx="710" cy="220" r="2" fill="#1a1a2e"/>
+        <path d="M 640,100 Q 660,90 700,100 Q 720,180 710,340 L 650,340 Q 640,180 640,100 Z" stroke="#1a1a2e" strokeWidth="1.4" />
+        <line x1="675" y1="90" x2="675" y2="340" stroke="#1a1a2e" strokeWidth="0.7" strokeDasharray="4,3" />
+        <circle cx="675" cy="100" r="2" fill="#1a1a2e" />
+        <circle cx="640" cy="220" r="2" fill="#1a1a2e" />
+        <circle cx="710" cy="220" r="2" fill="#1a1a2e" />
 
         {/* ── Flecha de cursor digital (sutil, arriba derecha) ── */}
-        <polygon points="758,48 758,88 766,82 774,98 779,96 771,80 780,76" stroke="#1a1a2e" strokeWidth="1" fill="#1a1a2e" opacity="0.5"/>
+        <polygon points="758,48 758,88 766,82 774,98 779,96 771,80 780,76" stroke="#1a1a2e" strokeWidth="1" fill="#1a1a2e" opacity="0.5" />
       </svg>
 
       {/* ── Esquina superior derecha ── */}
@@ -161,25 +161,26 @@ function CertificadoPreview({ nombreCertificado, fecha, lugar, firmante1, firman
       <div style={{ position: 'absolute', inset: '12px', border: `1px solid ${C1}`, opacity: 0.14, pointerEvents: 'none' }} />
 
       {/* ── Banner inferior ── */}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, height: '38px', background: C1, zIndex: 10,
-        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+      <div style={{
+        position: 'absolute', bottom: 0, left: 0, right: 0, height: '38px', background: C1, zIndex: 10,
+        display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px'
+      }}>
         <svg viewBox="0 0 24 24" style={{ width: '14px', height: '14px', fill: 'white', opacity: 0.85 }}>
-          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
         </svg>
         <span style={{ color: 'white', fontWeight: 900, fontSize: '10px', letterSpacing: '4px' }}>
           ¡FELICITACIONES POR ESTE GRAN LOGRO!
         </span>
         <svg viewBox="0 0 24 24" style={{ width: '14px', height: '14px', fill: 'white', opacity: 0.85 }}>
-          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z"/>
+          <path d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4z" />
         </svg>
       </div>
 
       {/* ── Contenido principal ── */}
       <div style={{
         position: 'absolute', inset: 0, display: 'flex', flexDirection: 'column',
-        alignItems: 'center', justifyContent: 'flex-start',
-        paddingTop: '36px', paddingBottom: '52px', paddingLeft: '70px', paddingRight: '70px',
-        gap: '18px',
+        alignItems: 'center', justifyContent: 'space-between',
+        paddingTop: '28px', paddingBottom: '46px', paddingLeft: '70px', paddingRight: '70px',
       }}>
 
         {/* ── BLOQUE SUPERIOR: título ── */}
@@ -237,7 +238,7 @@ function CertificadoPreview({ nombreCertificado, fecha, lugar, firmante1, firman
 
           {/* Barra modalidad/módulos */}
           <div style={{
-            display: 'flex', justifyContent: 'center',
+            display: 'flex', justifyContent: 'flex-end',
             borderTop: `1px solid ${C1}`, borderBottom: `1px solid ${C1}`,
             paddingTop: '7px', paddingBottom: '7px', opacity: 0.9,
           }}>

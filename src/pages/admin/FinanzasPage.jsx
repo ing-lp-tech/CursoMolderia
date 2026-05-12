@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { supabase } from '../../lib/supabase';
 
 const STORAGE_KEY = 'da_finanzas_v3';
 
@@ -602,12 +603,12 @@ export default function FinanzasPage() {
   // ── CRUD Notas ───────────────────────────────────────────────────────────
   async function loadNotas() {
     try {
-      const res = await fetch(
-        `${supabaseUrl}/rest/v1/finanzas_notas?select=*&order=fecha.desc,created_at.desc`,
-        { headers: authHeaders }
-      );
-      if (!res.ok) return;
-      const data = await res.json();
+      const { data, error } = await supabase
+        .from('finanzas_notas')
+        .select('*')
+        .order('fecha', { ascending: false })
+        .order('created_at', { ascending: false });
+      if (error) { console.error('[Notas]', error.message); return; }
       if (isMountedRef.current) setNotas(data || []);
     } catch (e) { console.error('[Notas]', e.message); }
   }
@@ -618,23 +619,28 @@ export default function FinanzasPage() {
     try {
       let comprobante_url = null;
       if (notaFile) {
+        // Subir imagen con JWT real del usuario
+        const { data: { session } } = await supabase.auth.getSession();
         const blob     = await compressImage(notaFile, 800, 0.55);
         const fileName = `notas_${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
         const upRes    = await fetch(`${supabaseUrl}/storage/v1/object/comprobantes/${fileName}`, {
           method: 'POST',
-          headers: { apikey: supabaseKey, Authorization: `Bearer ${supabaseKey}`, 'Content-Type': 'image/jpeg' },
+          headers: {
+            apikey: supabaseKey,
+            Authorization: `Bearer ${session?.access_token || supabaseKey}`,
+            'Content-Type': 'image/jpeg',
+          },
           body: blob,
         });
         if (upRes.ok) comprobante_url = `${supabaseUrl}/storage/v1/object/public/comprobantes/${fileName}`;
       }
-      const res = await fetch(`${supabaseUrl}/rest/v1/finanzas_notas`, {
-        method: 'POST',
-        headers: { ...authHeaders, Prefer: 'return=representation' },
-        body: JSON.stringify({ ...notaForm, comprobante_url }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const [saved] = await res.json();
-      setNotas(prev => [saved, ...prev]);
+      const { data, error } = await supabase
+        .from('finanzas_notas')
+        .insert({ ...notaForm, comprobante_url })
+        .select()
+        .single();
+      if (error) throw error;
+      setNotas(prev => [data, ...prev]);
       setNotaForm({ fecha: TODAY, autor: DUENOS[0], texto: '' });
       setNotaFile(null);
       setShowNotaForm(false);
@@ -651,18 +657,14 @@ export default function FinanzasPage() {
     if (!editNotaForm.texto.trim()) return;
     setIsSavingEditNota(true);
     try {
-      const res = await fetch(`${supabaseUrl}/rest/v1/finanzas_notas?id=eq.${editingNotaId}`, {
-        method: 'PATCH',
-        headers: { ...authHeaders, Prefer: 'return=representation' },
-        body: JSON.stringify({
-          fecha:  editNotaForm.fecha,
-          autor:  editNotaForm.autor,
-          texto:  editNotaForm.texto,
-        }),
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const [updated] = await res.json();
-      setNotas(prev => prev.map(n => n.id === editingNotaId ? updated : n));
+      const { data, error } = await supabase
+        .from('finanzas_notas')
+        .update({ fecha: editNotaForm.fecha, autor: editNotaForm.autor, texto: editNotaForm.texto })
+        .eq('id', editingNotaId)
+        .select()
+        .single();
+      if (error) throw error;
+      setNotas(prev => prev.map(n => n.id === editingNotaId ? data : n));
       setEditingNotaId(null);
     } catch (e) { alert(`Error: ${e.message}`); }
     finally { setIsSavingEditNota(false); }
@@ -670,10 +672,8 @@ export default function FinanzasPage() {
 
   async function eliminarNota(id) {
     if (!confirm('¿Eliminar esta nota?')) return;
-    await fetch(`${supabaseUrl}/rest/v1/finanzas_notas?id=eq.${id}`, {
-      method: 'DELETE', headers: authHeaders,
-    });
-    setNotas(prev => prev.filter(n => n.id !== id));
+    const { error } = await supabase.from('finanzas_notas').delete().eq('id', id);
+    if (!error) setNotas(prev => prev.filter(n => n.id !== id));
   }
 
   // ── Abono DIRECTO (desde DeudaCard o Row) ────────────────────────────────
