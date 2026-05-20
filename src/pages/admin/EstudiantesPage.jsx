@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
+import { registrarAuditoria } from '../../utils/auditoria';
 import CostosCalculadora from '../../components/CostosCalculadora';
 import { useAppSettings } from '../../context/AppSettingsContext';
 
@@ -29,9 +30,13 @@ export default function EstudiantesPage() {
   const [copiadoPass, setCopiadoPass] = useState(false);
   const [altaYaExiste, setAltaYaExiste] = useState(false); // si el alumno ya fue dado de alta
 
+  // Solicitudes de inscripción web (MP online)
+  const [solicitudes, setSolicitudes]       = useState([]);
+  const [altaSolicitudId, setAltaSolicitudId] = useState(null);
+
   // Pendientes de Alta (matrículas registradas en Finanzas con datos de alumno)
   const [pendientes, setPendientes] = useState([]);
-  const [activeTab, setActiveTab] = useState('activos'); // 'activos' | 'pendientes'
+  const [activeTab, setActiveTab] = useState('activos'); // 'activos' | 'solicitudes' | 'pendientes'
 
   // Modal: Editar
   const [showEditModal, setShowEditModal] = useState(false);
@@ -70,6 +75,7 @@ export default function EstudiantesPage() {
           .from('perfiles')
           .select('id, nombre, apellido, email, telefono, activo, created_at, ultima_password, cursada')
           .eq('rol', 'estudiante')
+          .is('eliminado_en', null)
           .order('created_at', { ascending: false });
 
         if (error) throw error;
@@ -83,6 +89,7 @@ export default function EstudiantesPage() {
 
     fetchEstudiantes();
     fetchPendientes();
+    fetchSolicitudes();
     return () => { isMounted = false; };
   }, [user]); // ← re-corre cada vez que user cambia (login/navegación)
 
@@ -91,9 +98,24 @@ export default function EstudiantesPage() {
       .from('perfiles')
       .select('id, nombre, apellido, email, telefono, activo, created_at, ultima_password, cursada')
       .eq('rol', 'estudiante')
+      .is('eliminado_en', null)
       .order('created_at', { ascending: false });
     setEstudiantes(data || []);
-    await fetchPendientes();
+    await Promise.all([fetchPendientes(), fetchSolicitudes()]);
+  }
+
+  // ── FETCH SOLICITUDES WEB (inscripciones online sin dar de alta) ──────────────
+  async function fetchSolicitudes() {
+    try {
+      const { data } = await supabase
+        .from('solicitudes_inscripcion')
+        .select('*')
+        .eq('estado', 'pendiente')
+        .order('created_at', { ascending: false });
+      setSolicitudes(data || []);
+    } catch (err) {
+      console.error('[EstudiantesPage] Error cargando solicitudes:', err.message);
+    }
   }
 
   // ── FETCH PENDIENTES (matrículas de Finanzas con alumno_data) ─────────────────
@@ -109,6 +131,29 @@ export default function EstudiantesPage() {
     } catch (err) {
       console.error('[EstudiantesPage] Error cargando pendientes:', err.message);
     }
+  }
+
+  async function rechazarSolicitud(id) {
+    if (!confirm('¿Rechazar esta solicitud? El interesado no recibirá notificación automática.')) return;
+    await supabase.from('solicitudes_inscripcion').update({ estado: 'rechazado' }).eq('id', id);
+    setSolicitudes(prev => prev.filter(s => s.id !== id));
+  }
+
+  function abrirAltaDesdeSolicitud(sol) {
+    setAltaForm({
+      nombre:   sol.nombre   || '',
+      apellido: sol.apellido || '',
+      email:    sol.email    || '',
+      telefono: sol.telefono || '',
+      cursada:  'Cursada 1',
+    });
+    setAltaSolicitudId(sol.id);
+    setAltaYaExiste(false);
+    setAltaStatus('idle');
+    setAltaError('');
+    setTempPassword('');
+    setCopiadoPass(false);
+    setShowAltaModal(true);
   }
 
   function validarPassword(p) {
@@ -161,6 +206,14 @@ export default function EstudiantesPage() {
       const json = await res.json();
       if (!res.ok) throw new Error(json.error || 'Error desconocido');
 
+      // Si se dio de alta desde una solicitud web, marcarla como procesada
+      if (altaSolicitudId) {
+        const solId = altaSolicitudId;
+        await supabase.from('solicitudes_inscripcion').update({ estado: 'dado_de_alta' }).eq('id', solId);
+        setSolicitudes(prev => prev.filter(s => s.id !== solId));
+        setAltaSolicitudId(null);
+      }
+
       setTempPassword(json.tempPassword);
       setAltaStatus('success');
       await refrescarLista();
@@ -179,6 +232,7 @@ export default function EstudiantesPage() {
       telefono: d.telefono || '',
       cursada: d.cursada || 'Cursada 1',
     });
+    setAltaSolicitudId(null);
     setAltaYaExiste(yaExiste);
     setAltaStatus('idle');
     setAltaError('');
@@ -194,6 +248,7 @@ export default function EstudiantesPage() {
     setTempPassword('');
     setCopiadoPass(false);
     setAltaYaExiste(false);
+    setAltaSolicitudId(null);
     setAltaForm({ nombre: '', apellido: '', email: '', telefono: '', cursada: 'Cursada 1' });
   }
 
@@ -234,19 +289,29 @@ export default function EstudiantesPage() {
     setEditStatus('loading');
     setEditError('');
     try {
+      const nuevosData = {
+        nombre:   editForm.nombre.trim(),
+        apellido: editForm.apellido.trim(),
+        telefono: editForm.telefono.trim() || null,
+        cursada:  editForm.cursada.trim() || 'Cursada 1',
+      };
       const { error } = await supabase
         .from('perfiles')
-        .update({
-          nombre: editForm.nombre.trim(),
-          apellido: editForm.apellido.trim(),
-          telefono: editForm.telefono.trim() || null,
-          cursada: editForm.cursada.trim() || 'Cursada 1',
-        })
+        .update(nuevosData)
         .eq('id', selected.id);
 
       if (error) throw error;
 
-      const updated = { ...selected, nombre: editForm.nombre.trim(), apellido: editForm.apellido.trim(), telefono: editForm.telefono.trim() || null, cursada: editForm.cursada.trim() || 'Cursada 1' };
+      await registrarAuditoria({
+        tabla:           'perfiles',
+        registroId:      selected.id,
+        accion:          'modificacion',
+        descripcion:     `Datos del alumno ${selected.email} actualizados`,
+        datosAnteriores: { nombre: selected.nombre, apellido: selected.apellido, telefono: selected.telefono, cursada: selected.cursada },
+        datosNuevos:     nuevosData,
+      });
+
+      const updated = { ...selected, ...nuevosData };
       setSelected(updated);
       setEstudiantes(prev => prev.map(e => e.id === selected.id ? updated : e));
       setEditStatus('success');
@@ -367,11 +432,23 @@ export default function EstudiantesPage() {
           Alumnos ({estudiantes.length})
         </button>
         <button
+          onClick={() => setActiveTab('solicitudes')}
+          className={`px-5 py-2.5 font-headline text-xs font-bold uppercase tracking-widest transition-all border-b-2 -mb-px flex items-center gap-2 ${activeTab === 'solicitudes' ? 'text-secondary border-secondary' : 'text-on-surface-variant border-transparent hover:text-on-surface'
+            }`}
+        >
+          Solicitudes Web
+          {solicitudes.length > 0 && (
+            <span className="bg-secondary/20 text-secondary text-[9px] px-1.5 py-0.5 rounded-full font-black">
+              {solicitudes.length}
+            </span>
+          )}
+        </button>
+        <button
           onClick={() => setActiveTab('pendientes')}
           className={`px-5 py-2.5 font-headline text-xs font-bold uppercase tracking-widest transition-all border-b-2 -mb-px flex items-center gap-2 ${activeTab === 'pendientes' ? 'text-amber-400 border-amber-400' : 'text-on-surface-variant border-transparent hover:text-on-surface'
             }`}
         >
-          Pendientes de Alta
+          Finanzas (efectivo)
           {pendientes.filter(p => !estudiantes.some(e => e.email === p.alumno_data?.email)).length > 0 && (
             <span className="bg-amber-500/20 text-amber-400 text-[9px] px-1.5 py-0.5 rounded-full font-black">
               {pendientes.filter(p => !estudiantes.some(e => e.email === p.alumno_data?.email)).length}
@@ -380,6 +457,94 @@ export default function EstudiantesPage() {
         </button>
       </div>
 
+      {/* ── Tab: Solicitudes Web (inscripciones online) ── */}
+      {activeTab === 'solicitudes' && (
+        <div className="space-y-4">
+          <div className="flex items-start gap-3 p-4 rounded-xl bg-secondary/10 border border-secondary/30">
+            <span className="material-symbols-outlined text-secondary text-xl shrink-0 mt-0.5">info</span>
+            <div>
+              <p className="text-sm font-bold text-secondary">Transferencias vía MercadoPago</p>
+              <p className="text-xs text-on-surface-variant mt-1">
+                Estas personas llenaron el formulario de inscripción y fueron redirigidas a MercadoPago.
+                <strong className="text-on-surface"> Verificá en tu app/celular que el pago llegó</strong> antes de dar de alta.
+              </p>
+            </div>
+          </div>
+
+          {solicitudes.length === 0 ? (
+            <div className="card border border-outline-variant/20 py-12 text-center text-on-surface-variant">
+              <span className="material-symbols-outlined text-4xl block mb-3">credit_card_off</span>
+              <p className="font-bold text-sm">No hay solicitudes de inscripción web pendientes.</p>
+              <p className="text-xs mt-1">Cuando alguien complete el formulario del sitio, aparecerá aquí.</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {solicitudes.map(sol => (
+                <div key={sol.id} className="card border-2 border-secondary/40 bg-secondary/5 space-y-3">
+                  <div className="flex items-start gap-4 flex-wrap">
+                    <div className="w-11 h-11 rounded-full bg-secondary/20 flex items-center justify-center font-headline font-bold text-secondary shrink-0 text-lg">
+                      {(sol.nombre?.[0] || sol.email?.[0] || '?').toUpperCase()}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-bold text-sm">{sol.nombre} {sol.apellido}</p>
+                      <p className="text-xs text-on-surface-variant">{sol.email}</p>
+                      <div className="flex flex-wrap gap-2 mt-1">
+                        {sol.telefono && <span className="text-[10px] text-on-surface-variant">☎ {sol.telefono}</span>}
+                        <span className="text-[10px] text-on-surface-variant">📅 {new Date(sol.created_at).toLocaleDateString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                      </div>
+                    </div>
+                    {/* Monto destacado */}
+                    <div className="shrink-0 text-right">
+                      <p className="font-headline font-black text-xl text-secondary">
+                        ${Number(sol.monto || 0).toLocaleString('es-AR')}
+                      </p>
+                      <p className="text-[10px] text-on-surface-variant">{sol.plan_label || sol.plan_id}</p>
+                      {sol.cupon_codigo && (
+                        <span className="text-[10px] text-primary font-bold">🏷 {sol.cupon_codigo} (-${Number(sol.descuento_aplicado || 0).toLocaleString('es-AR')})</span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Consulta si tiene */}
+                  {sol.consulta && (
+                    <div className="bg-surface-variant/40 rounded-lg px-3 py-2">
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-0.5">Consulta del interesado</p>
+                      <p className="text-xs">{sol.consulta}</p>
+                    </div>
+                  )}
+
+                  {/* MP ID para rastrear */}
+                  {sol.mp_preference_id && (
+                    <p className="text-[10px] text-on-surface-variant">
+                      ID Preferencia MP: <span className="font-mono">{sol.mp_preference_id}</span>
+                    </p>
+                  )}
+
+                  {/* Acciones */}
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => abrirAltaDesdeSolicitud(sol)}
+                      className="flex-1 flex items-center justify-center gap-2 py-2 rounded-xl bg-secondary/20 text-secondary hover:bg-secondary/30 transition-all text-xs font-bold uppercase tracking-widest"
+                    >
+                      <span className="material-symbols-outlined text-base">how_to_reg</span>
+                      Confirmar y Dar de Alta
+                    </button>
+                    <button
+                      onClick={() => rechazarSolicitud(sol.id)}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-error/10 text-error hover:bg-error/20 transition-all text-xs font-bold"
+                      title="Rechazar solicitud"
+                    >
+                      <span className="material-symbols-outlined text-base">close</span>
+                      Rechazar
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
       {/* ── Tab: Pendientes de Alta ── */}
       {activeTab === 'pendientes' && (() => {
         const sinAlta = pendientes.filter(p => !estudiantes.some(e => e.email === p.alumno_data?.email));
@@ -387,7 +552,7 @@ export default function EstudiantesPage() {
         return (
           <div className="space-y-4">
             <p className="text-xs text-on-surface-variant">
-              Matrículas registradas en Finanzas que aún no tienen cuenta de acceso.
+              Alumnos que pagaron en efectivo y fueron registrados en Finanzas. Todavía no tienen cuenta de acceso.
             </p>
             {sinAlta.length === 0 && yaActivos.length === 0 ? (
               <div className="card border border-outline-variant/20 py-12 text-center text-on-surface-variant">

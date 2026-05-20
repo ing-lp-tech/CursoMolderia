@@ -49,29 +49,27 @@ export default async function handler(req, res) {
   });
 
   // Verificar rol admin en la BD
-  const { data: perfil } = await adminClient
+  const { data: perfilSolicitante } = await adminClient
     .from('perfiles')
     .select('rol')
     .eq('id', solicitante.id)
     .single();
 
-  if (perfil?.rol !== 'admin') {
+  if (perfilSolicitante?.rol !== 'admin') {
     return res.status(403).json({ error: 'Solo el administrador puede eliminar alumnos' });
   }
 
-  // ── Eliminar el usuario ─────────────────────────────────────────────────────
+  // ── Validar el usuario a eliminar ──────────────────────────────────────────
   const { userId } = req.body || {};
   if (!userId) return res.status(400).json({ error: 'userId es requerido' });
 
-  // No permitir que el admin se elimine a sí mismo
   if (userId === solicitante.id) {
     return res.status(400).json({ error: 'No podés eliminar tu propia cuenta' });
   }
 
-  // Verificar que el usuario a eliminar exista y sea estudiante
   const { data: target } = await adminClient
     .from('perfiles')
-    .select('rol, email')
+    .select('id, rol, email, nombre, apellido, telefono, cursada, activo, created_at')
     .eq('id', userId)
     .single();
 
@@ -80,18 +78,34 @@ export default async function handler(req, res) {
     return res.status(403).json({ error: 'No se puede eliminar otro administrador' });
   }
 
-  // Eliminar pagos del estudiante primero
-  await adminClient.from('pagos').delete().eq('estudiante_id', userId);
+  // ── Borrado lógico: marcar como eliminado sin perder datos ─────────────────
+  const ahora = new Date().toISOString();
 
-  // Eliminar perfil
-  await adminClient.from('perfiles').delete().eq('id', userId);
+  const { error: softDeleteError } = await adminClient
+    .from('perfiles')
+    .update({
+      eliminado_en:        ahora,
+      eliminado_por:       solicitante.id,
+      eliminado_por_email: solicitante.email,
+      activo:              false,
+    })
+    .eq('id', userId);
 
-  // Eliminar de Supabase Auth (requiere service role)
-  const { error: deleteAuthError } = await adminClient.auth.admin.deleteUser(userId);
-  if (deleteAuthError) {
-    console.error('[eliminar-alumno] Error al eliminar de Auth:', deleteAuthError.message);
-    return res.status(500).json({ error: 'El perfil fue eliminado pero hubo un error en Auth: ' + deleteAuthError.message });
+  if (softDeleteError) {
+    console.error('[eliminar-alumno] Error en soft-delete:', softDeleteError.message);
+    return res.status(500).json({ error: 'No se pudo enviar el alumno a la papelera' });
   }
 
-  return res.status(200).json({ success: true, message: 'Alumno eliminado correctamente' });
+  // ── Registrar en auditoría ─────────────────────────────────────────────────
+  await adminClient.from('auditoria').insert({
+    tabla_origen:        'perfiles',
+    registro_id:         userId,
+    accion:              'eliminacion',
+    descripcion:         `Alumno ${target.nombre} ${target.apellido} (${target.email}) enviado a papelera`,
+    datos_anteriores:    target,
+    realizado_por:       solicitante.id,
+    realizado_por_email: solicitante.email,
+  });
+
+  return res.status(200).json({ success: true, message: 'Alumno enviado a la papelera correctamente' });
 }

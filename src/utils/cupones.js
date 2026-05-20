@@ -1,4 +1,5 @@
 import { supabase } from '../lib/supabase';
+import { registrarAuditoria } from './auditoria';
 
 // ─── Mapper: DB row → JS object ─────────────────────────────────────────────
 function fromDB(row) {
@@ -39,6 +40,7 @@ export async function getCupones() {
   const { data, error } = await supabase
     .from('cupones')
     .select('*')
+    .is('eliminado_en', null)
     .order('created_at', { ascending: false });
   if (error) throw error;
   return (data || []).map(fromDB);
@@ -62,9 +64,22 @@ export async function updateCupon(id, updates) {
   if (error) throw error;
 }
 
-export async function deleteCupon(id) {
-  const { error } = await supabase.from('cupones').delete().eq('id', id);
+export async function deleteCupon(id, cuponData) {
+  const { data: { user } } = await supabase.auth.getUser();
+  const ahora = new Date().toISOString();
+  const { error } = await supabase.from('cupones').update({
+    eliminado_en:        ahora,
+    eliminado_por:       user?.id,
+    eliminado_por_email: user?.email,
+  }).eq('id', id);
   if (error) throw error;
+  await registrarAuditoria({
+    tabla:           'cupones',
+    registroId:      id,
+    accion:          'eliminacion',
+    descripcion:     `Cupón "${cuponData?.code || id}" enviado a papelera`,
+    datosAnteriores: cuponData || null,
+  });
 }
 
 // ─── Validation ──────────────────────────────────────────────────────────────
@@ -75,6 +90,7 @@ export async function validateCupon(code, basePrice) {
     .select('*')
     .ilike('code', code.trim())
     .eq('active', true)
+    .is('eliminado_en', null)
     .maybeSingle();
 
   if (error || !row) return { valid: false, error: 'Cupón no válido o inactivo' };
@@ -115,6 +131,7 @@ export async function getActiveFlashPromo() {
     .select('*')
     .eq('active', true)
     .eq('is_flash', true)
+    .is('eliminado_en', null)
     .gt('expires_at', new Date().toISOString())
     .order('expires_at', { ascending: true })
     .limit(1)

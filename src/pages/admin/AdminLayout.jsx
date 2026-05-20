@@ -2,6 +2,8 @@ import React, { useState } from 'react';
 import { Link, Outlet, useLocation, Navigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
+const SUPER_ADMIN = 'ing.lp.tech@gmail.com';
+
 const NAV = [
   { to: '/admin',              label: 'Dashboard',   icon: 'dashboard' },
   { to: '/admin/estudiantes',  label: 'Estudiantes',  icon: 'school' },
@@ -14,9 +16,10 @@ const NAV = [
 ];
 
 export default function AdminLayout() {
-  const { isAdmin, loading, signOut } = useAuth();
+  const { isAdmin, loading, signOut, user } = useAuth();
   const { pathname } = useLocation();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isSuperAdmin = user?.email?.toLowerCase() === SUPER_ADMIN;
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center">
@@ -50,6 +53,20 @@ export default function AdminLayout() {
               {item.label}
             </Link>
           ))}
+          {isSuperAdmin && (
+            <Link
+              to="/admin/papelera"
+              onClick={() => setSidebarOpen(false)}
+              className={`flex items-center gap-3 px-4 py-3 rounded-xl font-headline text-sm font-bold uppercase tracking-wide transition-all ${
+                pathname === '/admin/papelera'
+                  ? 'bg-error/20 text-error'
+                  : 'text-error/60 hover:bg-error/10 hover:text-error'
+              }`}
+            >
+              <span className="material-symbols-outlined text-xl">delete_sweep</span>
+              Papelera
+            </Link>
+          )}
         </nav>
 
         <div className="px-4 py-4 border-t border-outline-variant/20 space-y-1">
@@ -82,10 +99,10 @@ export default function AdminLayout() {
             <span className="material-symbols-outlined">menu</span>
           </button>
           <h1 className="font-headline font-bold uppercase tracking-wide text-sm lg:hidden flex-1 ml-3">
-            {NAV.find(n => n.to === pathname)?.label || 'Admin'}
+            {pathname === '/admin/papelera' ? 'Papelera' : NAV.find(n => n.to === pathname)?.label || 'Admin'}
           </h1>
           <h1 className="font-headline font-bold uppercase tracking-wide text-sm hidden lg:block">
-            {NAV.find(n => n.to === pathname)?.label || 'Admin'}
+            {pathname === '/admin/papelera' ? 'Papelera' : NAV.find(n => n.to === pathname)?.label || 'Admin'}
           </h1>
           <div className="flex items-center gap-3">
             <Link to="/" className="lg:hidden text-on-surface-variant hover:text-secondary transition-colors" title="Ver sitio público">

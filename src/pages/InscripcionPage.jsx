@@ -157,17 +157,6 @@ export default function InscripcionPage() {
     setEstado('loading');
     setErrMsg('');
     try {
-      const { data: authData, error: authErr } = await supabase.auth.signUp({
-        email: form.email,
-        password: Math.random().toString(36).slice(-10) + 'A1!',
-        options: {
-          data: { nombre: form.nombre, apellido: form.apellido, telefono: form.telefono, rol: 'estudiante' },
-        },
-      });
-      if (authErr && !authErr.message.includes('already registered')) throw authErr;
-
-      const userId = authData?.user?.id || (await supabase.auth.getUser()).data?.user?.id;
-
       const cuponLabel = cuponResult?.valid ? ` | Cupón: ${cuponResult.cupon.code} (${cuponResult.label})` : '';
 
       const res = await fetch('/api/create-preference', {
@@ -187,25 +176,23 @@ export default function InscripcionPage() {
       const mpData = await res.json();
       if (!res.ok) throw new Error(mpData.error || 'Error al generar link de pago');
 
-      if (userId) {
-        await supabase.from('pagos').insert({
-          estudiante_id: userId,
-          monto: montoEfectivo,
-          monto_original: planSeleccionado?.monto || precio_base,
-          descuento_aplicado: cuponResult?.valid ? cuponResult.discount : 0,
-          cupon_codigo: cuponResult?.valid ? cuponResult.cupon.code : null,
-          moneda: 'ARS',
-          metodo_pago: 'mercadopago',
-          estado: 'pendiente',
-          concepto: `Inscripción Curso Moldería — ${planSeleccionado?.label}${cuponLabel}`,
-          notas: `Preferencia MP: ${mpData.id} | Consulta: ${form.consulta}`,
-        });
-      }
+      // Guardar solicitud para revisión manual del admin (sin crear usuario todavía)
+      await supabase.from('solicitudes_inscripcion').insert({
+        nombre:             form.nombre.trim(),
+        apellido:           form.apellido.trim(),
+        email:              form.email.trim().toLowerCase(),
+        telefono:           form.telefono.trim() || null,
+        consulta:           form.consulta.trim() || null,
+        plan_id:            planSeleccionado?.id,
+        plan_label:         planSeleccionado?.label,
+        monto:              montoEfectivo,
+        monto_original:     planSeleccionado?.monto || precio_base,
+        descuento_aplicado: cuponResult?.valid ? cuponResult.discount : 0,
+        cupon_codigo:       cuponResult?.valid ? cuponResult.cupon.code : null,
+        mp_preference_id:   mpData.id,
+      });
 
-      // Register coupon usage
-      if (cuponResult?.valid) {
-        useCupon(cuponResult.cupon.id);
-      }
+      if (cuponResult?.valid) useCupon(cuponResult.cupon.id);
 
       window.location.href = mpData.init_point;
     } catch (err) {

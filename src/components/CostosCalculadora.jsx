@@ -39,6 +39,7 @@ export default function CostosCalculadora({ estudianteId }) {
       .from('costos_alumnos')
       .select('*')
       .eq('estudiante_id', estudianteId)
+      .is('eliminado_en', null)
       .order('created_at', { ascending: false });
     setCalculos(data || []);
     setLoading(false);
@@ -131,7 +132,12 @@ export default function CostosCalculadora({ estudianteId }) {
 
   async function eliminar(id) {
     if (!confirm('¿Eliminar este cálculo?')) return;
-    await supabase.from('costos_alumnos').delete().eq('id', id);
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('costos_alumnos').update({
+      eliminado_en:        new Date().toISOString(),
+      eliminado_por:       user?.id,
+      eliminado_por_email: user?.email,
+    }).eq('id', id);
     setCalculos(prev => prev.filter(c => c.id !== id));
     if (editingId === id) resetForm();
   }

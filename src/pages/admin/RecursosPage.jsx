@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
+import { registrarAuditoria } from '../../utils/auditoria';
 
 const TIPOS = [
   { value: 'video', label: 'Video (Vimeo)', icon: 'play_circle' },
@@ -68,6 +69,7 @@ export default function RecursosPage() {
       const { data, error } = await supabase
         .from('recursos')
         .select('*')
+        .is('eliminado_en', null)
         .order('modulo', { ascending: true, nullsFirst: false })
         .order('orden', { ascending: true });
       if (error) throw error;
@@ -181,8 +183,21 @@ export default function RecursosPage() {
   }
 
   async function eliminar(id) {
-    if (!confirm('¿Eliminar este recurso?')) return;
-    await supabase.from('recursos').delete().eq('id', id);
+    if (!confirm('¿Enviar este recurso a la papelera?')) return;
+    const recurso = recursos.find(r => r.id === id);
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('recursos').update({
+      eliminado_en:        new Date().toISOString(),
+      eliminado_por:       user?.id,
+      eliminado_por_email: user?.email,
+    }).eq('id', id);
+    await registrarAuditoria({
+      tabla:           'recursos',
+      registroId:      id,
+      accion:          'eliminacion',
+      descripcion:     `Recurso "${recurso?.titulo}" enviado a papelera`,
+      datosAnteriores: recurso || null,
+    });
     setRecursos(prev => prev.filter(r => r.id !== id));
   }
 

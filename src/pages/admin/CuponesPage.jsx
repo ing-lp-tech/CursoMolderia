@@ -94,9 +94,10 @@ export default function CuponesPage() {
   }
 
   async function handleDelete(id) {
-    if (!window.confirm('¿Eliminar este cupón?')) return;
+    if (!window.confirm('¿Enviar este cupón a la papelera?')) return;
     try {
-      await deleteCupon(id);
+      const cupon = cupones.find(c => c.id === id);
+      await deleteCupon(id, cupon);
       await refresh();
     } catch (e) {
       setErrMsg('Error al eliminar: ' + e.message);

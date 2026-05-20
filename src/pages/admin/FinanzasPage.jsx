@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { supabase } from '../../lib/supabase';
+import { registrarAuditoria } from '../../utils/auditoria';
 
 const STORAGE_KEY = 'da_finanzas_v3';
 
@@ -551,7 +552,7 @@ export default function FinanzasPage() {
     setSyncStatus('syncing');
     try {
       const res = await fetch(
-        `${supabaseUrl}/rest/v1/finanzas_movimientos?select=*&order=fecha.desc,created_at.desc`,
+        `${supabaseUrl}/rest/v1/finanzas_movimientos?select=*&order=fecha.desc,created_at.desc&eliminado_en=is.null`,
         { headers: authHeaders }
       );
       if (!isMountedRef.current) return;
@@ -594,10 +595,25 @@ export default function FinanzasPage() {
   }
 
   async function apiDelete(id) {
+    const { data: { user } } = await supabase.auth.getUser();
+    const mov = movimientos.find(m => m.id === id);
     const res = await fetch(`${supabaseUrl}/rest/v1/finanzas_movimientos?id=eq.${id}`, {
-      method: 'DELETE', headers: authHeaders,
+      method: 'PATCH',
+      headers: { ...authHeaders, Prefer: 'return=representation' },
+      body: JSON.stringify({
+        eliminado_en:        new Date().toISOString(),
+        eliminado_por:       user?.id,
+        eliminado_por_email: user?.email,
+      }),
     });
     if (!res.ok) throw new Error(`Delete HTTP ${res.status}`);
+    await registrarAuditoria({
+      tabla:           'finanzas_movimientos',
+      registroId:      id,
+      accion:          'eliminacion',
+      descripcion:     `Movimiento "${mov?.descripcion || mov?.categoria}" ($${mov?.monto}) enviado a papelera`,
+      datosAnteriores: mov || null,
+    });
   }
 
   // ── CRUD Notas ───────────────────────────────────────────────────────────
@@ -606,6 +622,7 @@ export default function FinanzasPage() {
       const { data, error } = await supabase
         .from('finanzas_notas')
         .select('*')
+        .is('eliminado_en', null)
         .order('fecha', { ascending: false })
         .order('created_at', { ascending: false });
       if (error) { console.error('[Notas]', error.message); return; }
@@ -671,9 +688,24 @@ export default function FinanzasPage() {
   }
 
   async function eliminarNota(id) {
-    if (!confirm('¿Eliminar esta nota?')) return;
-    const { error } = await supabase.from('finanzas_notas').delete().eq('id', id);
-    if (!error) setNotas(prev => prev.filter(n => n.id !== id));
+    if (!confirm('¿Enviar esta nota a la papelera?')) return;
+    const nota = notas.find(n => n.id === id);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('finanzas_notas').update({
+      eliminado_en:        new Date().toISOString(),
+      eliminado_por:       user?.id,
+      eliminado_por_email: user?.email,
+    }).eq('id', id);
+    if (!error) {
+      await registrarAuditoria({
+        tabla:           'finanzas_notas',
+        registroId:      id,
+        accion:          'eliminacion',
+        descripcion:     `Nota "${(nota?.texto || '').slice(0, 60)}" enviada a papelera`,
+        datosAnteriores: nota || null,
+      });
+      setNotas(prev => prev.filter(n => n.id !== id));
+    }
   }
 
   // ── Abono DIRECTO (desde DeudaCard o Row) ────────────────────────────────

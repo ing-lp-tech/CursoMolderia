@@ -19,6 +19,7 @@ const CuponesPage      = lazy(() => import('./pages/admin/CuponesPage'));
 const CertificadosPage = lazy(() => import('./pages/admin/CertificadosPage'));
 const RecursosPage      = lazy(() => import('./pages/admin/RecursosPage'));
 const ConfiguracionPage = lazy(() => import('./pages/admin/ConfiguracionPage'));
+const PapeleraPage      = lazy(() => import('./pages/admin/PapeleraPage'));
 const StudentPortal     = lazy(() => import('./pages/student/StudentPortal'));
 
 function PublicLayout({ children }) {
@@ -81,6 +82,7 @@ export default function App() {
             <Route path="certificados" element={<Suspense fallback={<AdminFallback />}><CertificadosPage /></Suspense>} />
             <Route path="tablero"       element={<Suspense fallback={<AdminFallback />}><TablreroKanban /></Suspense>} />
             <Route path="configuracion" element={<Suspense fallback={<AdminFallback />}><ConfiguracionPage /></Suspense>} />
+            <Route path="papelera"      element={<Suspense fallback={<AdminFallback />}><PapeleraPage /></Suspense>} />
           </Route>
 
           {/* Catch-all → home */}
