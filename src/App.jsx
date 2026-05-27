@@ -20,7 +20,9 @@ const CertificadosPage = lazy(() => import('./pages/admin/CertificadosPage'));
 const RecursosPage      = lazy(() => import('./pages/admin/RecursosPage'));
 const ConfiguracionPage = lazy(() => import('./pages/admin/ConfiguracionPage'));
 const PapeleraPage      = lazy(() => import('./pages/admin/PapeleraPage'));
+const MoldesAdminPage   = lazy(() => import('./pages/admin/MoldesAdminPage'));
 const StudentPortal     = lazy(() => import('./pages/student/StudentPortal'));
+const MoldesPage        = lazy(() => import('./pages/MoldesPage'));
 
 function PublicLayout({ children }) {
   return (
@@ -54,6 +56,7 @@ export default function App() {
           <Route path="/ventajas" element={<PublicLayout><VentajasPage /></PublicLayout>} />
           <Route path="/inscripcion" element={<PublicLayout><InscripcionPage /></PublicLayout>} />
           <Route path="/login" element={<PublicLayout><LoginPage /></PublicLayout>} />
+          <Route path="/moldes" element={<PublicLayout><Suspense fallback={<AdminFallback />}><MoldesPage /></Suspense></PublicLayout>} />
 
           {/* Student portal — lazy */}
           <Route
@@ -83,6 +86,7 @@ export default function App() {
             <Route path="tablero"       element={<Suspense fallback={<AdminFallback />}><TablreroKanban /></Suspense>} />
             <Route path="configuracion" element={<Suspense fallback={<AdminFallback />}><ConfiguracionPage /></Suspense>} />
             <Route path="papelera"      element={<Suspense fallback={<AdminFallback />}><PapeleraPage /></Suspense>} />
+            <Route path="moldes"        element={<Suspense fallback={<AdminFallback />}><MoldesAdminPage /></Suspense>} />
           </Route>
 
           {/* Catch-all → home */}

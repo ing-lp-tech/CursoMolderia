@@ -7,8 +7,8 @@ const vercelApiMock = (env) => ({
   name: 'vercel-api-mock',
   configureServer(server) {
     server.middlewares.use('/api/', async (req, res, next) => {
-      // Inyectar env a process.env para que los handlers funcionen como en Vercel
-      process.env = { ...process.env, ...env };
+      // Inyectar env SIN reemplazar el objeto process.env (Object.assign muta el original)
+      Object.assign(process.env, env);
 
       // Shims para emular el objeto 'res' de Vercel
       res.status = (code) => { res.statusCode = code; return res; };
@@ -19,7 +19,15 @@ const vercelApiMock = (env) => ({
         }
       };
 
-      const ROUTES = ['create-preference', 'crear-alumno', 'eliminar-alumno', 'reset-password-alumno'];
+      const ROUTES = [
+        'create-preference',
+        'crear-alumno',
+        'eliminar-alumno',
+        'reset-password-alumno',
+        'create-molde-preference',
+        'create-molde-transferencia',
+        'molde-aprobar',
+      ];
       const matched = ROUTES.find(r => req.url.includes(r));
 
       if (!matched) { return next(); }
@@ -27,20 +35,21 @@ const vercelApiMock = (env) => ({
       const processRequest = async () => {
         try {
           if (req.method === 'POST') {
-            await new Promise((resolve) => {
+            await new Promise((resolve, reject) => {
+              // Si el cuerpo ya fue leído (req.body seteado por otro middleware), reutilizarlo
+              if (req.body !== undefined) { resolve(); return; }
               let body = '';
-              req.on('data', chunk => body += chunk.toString());
+              req.on('data', chunk => { body += chunk.toString(); });
               req.on('end', () => {
-                req.body = body ? JSON.parse(body) : {};
+                try { req.body = body ? JSON.parse(body) : {}; }
+                catch { req.body = {}; }
                 resolve();
               });
-              req.on('error', resolve);
-
-              // Si por casualidad el request ya fue leído o completado:
-              if (req.complete && body === '') {
-                 req.body = {};
-                 resolve();
-              }
+              req.on('error', reject);
+              // NO chequear req.complete aquí: aunque el request ya llegó,
+              // los eventos data/end igual se emiten cuando agregamos listeners.
+              // Chequear req.complete + body==='' causaba una race condition
+              // donde resolve() se llamaba antes de que llegaran los datos.
             });
           }
 
@@ -54,6 +63,12 @@ const vercelApiMock = (env) => ({
             handler = (await import('./api/eliminar-alumno.js')).default;
           } else if (matched === 'reset-password-alumno') {
             handler = (await import('./api/reset-password-alumno.js')).default;
+          } else if (matched === 'create-molde-preference') {
+            handler = (await import('./api/create-molde-preference.js')).default;
+          } else if (matched === 'create-molde-transferencia') {
+            handler = (await import('./api/create-molde-transferencia.js')).default;
+          } else if (matched === 'molde-aprobar') {
+            handler = (await import('./api/molde-aprobar.js')).default;
           }
 
           await handler(req, res);

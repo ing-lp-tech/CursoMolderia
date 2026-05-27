@@ -110,8 +110,12 @@ export default async function handler(req, res) {
     return res.status(200).json({ init_point: response.init_point, id: response.id });
 
   } catch (error) {
-    // Log server-side only — nunca exponer detalles al cliente
-    console.error('[MP_ERROR]', error?.message || error);
-    return res.status(500).json({ error: 'Error al procesar el pago. Intentá de nuevo.' });
+    const detail = error?.message || String(error);
+    console.error('[MP_ERROR]', detail);
+    const isDev = process.env.NODE_ENV !== 'production';
+    return res.status(500).json({
+      error: 'Error al procesar el pago. Intentá de nuevo.',
+      ...(isDev && { debug: detail }),
+    });
   }
 }

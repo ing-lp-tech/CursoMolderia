@@ -7,13 +7,17 @@ import { registrarAuditoria } from '../../utils/auditoria';
 const SUPER_ADMIN = 'ing.lp.tech@gmail.com';
 
 const TABS = [
-  { key: 'auditoria',    label: 'Auditoría',   icon: 'history',                 tabla: 'auditoria' },
-  { key: 'estudiantes',  label: 'Estudiantes',  icon: 'school',                  tabla: 'perfiles' },
-  { key: 'recursos',     label: 'Recursos',     icon: 'video_library',           tabla: 'recursos' },
-  { key: 'cupones',      label: 'Cupones',      icon: 'confirmation_number',     tabla: 'cupones' },
-  { key: 'movimientos',  label: 'Finanzas',     icon: 'account_balance_wallet',  tabla: 'finanzas_movimientos' },
-  { key: 'notas',        label: 'Notas',        icon: 'sticky_note_2',           tabla: 'finanzas_notas' },
-  { key: 'calculos',     label: 'Cálculos',     icon: 'calculate',               tabla: 'costos_alumnos' },
+  { key: 'auditoria',    label: 'Auditoría',    icon: 'history',                tabla: 'auditoria' },
+  { key: 'estudiantes',  label: 'Estudiantes',  icon: 'school',                 tabla: 'perfiles' },
+  { key: 'recursos',     label: 'Recursos',     icon: 'video_library',          tabla: 'recursos' },
+  { key: 'cupones',      label: 'Cupones',      icon: 'confirmation_number',    tabla: 'cupones' },
+  { key: 'movimientos',  label: 'Finanzas',     icon: 'account_balance_wallet', tabla: 'finanzas_movimientos' },
+  { key: 'notas',        label: 'Notas',        icon: 'sticky_note_2',          tabla: 'finanzas_notas' },
+  { key: 'calculos',     label: 'Cálculos',     icon: 'calculate',              tabla: 'costos_alumnos' },
+  { key: 'moldes',       label: 'Moldes',       icon: 'straighten',             tabla: 'moldes' },
+  { key: 'cat_moldes',   label: 'Categorías',   icon: 'category',               tabla: 'moldes_categorias' },
+  { key: 'subcat_moldes',label: 'Subcat.',      icon: 'account_tree',           tabla: 'moldes_subcategorias' },
+  { key: 'compras',      label: 'Compras',      icon: 'shopping_bag',           tabla: 'moldes_compras' },
 ];
 
 const ACCION_STYLE = {
@@ -48,6 +52,14 @@ function describeItem(tab, item) {
       return `${item.fecha || ''} · ${item.autor || ''}: ${(item.texto || '').slice(0, 80)}${item.texto?.length > 80 ? '…' : ''}`;
     case 'calculos':
       return `${item.nombre_proyecto || 'Sin nombre'} — Costo: ${fmtMonto(item.costo_total)} — Precio: ${fmtMonto(item.precio_venta)}`;
+    case 'moldes':
+      return `${item.titulo || 'Sin título'} — ${fmtMonto(item.precio)}`;
+    case 'cat_moldes':
+      return `Categoría: ${item.nombre || '—'}`;
+    case 'subcat_moldes':
+      return `Subcategoría: ${item.nombre || '—'}`;
+    case 'compras':
+      return `${item.nombre || '—'} — ${item.email || '—'} — ${item.titulo_molde || '—'} — ${fmtMonto(item.monto_cobrado)} (${item.metodo_pago || '—'})`;
     default:
       return JSON.stringify(item).slice(0, 100);
   }

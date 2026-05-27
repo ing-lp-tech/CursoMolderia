@@ -7,6 +7,13 @@ const DEFAULTS = {
   fecha_inicio: '13 de Marzo',
   test_mode_mp: false,
   site_url: 'https://www.molderia-digital.com',
+  // Moldes — métodos de pago
+  moldes_cbu: '',
+  moldes_alias: '',
+  moldes_titular: '',
+  moldes_banco: '',
+  moldes_descuento_transferencia: 0,
+  moldes_whatsapp_comprobante: '',
 };
 
 const AppSettingsContext = createContext({ ...DEFAULTS, loaded: false, refetch: () => {} });
@@ -19,6 +26,13 @@ function parseSettings(data) {
     fecha_inicio:   map.fecha_inicio   || DEFAULTS.fecha_inicio,
     test_mode_mp:   map.test_mode_mp === true || map.test_mode_mp === 'true',
     site_url:       map.site_url       || DEFAULTS.site_url,
+    // Moldes — métodos de pago
+    moldes_cbu:                      map.moldes_cbu                      || '',
+    moldes_alias:                    map.moldes_alias                    || '',
+    moldes_titular:                  map.moldes_titular                  || '',
+    moldes_banco:                    map.moldes_banco                    || '',
+    moldes_descuento_transferencia:  map.moldes_descuento_transferencia  ? Number(map.moldes_descuento_transferencia) : 0,
+    moldes_whatsapp_comprobante:     map.moldes_whatsapp_comprobante     || '',
   };
 }
 

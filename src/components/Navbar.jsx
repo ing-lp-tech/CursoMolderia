@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { to: '/',            label: 'Inicio',      icon: 'home' },
   { to: '/temario',     label: 'Programa',    icon: 'tactic' },
   { to: '/ventajas',    label: 'Beneficios',  icon: 'star' },
+  { to: '/moldes',      label: 'Moldes',      icon: 'straighten' },
   { to: '/inscripcion', label: 'Inscribirse', icon: 'payments' },
 ];
 

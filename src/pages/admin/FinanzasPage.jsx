@@ -5,7 +5,7 @@ import { registrarAuditoria } from '../../utils/auditoria';
 const STORAGE_KEY = 'da_finanzas_v3';
 
 const CATEGORIAS = {
-  ingreso: ['Matrícula', 'Cuota mensual', 'Transferencia alumno', 'Nequi', 'Daviplata', 'Efectivo', 'Otro ingreso'],
+  ingreso: ['Matrícula', 'Cuota mensual', 'Transferencia alumno', 'Nequi', 'Daviplata', 'Efectivo', 'Venta de molde', 'Otro ingreso'],
   egreso:  ['Publicidad', 'Plataformas digitales', 'Material didáctico', 'Software / licencias', 'Equipamiento', 'Alquiler', 'Servicios (luz/internet)', 'Impuestos', 'Devolución', 'Otro egreso'],
 };
 const METODOS = ['Efectivo', 'Transferencia bancaria', 'Nequi', 'Daviplata', 'Bancolombia', 'MercadoPago', 'Tarjeta', 'Otro'];

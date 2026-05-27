@@ -5,9 +5,10 @@ import { useAuth } from '../../context/AuthContext';
 const SUPER_ADMIN = 'ing.lp.tech@gmail.com';
 
 const NAV = [
-  { to: '/admin',              label: 'Dashboard',   icon: 'dashboard' },
+  { to: '/admin',              label: 'Dashboard',    icon: 'dashboard' },
   { to: '/admin/estudiantes',  label: 'Estudiantes',  icon: 'school' },
   { to: '/admin/recursos',     label: 'Recursos',     icon: 'video_library' },
+  { to: '/admin/moldes',       label: 'Moldes',       icon: 'straighten' },
   { to: '/admin/finanzas',     label: 'Finanzas',     icon: 'account_balance_wallet' },
   { to: '/admin/cupones',      label: 'Cupones',      icon: 'confirmation_number' },
   { to: '/admin/certificados', label: 'Certificados', icon: 'workspace_premium' },
