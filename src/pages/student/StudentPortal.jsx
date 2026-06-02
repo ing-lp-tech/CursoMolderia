@@ -66,7 +66,7 @@ async function fetchVimeoThumbnail(url) {
 // ── Componente ────────────────────────────────────────────────────────────────
 
 export default function StudentPortal() {
-  const { user, perfil, signOut } = useAuth();
+  const { user, perfil, loading, signOut } = useAuth();
   const nombre = perfil?.nombre || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Estudiante';
 
   const [activeTab,       setActiveTab]       = useState('recursos');
@@ -280,7 +280,11 @@ export default function StudentPortal() {
           <p className="text-on-surface-variant mt-2">Accedé a los videos y materiales de tu curso.</p>
         </div>
 
-        {!perfil?.activo ? (
+        {loading ? (
+          <div className="text-center py-20">
+            <span className="material-symbols-outlined animate-spin text-4xl text-primary">refresh</span>
+          </div>
+        ) : !perfil?.activo ? (
           <div className="card border border-outline-variant/20 text-center py-16">
             <span className="material-symbols-outlined text-5xl text-on-surface-variant/30 mb-4">lock</span>
             <h2 className="font-headline font-bold text-xl mb-2">Acceso pendiente de activación</h2>
