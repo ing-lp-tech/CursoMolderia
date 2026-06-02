@@ -11,4 +11,4 @@ Disallow: /login
 Disallow: /api/
 
 # Sitemap
-Sitemap: https://molditex.vercel.app/sitemap.xml
+Sitemap: https://www.molderia-digital.com/sitemap.xml
