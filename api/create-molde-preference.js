@@ -59,8 +59,7 @@ export default async function handler(req, res) {
   if (!molde_id || typeof molde_id !== 'string') {
     return res.status(400).json({ error: 'molde_id inválido' });
   }
-  if (!comprador || !validateEmail(comprador.email) || !validateWhatsapp(comprador.whatsapp) ||
-      !comprador.nombre?.trim() || !comprador.provincia || !comprador.ciudad?.trim() || !comprador.como_encontro) {
+  if (!comprador || !validateWhatsapp(comprador.whatsapp) || !comprador.nombre?.trim()) {
     return res.status(400).json({ error: 'Datos del comprador incompletos o inválidos' });
   }
 
@@ -96,7 +95,6 @@ export default async function handler(req, res) {
   const compraId = crypto.randomUUID();
   const host = req.headers.host || 'curso-molderia.vercel.app';
   const baseUrl = host.startsWith('localhost') ? `http://${host}` : `https://${host}`;
-  const [comoLlego, comoLlegoDetalle] = mapComoLlego(comprador.como_encontro);
 
   // ── PASO 2: registrar la compra en Supabase ────────────────────
   try {
@@ -112,11 +110,11 @@ export default async function handler(req, res) {
       metodo_pago:          'mercadopago',
       nombre:               comprador.nombre.trim().slice(0, 200),
       whatsapp:             comprador.whatsapp.trim().slice(0, 50),
-      email:                comprador.email.toLowerCase().trim(),
-      provincia:            comprador.provincia,
-      ciudad:               comprador.ciudad.trim().slice(0, 100),
-      como_llego:           comoLlego,
-      como_llego_detalle:   comoLlegoDetalle,
+      email:                'sin-email@molderia-digital.com',
+      provincia:            comprador.provincia || null,
+      ciudad:               comprador.ciudad?.trim().slice(0, 100) || null,
+      como_llego:           'otro',
+      como_llego_detalle:   null,
       estado:               'en_verificacion',
     });
     if (insertErr) {
@@ -141,7 +139,7 @@ export default async function handler(req, res) {
           quantity: 1,
           currency_id: 'ARS',
         }],
-        payer: { email: comprador.email.toLowerCase().trim() },
+        payer: { email: 'comprador@molderia-digital.com' },
         back_urls: {
           success: `${baseUrl}/moldes?estado=verificacion&id=${compraId}`,
           pending: `${baseUrl}/moldes?estado=verificacion&id=${compraId}`,

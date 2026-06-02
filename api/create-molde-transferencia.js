@@ -57,8 +57,7 @@ export default async function handler(req, res) {
   if (!molde_id || typeof molde_id !== 'string') {
     return res.status(400).json({ error: 'molde_id inválido' });
   }
-  if (!comprador || !validateEmail(comprador.email) || !validateWhatsapp(comprador.whatsapp) ||
-      !comprador.nombre?.trim() || !comprador.provincia || !comprador.ciudad?.trim() || !comprador.como_encontro) {
+  if (!comprador || !validateWhatsapp(comprador.whatsapp) || !comprador.nombre?.trim()) {
     return res.status(400).json({ error: 'Datos del comprador incompletos o inválidos' });
   }
 
@@ -94,7 +93,6 @@ export default async function handler(req, res) {
     const monto = Math.round(precioBase * (1 - descuento / 100));
 
     const compraId = crypto.randomUUID();
-    const [comoLlego, comoLlegoDetalle] = mapComoLlego(comprador.como_encontro);
 
     const { error: insertErr } = await supabase.from('moldes_compras').insert({
       id:                   compraId,
@@ -108,11 +106,11 @@ export default async function handler(req, res) {
       metodo_pago:          'transferencia',
       nombre:               comprador.nombre.trim().slice(0, 200),
       whatsapp:             comprador.whatsapp.trim().slice(0, 50),
-      email:                comprador.email.toLowerCase().trim(),
-      provincia:            comprador.provincia,
-      ciudad:               comprador.ciudad.trim().slice(0, 100),
-      como_llego:           comoLlego,
-      como_llego_detalle:   comoLlegoDetalle,
+      email:                'sin-email@molderia-digital.com',
+      provincia:            comprador.provincia || null,
+      ciudad:               comprador.ciudad?.trim().slice(0, 100) || null,
+      como_llego:           'otro',
+      como_llego_detalle:   null,
       estado:               'en_verificacion',
     });
 

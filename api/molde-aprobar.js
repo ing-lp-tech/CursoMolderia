@@ -83,30 +83,19 @@ export default async function handler(req, res) {
         console.error('[SIGNED_ADS]', adsErr.message);
         return res.status(500).json({ error: 'Error al generar enlace del archivo .ads' });
       }
-      urls.ads = signed.signedUrl;
+      if (signed?.signedUrl) urls.ads = signed.signedUrl;
     }
 
     if (molde.archivo_pdf_path) {
-      // Verify file actually exists before signing (avoids Invalid Compact JWS on missing files)
-      const { data: pdfExists } = await supabase.storage
+      const { data: signed, error: pdfErr } = await supabase.storage
         .from(BUCKET)
-        .list(molde.archivo_pdf_path.split('/').slice(0, -1).join('/'), {
-          search: molde.archivo_pdf_path.split('/').pop(),
-        });
-
-      if (pdfExists && pdfExists.length > 0) {
-        const { data: signed, error: pdfErr } = await supabase.storage
-          .from(BUCKET)
-          .createSignedUrl(molde.archivo_pdf_path, EXPIRES_IN);
-        if (pdfErr) {
-          console.error('[SIGNED_PDF]', pdfErr.message);
-          // Non-fatal: continue without PDF URL
-        } else {
-          urls.pdf = signed.signedUrl;
-        }
+        .createSignedUrl(molde.archivo_pdf_path, EXPIRES_IN);
+      if (pdfErr) {
+        console.warn('[SIGNED_PDF] Error al firmar:', pdfErr.message);
+      } else if (signed?.signedUrl) {
+        urls.pdf = signed.signedUrl;
       } else {
-        console.warn('[SIGNED_PDF] Archivo PDF no encontrado en storage:', molde.archivo_pdf_path);
-        // Continue without PDF (file missing from storage)
+        console.warn('[SIGNED_PDF] URL vacía para path:', molde.archivo_pdf_path);
       }
     }
 

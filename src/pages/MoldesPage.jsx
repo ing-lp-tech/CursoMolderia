@@ -13,18 +13,6 @@ function moldeImages(m) {
   return [m.imagen_1_path, m.imagen_2_path, m.imagen_3_path].filter(Boolean);
 }
 
-const COMO_ENCONTRO = [
-  'Instagram', 'Facebook', 'TikTok', 'YouTube',
-  'Recomendación de amigo/a', 'Google', 'WhatsApp', 'Otro',
-];
-
-const PROVINCIAS_AR = [
-  'Buenos Aires', 'CABA', 'Catamarca', 'Chaco', 'Chubut', 'Córdoba',
-  'Corrientes', 'Entre Ríos', 'Formosa', 'Jujuy', 'La Pampa', 'La Rioja',
-  'Mendoza', 'Misiones', 'Neuquén', 'Río Negro', 'Salta', 'San Juan',
-  'San Luis', 'Santa Cruz', 'Santa Fe', 'Santiago del Estero',
-  'Tierra del Fuego', 'Tucumán', 'Otro país',
-];
 
 // ── Image carousel ──────────────────────────────────────────────────────────
 function Carousel({ images }) {
@@ -67,10 +55,17 @@ function Carousel({ images }) {
 }
 
 // ── Buyer form ──────────────────────────────────────────────────────────────
-const FORM_EMPTY = {
-  nombre: '', whatsapp: '', email: '',
-  provincia: '', ciudad: '', como_encontro: '',
-};
+const FORM_EMPTY = { nombre: '', whatsapp: '' };
+
+function normalizeWhatsapp(raw) {
+  const d = raw.replace(/\D/g, '');
+  if (!d) return '';
+  if (d.length === 13 && d.startsWith('549')) return d;
+  if (d.length === 12 && d.startsWith('54'))  return '549' + d.slice(2);
+  if (d.length === 11 && d.startsWith('0'))   return '549' + d.slice(1);
+  if (d.length === 10)                        return '549' + d;
+  return d;
+}
 
 // ── Post-purchase screen ─────────────────────────────────────────────────────
 function PantallaVerificacion({ metodo, monto, compraId, settings, onClose }) {
@@ -138,6 +133,7 @@ function MoldeModal({ molde, settings, onClose }) {
   const [error, setError] = useState('');
   const [compraId, setCompraId] = useState(null);
   const [montoFinal, setMontoFinal] = useState(null);
+  const [waHint, setWaHint] = useState('');
 
   const descuento = Number(settings.moldes_descuento_transferencia) || 0;
   const precioMP = Number(molde.precio);
@@ -146,11 +142,16 @@ function MoldeModal({ molde, settings, onClose }) {
   function handleFormChange(e) {
     const { name, value } = e.target;
     setForm(f => ({ ...f, [name]: value }));
+    if (name === 'whatsapp') setWaHint('');
+  }
+
+  function handleWhatsappBlur() {
+    const norm = normalizeWhatsapp(form.whatsapp);
+    if (norm.length >= 11) setWaHint('+' + norm);
   }
 
   function formValid() {
-    return form.nombre.trim() && form.whatsapp.trim() && form.email.trim() &&
-      form.provincia && form.ciudad.trim() && form.como_encontro;
+    return form.nombre.trim() && normalizeWhatsapp(form.whatsapp).length >= 10;
   }
 
   async function safeJson(r) {
@@ -161,12 +162,16 @@ function MoldeModal({ molde, settings, onClose }) {
   async function handleComprar() {
     setLoading(true);
     setError('');
+    const comprador = {
+      nombre:   form.nombre.trim(),
+      whatsapp: normalizeWhatsapp(form.whatsapp) || form.whatsapp.trim(),
+    };
     try {
       if (metodo === 'mercadopago') {
         const r = await fetch('/api/create-molde-preference', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ molde_id: molde.id, comprador: form }),
+          body: JSON.stringify({ molde_id: molde.id, comprador }),
         });
         const data = await safeJson(r);
         if (!r.ok || !data) throw new Error(data?.error || `Error del servidor (${r.status})`);
@@ -177,7 +182,7 @@ function MoldeModal({ molde, settings, onClose }) {
         const r = await fetch('/api/create-molde-transferencia', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ molde_id: molde.id, comprador: form }),
+          body: JSON.stringify({ molde_id: molde.id, comprador }),
         });
         const data = await safeJson(r);
         if (!r.ok || !data) throw new Error(data?.error || `Error del servidor (${r.status})`);
@@ -259,7 +264,7 @@ function MoldeModal({ molde, settings, onClose }) {
           {/* STEP: Form */}
           {step === 'form' && (
             <>
-              <p className="text-sm text-on-surface-variant">Completá tus datos para continuar con la compra.</p>
+              <p className="text-sm text-on-surface-variant">Solo necesitamos tu nombre y WhatsApp para enviarte el molde.</p>
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Nombre completo *</label>
@@ -267,31 +272,21 @@ function MoldeModal({ molde, settings, onClose }) {
                 </div>
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">WhatsApp *</label>
-                  <input name="whatsapp" value={form.whatsapp} onChange={handleFormChange} className="input-field w-full" placeholder="Ej: 3512345678" type="tel" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Email *</label>
-                  <input name="email" value={form.email} onChange={handleFormChange} className="input-field w-full" placeholder="tu@email.com" type="email" />
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Provincia *</label>
-                    <select name="provincia" value={form.provincia} onChange={handleFormChange} className="input-field w-full">
-                      <option value="">Seleccioná</option>
-                      {PROVINCIAS_AR.map(p => <option key={p} value={p}>{p}</option>)}
-                    </select>
-                  </div>
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Ciudad *</label>
-                    <input name="ciudad" value={form.ciudad} onChange={handleFormChange} className="input-field w-full" placeholder="Tu ciudad" />
-                  </div>
-                </div>
-                <div>
-                  <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">¿Cómo nos encontraste? *</label>
-                  <select name="como_encontro" value={form.como_encontro} onChange={handleFormChange} className="input-field w-full">
-                    <option value="">Seleccioná</option>
-                    {COMO_ENCONTRO.map(c => <option key={c} value={c}>{c}</option>)}
-                  </select>
+                  <input
+                    name="whatsapp"
+                    value={form.whatsapp}
+                    onChange={handleFormChange}
+                    onBlur={handleWhatsappBlur}
+                    className="input-field w-full"
+                    placeholder="Ej: 1162020911"
+                    type="tel"
+                  />
+                  {waHint && (
+                    <p className="text-xs text-primary mt-1 flex items-center gap-1">
+                      <span className="material-symbols-outlined text-sm">check_circle</span>
+                      Se va a usar: {waHint}
+                    </p>
+                  )}
                 </div>
               </div>
               <button onClick={() => setStep('pago')} disabled={!formValid()} className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed">
