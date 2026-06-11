@@ -18,13 +18,13 @@ function moldeImages(m) {
 function Carousel({ images }) {
   const [idx, setIdx] = useState(0);
   if (!images?.length) return (
-    <div className="w-full aspect-square bg-surface-variant rounded-2xl flex items-center justify-center">
+    <div className="w-full aspect-[3/4] bg-surface-variant rounded-2xl flex items-center justify-center">
       <span className="material-symbols-outlined text-4xl text-outline-variant">image</span>
     </div>
   );
   return (
-    <div className="relative w-full aspect-square rounded-2xl overflow-hidden bg-surface-variant select-none">
-      <img src={imgUrl(images[idx])} alt="" className="w-full h-full object-cover" />
+    <div className="relative w-full aspect-[3/4] rounded-2xl overflow-hidden bg-surface-variant select-none">
+      <img src={imgUrl(images[idx])} alt="" className="w-full h-full object-contain" />
       {images.length > 1 && (
         <>
           <button
@@ -399,9 +399,9 @@ function MoldeCard({ molde, onClick }) {
       onClick={onClick}
       className="card overflow-hidden text-left group hover:shadow-lg transition-all"
     >
-      <div className="aspect-square overflow-hidden rounded-xl bg-surface-variant mb-3">
+      <div className="aspect-[3/4] overflow-hidden rounded-xl bg-surface-variant mb-3">
         {imgSrc
-          ? <img src={imgSrc} alt={molde.titulo} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+          ? <img src={imgSrc} alt={molde.titulo} className="w-full h-full object-contain group-hover:scale-105 transition-transform duration-300" />
           : <div className="w-full h-full flex items-center justify-center"><span className="material-symbols-outlined text-4xl text-outline-variant">straighten</span></div>
         }
       </div>
