@@ -71,8 +71,10 @@ function normalizeWhatsapp(raw) {
 function PantallaVerificacion({ metodo, monto, compraId, settings, onClose }) {
   const wa = settings.moldes_whatsapp_comprobante?.replace(/\D/g, '');
   const texto = encodeURIComponent(
-    `Hola! Acabo de realizar una compra de molde (#${compraId?.slice(0, 8) ?? ''}). ` +
-    `Adjunto mi comprobante de pago por $${monto?.toLocaleString('es-AR') ?? ''}.`
+    metodo === 'mercadopago'
+      ? `Hola! Ya pagué con MercadoPago el molde (código #${compraId?.slice(0, 8) ?? ''}). Te aviso para que apruebes mi compra y me envíes el molde. ¡Gracias!`
+      : `Hola! Acabo de realizar una compra de molde (#${compraId?.slice(0, 8) ?? ''}). ` +
+        `Adjunto mi comprobante de pago por $${monto?.toLocaleString('es-AR') ?? ''}.`
   );
   const waLink = wa ? `https://wa.me/${wa}?text=${texto}` : null;
 
@@ -96,7 +98,7 @@ function PantallaVerificacion({ metodo, monto, compraId, settings, onClose }) {
             {settings.moldes_banco && <p><span className="text-on-surface-variant">Banco:</span> <strong>{settings.moldes_banco}</strong></p>}
             {settings.moldes_cbu && <p><span className="text-on-surface-variant">CBU:</span> <strong className="font-mono">{settings.moldes_cbu}</strong></p>}
             {settings.moldes_alias && <p><span className="text-on-surface-variant">Alias:</span> <strong>{settings.moldes_alias}</strong></p>}
-            <p className="pt-1"><span className="text-on-surface-variant">Monto:</span> <strong className="text-primary text-base">${monto?.toLocaleString('es-AR')}</strong></p>
+            {monto != null && <p className="pt-1"><span className="text-on-surface-variant">Monto:</span> <strong className="text-primary text-base">${monto.toLocaleString('es-AR')}</strong></p>}
           </div>
         )}
 
@@ -111,11 +113,16 @@ function PantallaVerificacion({ metodo, monto, compraId, settings, onClose }) {
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="btn-primary flex items-center justify-center gap-2"
+            className="flex items-center justify-center gap-2 w-full rounded-2xl px-5 py-4 font-headline font-black text-base uppercase tracking-wide text-white bg-[#25D366] hover:bg-[#1EBE5A] shadow-lg shadow-[#25D366]/30 ring-4 ring-[#25D366]/20 transition-all"
           >
-            <span className="material-symbols-outlined text-xl">send</span>
-            Enviar comprobante por WhatsApp
+            <span className="material-symbols-outlined text-2xl">chat</span>
+            Avisar por WhatsApp ahora
           </a>
+        )}
+        {waLink && (
+          <p className="text-xs text-on-surface-variant -mt-3">
+            👆 Este paso es clave: nos llega tu aviso al instante y aprobamos más rápido.
+          </p>
         )}
 
         <button onClick={onClose} className="btn-secondary w-full">Volver al catálogo</button>
@@ -364,6 +371,17 @@ function MoldeModal({ molde, settings, onClose }) {
                 </button>
               </div>
 
+              <div className="rounded-2xl border-2 border-[#25D366]/40 bg-[#25D366]/10 p-4 flex items-start gap-3">
+                <span className="material-symbols-outlined text-2xl text-[#25D366] shrink-0">chat</span>
+                <div>
+                  <p className="font-headline font-black text-sm text-on-surface">¡Importante para recibir tu molde más rápido!</p>
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Al terminar el pago te va a aparecer un botón para avisarnos por WhatsApp con un solo clic.
+                    Así lo vemos al instante y te aprobamos la compra antes.
+                  </p>
+                </div>
+              </div>
+
               {error && (
                 <p className="text-error text-sm flex items-center gap-2">
                   <span className="material-symbols-outlined text-base">error</span>{error}
@@ -431,6 +449,19 @@ export default function MoldesPage() {
   const [catFilter, setCatFilter] = useState('');
   const [subcatFilter, setSubcatFilter] = useState('');
   const [selected, setSelected] = useState(null);
+  const [retornoMP, setRetornoMP] = useState(null); // { compraId } tras volver de MercadoPago
+
+  // Al volver de MercadoPago (back_urls), mostrar la pantalla de "avisar por WhatsApp"
+  // en vez de perder el estado — antes esto se ignoraba por completo.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const estado = params.get('estado');
+    const id = params.get('id');
+    if ((estado === 'verificacion' || estado === 'fallo') && id) {
+      if (estado === 'verificacion') setRetornoMP({ compraId: id });
+      window.history.replaceState({}, '', window.location.pathname);
+    }
+  }, []);
 
   const descuento = Number(settings.moldes_descuento_transferencia) || 0;
 
@@ -557,6 +588,17 @@ export default function MoldesPage() {
           molde={selected}
           settings={settings}
           onClose={() => setSelected(null)}
+        />
+      )}
+
+      {/* Retorno desde MercadoPago */}
+      {retornoMP && (
+        <PantallaVerificacion
+          metodo="mercadopago"
+          monto={null}
+          compraId={retornoMP.compraId}
+          settings={settings}
+          onClose={() => setRetornoMP(null)}
         />
       )}
     </div>

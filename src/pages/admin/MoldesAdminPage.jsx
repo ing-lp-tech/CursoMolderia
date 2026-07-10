@@ -3,7 +3,9 @@ import { supabase } from '../../lib/supabase';
 import { compressImage, sizeKB } from '../../utils/imageCompression';
 import { registrarAuditoria } from '../../utils/auditoria';
 import { useAppSettings } from '../../context/AppSettingsContext';
+import { useAuth } from '../../context/AuthContext';
 
+const SUPER_ADMIN  = 'ing.lp.tech@gmail.com';
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
 const IMG_BUCKET   = 'moldes-imagenes';
 const ARC_BUCKET   = 'moldes-archivos';
@@ -745,11 +747,14 @@ function TabMoldes() {
 
 function TabVentas() {
   const { moldes_whatsapp_comprobante } = useAppSettings();
+  const { user } = useAuth();
+  const isSuperAdmin = user?.email?.toLowerCase() === SUPER_ADMIN;
   const [compras,    setCompras]    = useState([]);
   const [loading,    setLoading]    = useState(true);
   const [filtro,     setFiltro]     = useState('en_verificacion');
   const [aprobando,  setAprobando]  = useState(null);
   const [rechazando, setRechazando] = useState(null);
+  const [eliminando, setEliminando] = useState(null);
   const [motivoMap,  setMotivoMap]  = useState({});
 
   useEffect(() => { cargar(); }, []);
@@ -819,6 +824,27 @@ function TabVentas() {
     setRechazando(null);
   }
 
+  async function eliminar(compra) {
+    if (!isSuperAdmin) return;
+    if (!confirm(`¿Enviar la venta de ${compra.nombre} (${compra.titulo_molde}) a la papelera?`)) return;
+    setEliminando(compra.id);
+    try {
+      const { data: { user: u } } = await supabase.auth.getUser();
+      const { error } = await supabase.from('moldes_compras').update({
+        eliminado_en: new Date().toISOString(), eliminado_por: u?.id, eliminado_por_email: u?.email,
+      }).eq('id', compra.id);
+      if (error) { alert(error.message); return; }
+      await registrarAuditoria({
+        tabla: 'moldes_compras', registroId: compra.id, accion: 'eliminacion',
+        descripcion: `Venta de "${compra.nombre}" (${compra.titulo_molde}) enviada a papelera`,
+        datosAnteriores: compra,
+      });
+      setCompras(prev => prev.filter(c => c.id !== compra.id));
+    } finally {
+      setEliminando(null);
+    }
+  }
+
   const FILTROS = [
     { key: 'en_verificacion', label: 'En verificación', color: 'text-primary' },
     { key: 'aprobado',        label: 'Aprobadas',        color: 'text-secondary' },
@@ -859,6 +885,18 @@ function TabVentas() {
               </span>
               {c.estado === 'en_verificacion' ? 'En verificación' : c.estado === 'aprobado' ? 'Aprobado' : 'Rechazado'}
               <span className="ml-auto font-normal normal-case opacity-70">{fmtDate(c.creado_en)}</span>
+              {isSuperAdmin && (
+                <button
+                  onClick={() => eliminar(c)}
+                  disabled={eliminando === c.id}
+                  title="Eliminar (solo super admin)"
+                  className="shrink-0 p-1 rounded-lg hover:bg-error/20 text-error/70 hover:text-error transition-all disabled:opacity-50"
+                >
+                  <span className={`material-symbols-outlined text-sm ${eliminando === c.id ? 'animate-spin' : ''}`}>
+                    {eliminando === c.id ? 'refresh' : 'delete'}
+                  </span>
+                </button>
+              )}
             </div>
 
             <div className="p-4 space-y-3">

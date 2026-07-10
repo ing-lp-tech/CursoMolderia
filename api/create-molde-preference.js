@@ -1,5 +1,6 @@
 import { MercadoPagoConfig, Preference } from 'mercadopago';
 import { createClient } from '@supabase/supabase-js';
+import { notificarNuevaVenta } from './_lib/notify.js';
 
 const ALLOWED_ORIGINS = [
   'https://curso-molderia.vercel.app',
@@ -125,6 +126,10 @@ export default async function handler(req, res) {
     console.error('[MOLDE_MP_ERROR] PASO2_THROW', err?.message || err);
     return res.status(500).json({ error: 'Error al registrar la compra (excepción)', debug: err?.message });
   }
+
+  await notificarNuevaVenta({
+    nombre: comprador.nombre.trim(), titulo: molde.titulo, monto: precio, metodo: 'mercadopago', baseUrl,
+  });
 
   // ── PASO 3: crear preferencia en MercadoPago ──────────────────
   try {

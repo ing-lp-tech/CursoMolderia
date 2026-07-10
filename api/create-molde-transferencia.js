@@ -1,4 +1,5 @@
 import { createClient } from '@supabase/supabase-js';
+import { notificarNuevaVenta } from './_lib/notify.js';
 
 const ALLOWED_ORIGINS = [
   'https://curso-molderia.vercel.app',
@@ -118,6 +119,12 @@ export default async function handler(req, res) {
       console.error('[MOLDE_TRANSFER_INSERT]', insertErr.message);
       return res.status(500).json({ error: 'Error al registrar la compra' });
     }
+
+    const host = req.headers.host || 'curso-molderia.vercel.app';
+    const baseUrl = host.startsWith('localhost') ? `http://${host}` : `https://${host}`;
+    await notificarNuevaVenta({
+      nombre: comprador.nombre.trim(), titulo: molde.titulo, monto, metodo: 'transferencia', baseUrl,
+    });
 
     return res.status(200).json({ compra_id: compraId, monto });
 
