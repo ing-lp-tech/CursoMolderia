@@ -43,13 +43,9 @@ export default async function handler(req, res) {
     if (pizarra.stock <= 0) return res.status(400).json({ error: 'Sin stock disponible' });
 
     const opciones = await cotizarEnvio(pizarra, destino);
-    if (!opciones.length) {
-      return res.status(422).json({ error: 'No hay opciones de envío disponibles para esa dirección' });
-    }
-
     return res.status(200).json({ opciones });
   } catch (err) {
-    console.error('[ENVIA_COTIZAR_ERROR]', err?.message || err);
-    return res.status(500).json({ error: err?.message || 'Error al cotizar el envío' });
+    console.error('[ENVIA_COTIZAR_ERROR]', err?.message || err, err?.diagnostico ? JSON.stringify(err.diagnostico).slice(0, 1000) : '');
+    return res.status(422).json({ error: err?.message || 'No hay opciones de envío disponibles para esa dirección' });
   }
 }

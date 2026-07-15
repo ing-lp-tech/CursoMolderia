@@ -31,3 +31,13 @@ export function codigoProvincia(nombre) {
   const found = PROVINCIAS_ARGENTINA.find(p => p.nombre.toLowerCase() === String(nombre || '').toLowerCase());
   return found?.codigo || nombre;
 }
+
+// Arma el Código Postal Argentino (CPA): letra de provincia + 4 dígitos (ej: "B1772").
+// envia.com (y los carriers que usa, como Correo Argentino) lo necesitan para
+// resolver la zona de entrega — un código postal numérico solo ("1772") no alcanza.
+export function codigoPostalCPA(codigoPostal, provincia) {
+  const cp = String(codigoPostal || '').trim().toUpperCase();
+  if (/^[A-Z]\d{4}[A-Z]{0,3}$/.test(cp)) return cp; // ya viene en formato CPA
+  const letra = codigoProvincia(provincia);
+  return /^[A-Z]$/.test(letra) ? `${letra}${cp}` : cp;
+}

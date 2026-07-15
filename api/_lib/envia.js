@@ -1,7 +1,7 @@
 // Integración con la API de envia.com (https://docs.envia.com)
 // Autenticación: Bearer token (ENVIA_API_TOKEN).
 // Producción: https://api.envia.com — Sandbox: https://api-test.envia.com
-import { codigoProvincia } from './provinciasArgentina.js';
+import { codigoProvincia, codigoPostalCPA } from './provinciasArgentina.js';
 
 function apiBase() {
   return (process.env.ENVIA_API_URL || 'https://api.envia.com').replace(/\/$/, '');
@@ -26,7 +26,7 @@ function origenDesdeEnv() {
     city: ENVIA_ORIGEN_CIUDAD,
     state: codigoProvincia(ENVIA_ORIGEN_PROVINCIA),
     country: 'AR',
-    postalCode: ENVIA_ORIGEN_CP,
+    postalCode: codigoPostalCPA(ENVIA_ORIGEN_CP, ENVIA_ORIGEN_PROVINCIA),
   };
 }
 
@@ -40,7 +40,7 @@ function destinoDesdeComprador(comprador) {
     city: comprador.ciudad,
     state: codigoProvincia(comprador.provincia),
     country: 'AR',
-    postalCode: comprador.codigo_postal,
+    postalCode: codigoPostalCPA(comprador.codigo_postal, comprador.provincia),
     reference: comprador.referencia || undefined,
   };
 }
@@ -107,7 +107,10 @@ export async function cotizarEnvio(pizarra, comprador) {
   };
 
   const data = await enviaFetch('/ship/rate', body);
-  const opciones = (data?.data || [])
+  const crudo = data?.data || [];
+  console.log('[ENVIA_RATE_RESPONSE]', JSON.stringify(data).slice(0, 3000));
+
+  const opciones = crudo
     .filter(o => !o.error)
     .map(o => ({
       carrier:      o.carrier,
@@ -119,6 +122,21 @@ export async function cotizarEnvio(pizarra, comprador) {
     }))
     .filter(o => o.precio > 0)
     .sort((a, b) => a.precio - b.precio);
+
+  if (!opciones.length) {
+    // Junta los motivos que devolvió cada carrier para no quedarnos con un
+    // "no hay opciones" genérico — casi siempre es porque no hay ningún
+    // carrier contratado/activado en la cuenta de envia.com, o rechazan la ruta.
+    const motivos = crudo
+      .map(o => o.error ? `${o.carrier || 'carrier'}: ${o.message || o.errorMessage || JSON.stringify(o.error)}` : null)
+      .filter(Boolean);
+    const mensaje = motivos.length
+      ? motivos.join(' | ')
+      : 'envia.com no devolvió ninguna tarifa. Verificá que la cuenta tenga al menos un carrier contratado/activado para envíos nacionales en Argentina (Mis Envíos → Servicios en shipping.envia.com).';
+    const err = new Error(mensaje);
+    err.diagnostico = crudo;
+    throw err;
+  }
 
   return opciones;
 }
