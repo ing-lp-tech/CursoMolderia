@@ -66,7 +66,11 @@ async function enviaFetch(path, body) {
   const token = process.env.ENVIA_API_TOKEN;
   if (!token) throw new Error('Falta configurar ENVIA_API_TOKEN en las variables de entorno');
 
-  const res = await fetch(`${apiBase()}${path}`, {
+  // Las rutas de envia.com exigen la barra final (/ship/rate/, /ship/generate/);
+  // sin ella el servidor redirige y fetch termina mandando un GET sin body.
+  const url = `${apiBase()}${path}${path.endsWith('/') ? '' : '/'}`;
+
+  const res = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -75,10 +79,18 @@ async function enviaFetch(path, body) {
     body: JSON.stringify(body),
   });
 
-  const data = await res.json().catch(() => null);
+  const rawText = await res.text();
+  let data = null;
+  try { data = JSON.parse(rawText); } catch { /* respuesta no-JSON, se reporta abajo */ }
+
   if (!res.ok) {
-    const detail = data?.meta?.message || data?.error || JSON.stringify(data) || `HTTP ${res.status}`;
-    throw new Error(`envia.com respondió con error: ${detail}`);
+    const detail = data?.meta?.message || data?.error || (rawText ? rawText.slice(0, 300) : null) || `sin cuerpo de respuesta`;
+    console.error('[ENVIA_API_ERROR]', { url, status: res.status, body: rawText?.slice(0, 500) });
+    throw new Error(`envia.com respondió HTTP ${res.status}: ${detail}`);
+  }
+  if (data === null) {
+    console.error('[ENVIA_API_ERROR] Respuesta 200 pero no es JSON', { url, body: rawText?.slice(0, 500) });
+    throw new Error('envia.com devolvió una respuesta inesperada (no JSON)');
   }
   return data;
 }
@@ -90,6 +102,8 @@ export async function cotizarEnvio(pizarra, comprador) {
     origin: origenDesdeEnv(),
     destination: destinoDesdeComprador(comprador),
     packages: paqueteDesdePizarra(pizarra),
+    shipment: { type: 1 },
+    settings: { currency: 'ARS' },
   };
 
   const data = await enviaFetch('/ship/rate', body);
