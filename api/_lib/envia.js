@@ -7,6 +7,34 @@ function apiBase() {
   return (process.env.ENVIA_API_URL || 'https://api.envia.com').replace(/\/$/, '');
 }
 
+// La Queries API vive en un subdominio aparte (queries.envia.com / queries-test.envia.com),
+// no en api.envia.com — se usa para consultar qué carriers están activos en la cuenta.
+function queriesBase() {
+  return apiBase()
+    .replace('api-test.envia.com', 'queries-test.envia.com')
+    .replace('api.envia.com', 'queries.envia.com');
+}
+
+// Devuelve los nombres (slugs) de los carriers activos para Argentina en esta cuenta.
+async function carriersActivosAR() {
+  const token = process.env.ENVIA_API_TOKEN;
+  if (!token) throw new Error('Falta configurar ENVIA_API_TOKEN en las variables de entorno');
+
+  const res = await fetch(`${queriesBase()}/carrier?country_code=AR`, {
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  const rawText = await res.text();
+  let data = null;
+  try { data = JSON.parse(rawText); } catch { /* se reporta abajo */ }
+
+  if (!res.ok || data === null) {
+    console.error('[ENVIA_CARRIERS_ERROR]', { status: res.status, body: rawText?.slice(0, 500) });
+    throw new Error(`No se pudo consultar los carriers activos en envia.com (HTTP ${res.status})`);
+  }
+
+  return (data.data || []).filter(c => c.active !== false).map(c => c.name);
+}
+
 function origenDesdeEnv() {
   const {
     ENVIA_ORIGEN_NOMBRE, ENVIA_ORIGEN_EMPRESA, ENVIA_ORIGEN_TELEFONO, ENVIA_ORIGEN_EMAIL,
@@ -97,18 +125,38 @@ async function enviaFetch(path, body) {
 
 // Cotiza el envío de una pizarra hacia la dirección del comprador.
 // Devuelve la lista de opciones (carrier + service + precio + tiempo estimado).
+//
+// envia.com no cotiza "todos los carriers contratados" en una sola llamada:
+// hay que pedirle la tarifa a cada carrier por separado (shipment.carrier).
+// Por eso primero preguntamos qué carriers están activos en la cuenta para
+// Argentina, y después cotizamos contra cada uno en paralelo.
 export async function cotizarEnvio(pizarra, comprador) {
-  const body = {
+  const carriers = await carriersActivosAR();
+  if (!carriers.length) {
+    throw new Error('No hay ninguna paquetería activa en tu cuenta de envia.com para Argentina. Activá al menos una en shipping.envia.com → Servicios.');
+  }
+
+  const baseBody = {
     origin: origenDesdeEnv(),
     destination: destinoDesdeComprador(comprador),
     packages: paqueteDesdePizarra(pizarra),
-    shipment: { type: 1 },
     settings: { currency: 'ARS' },
   };
 
-  const data = await enviaFetch('/ship/rate', body);
-  const crudo = data?.data || [];
-  console.log('[ENVIA_RATE_RESPONSE]', JSON.stringify(data).slice(0, 3000));
+  const resultados = await Promise.allSettled(
+    carriers.map(carrier => enviaFetch('/ship/rate', { ...baseBody, shipment: { type: 1, carrier } }))
+  );
+
+  const crudo = [];
+  resultados.forEach((r, i) => {
+    if (r.status === 'fulfilled') {
+      crudo.push(...(r.value?.data || []));
+    } else {
+      crudo.push({ carrier: carriers[i], error: true, message: r.reason?.message || 'Error al cotizar' });
+    }
+  });
+
+  console.log('[ENVIA_RATE_RESPONSE]', JSON.stringify(crudo).slice(0, 3000));
 
   const opciones = crudo
     .filter(o => !o.error)
