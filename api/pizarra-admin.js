@@ -1,24 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
 import { generarEnvio } from './_lib/envia.js';
-
-const ALLOWED_ORIGINS = [
-  'https://curso-molderia.vercel.app',
-  'https://molditex.vercel.app',
-  'https://www.molderia-digital.com',
-  'https://molderia-digital.com',
-  'http://localhost:5173',
-  'http://localhost:4173',
-];
-
-function setCors(req, res) {
-  const origin = req.headers.origin || '';
-  if (ALLOWED_ORIGINS.includes(origin)) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-    res.setHeader('Vary', 'Origin');
-  }
-  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-}
+import { setCors, bloquearSiOrigenInvalido } from './_lib/cors.js';
 
 async function aprobar(supabase, compra_id) {
   const { data: compra, error: compraErr } = await supabase
@@ -130,11 +112,7 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(204).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
-
-  const origin = req.headers.origin || '';
-  if (process.env.NODE_ENV === 'production' && !ALLOWED_ORIGINS.includes(origin)) {
-    return res.status(403).json({ error: 'Origen no autorizado' });
-  }
+  if (bloquearSiOrigenInvalido(req, res)) return;
 
   const authHeader = req.headers.authorization || '';
   const jwt = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
