@@ -208,7 +208,7 @@ export async function generarEnvio(pizarra, comprador, { carrier, service }) {
   // (ej: falta de saldo en la cuenta) — si no chequeamos esto, se ve como que
   // "no pasa nada" cuando en realidad nunca se generó el envío.
   if (info.error || (!info.trackingNumber && !info.tracking_number && !info.id && !info.shipmentId)) {
-    const motivo = info.message || info.errorMessage || JSON.stringify(info).slice(0, 300) || 'respuesta vacía';
+    const motivo = data?.meta?.message || info.message || info.errorMessage || JSON.stringify(data).slice(0, 500) || 'respuesta vacía';
     throw new Error(`envia.com no generó el envío: ${motivo}`);
   }
 
