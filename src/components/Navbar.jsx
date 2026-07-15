@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { to: '/temario',     label: 'Programa',    icon: 'tactic' },
   { to: '/ventajas',    label: 'Beneficios',  icon: 'star' },
   { to: '/moldes',      label: 'Moldes',      icon: 'straighten' },
+  { to: '/pizarras',    label: 'Pizarras',    icon: 'draw' },
   { to: '/inscripcion', label: 'Inscribirse', icon: 'payments' },
 ];
 

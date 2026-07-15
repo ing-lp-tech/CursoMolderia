@@ -9,6 +9,7 @@ const NAV = [
   { to: '/admin/estudiantes',  label: 'Estudiantes',  icon: 'school' },
   { to: '/admin/recursos',     label: 'Recursos',     icon: 'video_library' },
   { to: '/admin/moldes',       label: 'Moldes',       icon: 'straighten' },
+  { to: '/admin/pizarras',     label: 'Pizarras',     icon: 'draw' },
   { to: '/admin/finanzas',     label: 'Finanzas',     icon: 'account_balance_wallet' },
   { to: '/admin/cupones',      label: 'Cupones',      icon: 'confirmation_number' },
   { to: '/admin/certificados', label: 'Certificados', icon: 'workspace_premium' },
