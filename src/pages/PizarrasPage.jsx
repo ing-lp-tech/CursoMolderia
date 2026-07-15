@@ -242,26 +242,18 @@ function PizarraModal({ pizarra, settings, onClose }) {
       precio: envioElegido.precio,
     };
     try {
+      const r = await fetch('/api/create-pizarra', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ pizarra_id: pizarra.id, comprador, envio, metodo }),
+      });
+      const data = await safeJson(r);
+      if (!r.ok || !data) throw new Error(data?.error || `Error del servidor (${r.status})`);
+      setCompraId(data.compra_id);
       if (metodo === 'mercadopago') {
-        const r = await fetch('/api/create-pizarra-preference', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pizarra_id: pizarra.id, comprador, envio }),
-        });
-        const data = await safeJson(r);
-        if (!r.ok || !data) throw new Error(data?.error || `Error del servidor (${r.status})`);
-        setCompraId(data.compra_id);
         setMontoFinal(totalConEnvio);
         window.location.href = data.init_point;
       } else {
-        const r = await fetch('/api/create-pizarra-transferencia', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ pizarra_id: pizarra.id, comprador, envio }),
-        });
-        const data = await safeJson(r);
-        if (!r.ok || !data) throw new Error(data?.error || `Error del servidor (${r.status})`);
-        setCompraId(data.compra_id);
         setMontoFinal(data.monto);
         setStep('verificacion');
       }

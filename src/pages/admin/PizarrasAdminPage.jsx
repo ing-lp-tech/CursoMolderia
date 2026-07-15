@@ -395,10 +395,10 @@ function TabVentas() {
     setAprobando(compra.id);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/pizarra-aprobar', {
+      const res = await fetch('/api/pizarra-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ compra_id: compra.id }),
+        body: JSON.stringify({ compra_id: compra.id, accion: 'aprobar' }),
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error || 'Error al aprobar'); return; }
@@ -432,10 +432,10 @@ function TabVentas() {
     setGenerando(compra.id);
     try {
       const { data: { session } } = await supabase.auth.getSession();
-      const res = await fetch('/api/pizarra-generar-envio', {
+      const res = await fetch('/api/pizarra-admin', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
-        body: JSON.stringify({ compra_id: compra.id }),
+        body: JSON.stringify({ compra_id: compra.id, accion: 'generar-envio' }),
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error || 'Error al generar el envío'); return; }
