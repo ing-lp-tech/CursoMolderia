@@ -96,6 +96,7 @@ async function generarEnvioParaCompra(supabase, compra_id) {
     envia_shipment_id:     resultado.shipment_id,
     envia_tracking_number: resultado.tracking_number,
     envia_label_url:       resultado.label_url,
+    envia_tracking_url:    resultado.tracking_url,
     envia_generado_en:     new Date().toISOString(),
   }).eq('id', compra_id);
 

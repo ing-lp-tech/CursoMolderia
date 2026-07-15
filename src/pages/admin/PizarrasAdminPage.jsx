@@ -439,8 +439,15 @@ function TabVentas() {
       });
       const data = await res.json();
       if (!res.ok) { alert(data.error || 'Error al generar el envío'); return; }
+      if (!data.tracking_number) {
+        alert('envia.com respondió OK pero no devolvió número de tracking. Revisá los logs de Vercel (ENVIA_GENERATE_RESPONSE) y "Mis Envíos" en shipping.envia.com antes de reintentar, para no generar un envío duplicado.');
+      }
       setCompras(prev => prev.map(c => c.id === compra.id ? {
-        ...c, envia_shipment_id: data.shipment_id, envia_tracking_number: data.tracking_number, envia_label_url: data.label_url,
+        ...c,
+        envia_shipment_id: data.shipment_id,
+        envia_tracking_number: data.tracking_number,
+        envia_label_url: data.label_url,
+        envia_tracking_url: data.tracking_url,
       } : c));
     } catch (ex) {
       alert(ex?.message || 'Error inesperado');
@@ -580,10 +587,16 @@ function TabVentas() {
                           </p>
                         )}
                       </div>
-                      {c.envia_label_url && (
-                        <a href={c.envia_label_url} target="_blank" rel="noreferrer"
-                          className="btn-secondary text-xs py-2 px-3 shrink-0">Ver etiqueta</a>
-                      )}
+                      <div className="flex gap-2 shrink-0">
+                        {c.envia_tracking_url && (
+                          <a href={c.envia_tracking_url} target="_blank" rel="noreferrer"
+                            className="btn-secondary text-xs py-2 px-3">Ver seguimiento</a>
+                        )}
+                        {c.envia_label_url && (
+                          <a href={c.envia_label_url} target="_blank" rel="noreferrer"
+                            className="btn-secondary text-xs py-2 px-3">Ver etiqueta</a>
+                        )}
+                      </div>
                     </div>
                   ) : (
                     <button onClick={() => generarEnvio(c)} disabled={generando === c.id}

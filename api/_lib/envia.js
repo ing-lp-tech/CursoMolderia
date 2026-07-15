@@ -199,10 +199,14 @@ export async function generarEnvio(pizarra, comprador, { carrier, service }) {
   };
 
   const data = await enviaFetch('/ship/generate', body);
-  const info = data?.data || {};
+  console.log('[ENVIA_GENERATE_RESPONSE]', JSON.stringify(data).slice(0, 3000));
+
+  // La respuesta viene como array (data.data[0]), no como objeto directo.
+  const info = (Array.isArray(data?.data) ? data.data[0] : data?.data) || {};
   return {
     shipment_id:     info.id || info.shipmentId || null,
     tracking_number: info.trackingNumber || info.tracking_number || null,
     label_url:       info.label || info.labelUrl || info.label_url || null,
+    tracking_url:    info.trackUrl || info.trackingUrl || info.tracking_url || null,
   };
 }
