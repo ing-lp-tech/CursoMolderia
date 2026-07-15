@@ -92,17 +92,32 @@ async function generarEnvioParaCompra(supabase, compra_id) {
     service: compra.envia_service,
   });
 
+  // Guardamos primero los campos "core" (existen desde la migración 04).
+  // envia_tracking_url es best-effort: si esa columna todavía no existe
+  // (falta correr 05_tracking_url.sql) no queremos que tire abajo el guardado
+  // del resto — perder el shipment_id/tracking_number obligaría a generar
+  // el envío de nuevo, duplicándolo en envia.com.
   const { error: updateErr } = await supabase.from('pizarras_compras').update({
     envia_shipment_id:     resultado.shipment_id,
     envia_tracking_number: resultado.tracking_number,
     envia_label_url:       resultado.label_url,
-    envia_tracking_url:    resultado.tracking_url,
     envia_generado_en:     new Date().toISOString(),
   }).eq('id', compra_id);
 
   if (updateErr) {
-    console.error('[PIZARRA_ENVIO_UPDATE]', updateErr.message);
-    throw Object.assign(new Error('El envío se generó pero no se pudo guardar en la base de datos'), { status: 500 });
+    console.error('[PIZARRA_ENVIO_UPDATE]', updateErr.message, resultado);
+    throw Object.assign(new Error(
+      `El envío se generó en envia.com pero no se pudo guardar en la base de datos (${updateErr.message}). ` +
+      `Guardá esto a mano para no perderlo — Tracking: ${resultado.tracking_number || '(sin dato)'} · ` +
+      `Etiqueta: ${resultado.label_url || '(sin dato)'}`
+    ), { status: 500 });
+  }
+
+  if (resultado.tracking_url) {
+    const { error: trackUrlErr } = await supabase.from('pizarras_compras')
+      .update({ envia_tracking_url: resultado.tracking_url })
+      .eq('id', compra_id);
+    if (trackUrlErr) console.warn('[PIZARRA_TRACKING_URL_UPDATE] (no bloqueante, revisá si falta correr 05_tracking_url.sql)', trackUrlErr.message);
   }
 
   return { ok: true, ...resultado };

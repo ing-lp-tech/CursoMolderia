@@ -203,6 +203,15 @@ export async function generarEnvio(pizarra, comprador, { carrier, service }) {
 
   // La respuesta viene como array (data.data[0]), no como objeto directo.
   const info = (Array.isArray(data?.data) ? data.data[0] : data?.data) || {};
+
+  // envia.com puede responder HTTP 200 pero con el error embebido acá adentro
+  // (ej: falta de saldo en la cuenta) — si no chequeamos esto, se ve como que
+  // "no pasa nada" cuando en realidad nunca se generó el envío.
+  if (info.error || (!info.trackingNumber && !info.tracking_number && !info.id && !info.shipmentId)) {
+    const motivo = info.message || info.errorMessage || JSON.stringify(info).slice(0, 300) || 'respuesta vacía';
+    throw new Error(`envia.com no generó el envío: ${motivo}`);
+  }
+
   return {
     shipment_id:     info.id || info.shipmentId || null,
     tracking_number: info.trackingNumber || info.tracking_number || null,
