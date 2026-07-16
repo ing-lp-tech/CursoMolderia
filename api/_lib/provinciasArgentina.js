@@ -32,6 +32,41 @@ export function codigoProvincia(nombre) {
   return found?.codigo || nombre;
 }
 
+// Código de provincia de 2 letras que usa envia.com en el campo "state"
+// (confirmado con datos reales: Formosa = "FM", Buenos Aires = "BA" — NO es
+// el mismo código de 1 letra que se usa para el prefijo del CPA).
+const ESTADO_ENVIA = {
+  'Buenos Aires':        'BA',
+  'CABA':                'CA',
+  'Catamarca':           'CT',
+  'Chaco':               'CH',
+  'Chubut':              'CB',
+  'Córdoba':             'CD',
+  'Corrientes':          'CN',
+  'Entre Ríos':          'ER',
+  'Formosa':             'FM',
+  'Jujuy':               'JY',
+  'La Pampa':            'LP',
+  'La Rioja':            'LR',
+  'Mendoza':             'MZ',
+  'Misiones':            'MN',
+  'Neuquén':             'NQ',
+  'Río Negro':           'RN',
+  'Salta':               'SA',
+  'San Juan':            'SJ',
+  'San Luis':            'SL',
+  'Santa Cruz':          'SC',
+  'Santa Fe':            'SF',
+  'Santiago del Estero': 'SE',
+  'Tierra del Fuego':    'TF',
+  'Tucumán':             'TM',
+};
+
+export function estadoProvincia(nombre) {
+  const clave = Object.keys(ESTADO_ENVIA).find(n => n.toLowerCase() === String(nombre || '').toLowerCase());
+  return clave ? ESTADO_ENVIA[clave] : nombre;
+}
+
 // Arma el Código Postal Argentino (CPA): letra de provincia + 4 dígitos (ej: "B1772").
 // envia.com (y los carriers que usa, como Correo Argentino) lo necesitan para
 // resolver la zona de entrega — un código postal numérico solo ("1772") no alcanza.

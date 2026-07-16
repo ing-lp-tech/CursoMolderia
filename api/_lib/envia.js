@@ -1,7 +1,7 @@
 // Integración con la API de envia.com (https://docs.envia.com)
 // Autenticación: Bearer token (ENVIA_API_TOKEN).
 // Producción: https://api.envia.com — Sandbox: https://api-test.envia.com
-import { codigoProvincia, codigoPostalCPA } from './provinciasArgentina.js';
+import { estadoProvincia, codigoPostalCPA } from './provinciasArgentina.js';
 
 function apiBase() {
   return (process.env.ENVIA_API_URL || 'https://api.envia.com').replace(/\/$/, '');
@@ -53,7 +53,7 @@ function origenDesdeEnv() {
     street: ENVIA_ORIGEN_CALLE,
     number: ENVIA_ORIGEN_NUMERO,
     city: ENVIA_ORIGEN_CIUDAD,
-    state: codigoProvincia(ENVIA_ORIGEN_PROVINCIA),
+    state: estadoProvincia(ENVIA_ORIGEN_PROVINCIA),
     country: 'AR',
     postalCode: codigoPostalCPA(ENVIA_ORIGEN_CP, ENVIA_ORIGEN_PROVINCIA),
   };
@@ -68,7 +68,7 @@ function destinoDesdeComprador(comprador) {
     number: comprador.numero || 'S/N',
     district: comprador.piso_depto || undefined,
     city: comprador.ciudad,
-    state: codigoProvincia(comprador.provincia),
+    state: estadoProvincia(comprador.provincia),
     country: 'AR',
     postalCode: codigoPostalCPA(comprador.codigo_postal, comprador.provincia),
     reference: comprador.referencia || undefined,
