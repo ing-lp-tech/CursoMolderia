@@ -100,10 +100,10 @@ export async function sucursalesDisponibles(carrier, codigoPostal, provincia) {
   const token = process.env.ENVIA_API_TOKEN;
   if (!token) throw new Error('Falta configurar ENVIA_API_TOKEN en las variables de entorno');
 
-  const zipcode = codigoPostalCPA(codigoPostal, provincia);
-  // Sin filtro de "type": una sucursal marcada solo como origen podría no
-  // matchear un filtro estricto type=2 (destino) aunque igual sirva para recibir.
-  const url = `${queriesBase()}/branches/${encodeURIComponent(carrier)}/AR?zipcode=${encodeURIComponent(zipcode)}`;
+  // El endpoint espera el CP numérico plano (sin la letra de provincia): las
+  // sucursales que devuelve traen postalCode plano (ej: "3602"), no formato CPA.
+  const cpNumerico = String(codigoPostal || '').replace(/\D/g, '');
+  const url = `${queriesBase()}/branches/${encodeURIComponent(carrier)}/AR?zipcode=${encodeURIComponent(cpNumerico)}`;
 
   const res = await fetch(url, {
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -112,7 +112,7 @@ export async function sucursalesDisponibles(carrier, codigoPostal, provincia) {
   let data = null;
   try { data = JSON.parse(rawText); } catch { /* se reporta abajo */ }
 
-  console.log('[ENVIA_BRANCHES_RESPONSE]', { url, status: res.status, body: rawText?.slice(0, 1500) });
+  console.log('[ENVIA_BRANCHES_RESPONSE]', { url, status: res.status, body: rawText?.slice(0, 2000) });
 
   if (!res.ok) {
     const detail = data?.message || data?.error?.message || (rawText ? rawText.slice(0, 300) : null) || `HTTP ${res.status}`;
@@ -125,13 +125,21 @@ export async function sucursalesDisponibles(carrier, codigoPostal, provincia) {
     throw new Error(data.message || 'No hay sucursales para esos filtros');
   }
 
-  const crudo = data.data || [];
-  const sucursales = crudo.map(normalizarSucursal).filter(s => s.codigo);
+  // La respuesta puede venir como array directo o envuelta en {"data": [...]}.
+  const crudo = Array.isArray(data) ? data : (data.data || []);
+
+  // El filtro "zipcode" del servidor no parece aplicarse de forma confiable
+  // (devolvió sucursales de otras provincias) — filtramos nosotros por CP exacto,
+  // y si no hay match exacto, por los primeros 3 dígitos (misma zona postal).
+  const exactas = crudo.filter(b => String(b.address?.postalCode || '').replace(/\D/g, '') === cpNumerico);
+  const zona = exactas.length ? exactas : crudo.filter(b =>
+    String(b.address?.postalCode || '').replace(/\D/g, '').slice(0, 3) === cpNumerico.slice(0, 3)
+  );
+
+  const sucursales = zona.map(normalizarSucursal).filter(s => s.codigo);
 
   if (!sucursales.length) {
-    // Diagnóstico temporal: mostramos la URL y un extracto de la respuesta
-    // cruda para no quedar a ciegas mientras ajustamos los filtros correctos.
-    throw new Error(`envia.com no devolvió sucursales utilizables (${crudo.length} en bruto). URL: ${url} · Respuesta: ${rawText.slice(0, 400)}`);
+    throw new Error(`envia.com no tiene sucursales de ${carrier} cerca del CP ${cpNumerico} (${crudo.length} sucursales en total revisadas).`);
   }
 
   return sucursales;
