@@ -41,8 +41,8 @@ function origenDesdeEnv() {
     ENVIA_ORIGEN_CALLE, ENVIA_ORIGEN_NUMERO, ENVIA_ORIGEN_CIUDAD, ENVIA_ORIGEN_PROVINCIA, ENVIA_ORIGEN_CP,
   } = process.env;
 
-  if (!ENVIA_ORIGEN_NOMBRE || !ENVIA_ORIGEN_TELEFONO || !ENVIA_ORIGEN_CALLE || !ENVIA_ORIGEN_CIUDAD || !ENVIA_ORIGEN_PROVINCIA || !ENVIA_ORIGEN_CP) {
-    throw new Error('Falta configurar la dirección de origen de envía.com en las variables de entorno (ENVIA_ORIGEN_*)');
+  if (!ENVIA_ORIGEN_NOMBRE || !ENVIA_ORIGEN_TELEFONO || !ENVIA_ORIGEN_CALLE || !ENVIA_ORIGEN_NUMERO || !ENVIA_ORIGEN_CIUDAD || !ENVIA_ORIGEN_PROVINCIA || !ENVIA_ORIGEN_CP) {
+    throw new Error('Falta configurar la dirección de origen de envía.com en las variables de entorno (ENVIA_ORIGEN_*, incluyendo ENVIA_ORIGEN_NUMERO)');
   }
 
   return {
@@ -50,7 +50,8 @@ function origenDesdeEnv() {
     company: ENVIA_ORIGEN_EMPRESA || ENVIA_ORIGEN_NOMBRE,
     phone: ENVIA_ORIGEN_TELEFONO,
     email: ENVIA_ORIGEN_EMAIL || undefined,
-    street: ENVIA_ORIGEN_NUMERO ? `${ENVIA_ORIGEN_CALLE} ${ENVIA_ORIGEN_NUMERO}` : ENVIA_ORIGEN_CALLE,
+    street: ENVIA_ORIGEN_CALLE,
+    number: ENVIA_ORIGEN_NUMERO,
     city: ENVIA_ORIGEN_CIUDAD,
     state: codigoProvincia(ENVIA_ORIGEN_PROVINCIA),
     country: 'AR',
@@ -63,7 +64,8 @@ function destinoDesdeComprador(comprador) {
     name: comprador.nombre,
     phone: comprador.whatsapp,
     email: comprador.email || undefined,
-    street: comprador.numero ? `${comprador.calle} ${comprador.numero}` : comprador.calle,
+    street: comprador.calle,
+    number: comprador.numero || 'S/N',
     district: comprador.piso_depto || undefined,
     city: comprador.ciudad,
     state: codigoProvincia(comprador.provincia),
