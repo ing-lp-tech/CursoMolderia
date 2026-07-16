@@ -85,14 +85,22 @@ function normalizeWhatsapp(raw) {
 }
 
 // ── Post-purchase screen ─────────────────────────────────────────────────────
-function PantallaVerificacion({ metodo, monto, compraId, settings, onClose }) {
+function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion, settings, onClose }) {
   const wa = settings.moldes_whatsapp_comprobante?.replace(/\D/g, '');
-  const texto = encodeURIComponent(
-    metodo === 'mercadopago'
-      ? `Hola! Ya pagué con MercadoPago la pizarra digitalizadora (código #${compraId?.slice(0, 8) ?? ''}). Te aviso para que apruebes mi compra y coordinemos el envío. ¡Gracias!`
-      : `Hola! Acabo de realizar una compra de una pizarra digitalizadora (#${compraId?.slice(0, 8) ?? ''}). ` +
-        `Adjunto mi comprobante de pago por $${monto?.toLocaleString('es-AR') ?? ''}.`
-  );
+
+  const direccionTexto = direccion
+    ? `${direccion.calle} ${direccion.numero || ''}${direccion.piso_depto ? ', ' + direccion.piso_depto : ''}, ${direccion.ciudad}, ${direccion.provincia} (CP ${direccion.codigo_postal})${direccion.referencia ? ' — Ref: ' + direccion.referencia : ''}`
+    : '';
+
+  const lineaBase = metodo === 'mercadopago'
+    ? `Hola! Ya pagué con MercadoPago la pizarra digitalizadora (código #${compraId?.slice(0, 8) ?? ''}).`
+    : `Hola! Acabo de realizar una compra de una pizarra digitalizadora (#${compraId?.slice(0, 8) ?? ''}). Adjunto mi comprobante de pago por $${monto?.toLocaleString('es-AR') ?? ''}.`;
+
+  const lineaCierre = metodoEnvio === 'coordinar'
+    ? `\n\nQuedó pendiente coordinar el envío directamente con vos. Mis datos de entrega:\n👤 ${direccion?.nombre || ''}\n📍 ${direccionTexto}`
+    : ` Te aviso para que apruebes mi compra y coordinemos el envío. ¡Gracias!`;
+
+  const texto = encodeURIComponent(lineaBase + lineaCierre);
   const waLink = wa ? `https://wa.me/${wa}?text=${texto}` : null;
 
   return (
@@ -104,7 +112,10 @@ function PantallaVerificacion({ metodo, monto, compraId, settings, onClose }) {
         <div>
           <h2 className="font-headline font-black text-2xl text-primary mb-2">¡Compra registrada!</h2>
           <p className="text-on-surface-variant text-sm">
-            Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, generamos el envío y te pasamos el código de seguimiento.
+            {metodoEnvio === 'coordinar'
+              ? <>Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, nos vamos a comunicar por WhatsApp para coordinar el envío.</>
+              : <>Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, generamos el envío y te pasamos el código de seguimiento.</>
+            }
           </p>
         </div>
 
@@ -150,9 +161,10 @@ function PantallaVerificacion({ metodo, monto, compraId, settings, onClose }) {
 
 // ── Detail / purchase modal ──────────────────────────────────────────────────
 function PizarraModal({ pizarra, settings, onClose }) {
-  const [step, setStep] = useState('detalle'); // detalle | form | envio | pago | verificacion
+  const [step, setStep] = useState('detalle'); // detalle | form | metodo_envio | envio | pago | verificacion
   const [form, setForm] = useState(FORM_EMPTY);
   const [metodo, setMetodo] = useState('mercadopago');
+  const [metodoEnvio, setMetodoEnvio] = useState(null); // 'envia' | 'coordinar'
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [compraId, setCompraId] = useState(null);
@@ -194,7 +206,16 @@ function PizarraModal({ pizarra, settings, onClose }) {
     try { return JSON.parse(text); } catch { return null; }
   }
 
+  function elegirCoordinarPorWhatsapp() {
+    setMetodoEnvio('coordinar');
+    setEnvioElegido({ carrier: null, service: null, descripcion: 'Coordinar por WhatsApp', precio: 0, requiere_sucursal: false });
+    setSucursalElegida(null);
+    setError('');
+    setStep('pago');
+  }
+
   async function handleCotizarEnvio() {
+    setMetodoEnvio('envia');
     setLoading(true);
     setError('');
     try {
@@ -286,7 +307,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
       const r = await fetch('/api/create-pizarra', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pizarra_id: pizarra.id, comprador, envio, metodo, sucursal: sucursalElegida }),
+        body: JSON.stringify({ pizarra_id: pizarra.id, comprador, envio, metodo, metodo_envio: metodoEnvio, sucursal: sucursalElegida }),
       });
       const data = await safeJson(r);
       if (!r.ok || !data) throw new Error(data?.error || `Error del servidor (${r.status})`);
@@ -309,15 +330,32 @@ function PizarraModal({ pizarra, settings, onClose }) {
     return (
       <PantallaVerificacion
         metodo={metodo}
+        metodoEnvio={metodoEnvio}
         monto={montoFinal}
         compraId={compraId}
+        direccion={{
+          nombre: form.nombre.trim(),
+          calle: form.calle.trim(),
+          numero: form.numero.trim(),
+          piso_depto: form.piso_depto.trim(),
+          ciudad: form.ciudad.trim(),
+          provincia: form.provincia,
+          codigo_postal: form.codigo_postal.trim(),
+          referencia: form.referencia.trim(),
+        }}
         settings={settings}
         onClose={onClose}
       />
     );
   }
 
-  const TITULOS = { detalle: pizarra.titulo, form: 'Dirección de envío', envio: 'Elegí el envío', pago: 'Método de pago' };
+  const TITULOS = {
+    detalle: pizarra.titulo,
+    form: 'Dirección de envío',
+    metodo_envio: 'Método de envío',
+    envio: 'Elegí el envío',
+    pago: 'Método de pago',
+  };
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -326,7 +364,12 @@ function PizarraModal({ pizarra, settings, onClose }) {
         <div className="flex items-center justify-between px-6 pt-6 pb-2 sticky top-0 bg-surface-container z-10">
           {step !== 'detalle' && (
             <button
-              onClick={() => setStep(step === 'pago' ? 'envio' : step === 'envio' ? 'form' : 'detalle')}
+              onClick={() => setStep(
+                step === 'pago' ? (metodoEnvio === 'coordinar' ? 'metodo_envio' : 'envio')
+                : step === 'envio' ? 'metodo_envio'
+                : step === 'metodo_envio' ? 'form'
+                : 'detalle'
+              )}
               className="text-on-surface-variant hover:text-on-surface"
             >
               <span className="material-symbols-outlined">arrow_back</span>
@@ -450,15 +493,61 @@ function PizarraModal({ pizarra, settings, onClose }) {
               )}
 
               <button
-                onClick={handleCotizarEnvio}
-                disabled={!formValid() || loading}
+                onClick={() => setStep('metodo_envio')}
+                disabled={!formValid()}
                 className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading
-                  ? <><span className="material-symbols-outlined animate-spin text-xl">refresh</span>Cotizando envío...</>
-                  : <><span className="material-symbols-outlined text-xl">local_shipping</span>Cotizar envío</>
-                }
+                <span className="material-symbols-outlined text-xl">arrow_forward</span>Continuar
               </button>
+            </>
+          )}
+
+          {/* STEP: Método de envío */}
+          {step === 'metodo_envio' && (
+            <>
+              <p className="text-sm text-on-surface-variant">Elegí cómo se coordina el envío de tu pedido.</p>
+
+              <div className="space-y-3">
+                <button
+                  onClick={handleCotizarEnvio}
+                  disabled={loading}
+                  className="w-full rounded-2xl border-2 border-outline-variant/40 hover:border-primary/60 p-4 text-left transition-all disabled:opacity-60"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-2xl text-primary shrink-0">local_shipping</span>
+                    <div>
+                      <p className="font-bold text-on-surface text-sm">
+                        {loading ? 'Cotizando envío...' : 'Envío automático (cotización online)'}
+                      </p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">
+                        Elegís la paquetería y el precio del envío se calcula al instante según tu dirección.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                <button
+                  onClick={elegirCoordinarPorWhatsapp}
+                  disabled={loading}
+                  className="w-full rounded-2xl border-2 border-outline-variant/40 hover:border-secondary/60 p-4 text-left transition-all disabled:opacity-60"
+                >
+                  <div className="flex items-start gap-3">
+                    <span className="material-symbols-outlined text-2xl text-secondary shrink-0">chat</span>
+                    <div>
+                      <p className="font-bold text-on-surface text-sm">Coordinar por WhatsApp con el vendedor</p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">
+                        Ideal si tu dirección es de difícil acceso o las calles no están bien señalizadas. Coordinamos el envío directamente por WhatsApp, sin costo calculado ahora.
+                      </p>
+                    </div>
+                  </div>
+                </button>
+              </div>
+
+              {error && (
+                <p className="text-error text-sm flex items-center gap-2">
+                  <span className="material-symbols-outlined text-base">error</span>{error}
+                </p>
+              )}
             </>
           )}
 
@@ -544,7 +633,12 @@ function PizarraModal({ pizarra, settings, onClose }) {
               <div className="bg-surface-variant/50 rounded-2xl p-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Comprando</p>
                 <p className="font-headline font-black text-on-surface">{pizarra.titulo}</p>
-                <p className="text-xs text-on-surface-variant mt-1">Envío: {envioElegido?.carrier} — {envioElegido?.descripcion} (${envioElegido?.precio.toLocaleString('es-AR')})</p>
+                <p className="text-xs text-on-surface-variant mt-1">
+                  Envío: {metodoEnvio === 'coordinar'
+                    ? 'A coordinar por WhatsApp'
+                    : `${envioElegido?.carrier} — ${envioElegido?.descripcion} ($${envioElegido?.precio.toLocaleString('es-AR')})`
+                  }
+                </p>
                 {sucursalElegida && (
                   <p className="text-xs text-on-surface-variant mt-1">Retiro en: {sucursalElegida.nombre}</p>
                 )}

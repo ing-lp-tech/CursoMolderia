@@ -405,7 +405,9 @@ function TabVentas() {
 
       const wa_num = compra.whatsapp.replace(/\D/g, '');
       const texto = encodeURIComponent(
-        `Hola ${compra.nombre}! ✅ Tu pago fue aprobado. Ya estamos preparando el envío de tu *${compra.titulo_pizarra}* por ${compra.envia_carrier}. Te paso el código de seguimiento en cuanto lo generemos. ¡Gracias por tu compra en Moldi Tex! 📦`
+        compra.metodo_envio === 'coordinar'
+          ? `Hola ${compra.nombre}! ✅ Tu pago fue aprobado. Coordinemos por acá el envío de tu *${compra.titulo_pizarra}*. ¡Gracias por tu compra en Moldi Tex! 📦`
+          : `Hola ${compra.nombre}! ✅ Tu pago fue aprobado. Ya estamos preparando el envío de tu *${compra.titulo_pizarra}* por ${compra.envia_carrier}. Te paso el código de seguimiento en cuanto lo generemos. ¡Gracias por tu compra en Moldi Tex! 📦`
       );
       window.open(`https://wa.me/${wa_num}?text=${texto}`, '_blank');
 
@@ -545,7 +547,10 @@ function TabVentas() {
                   <p className="font-bold truncate">{c.titulo_pizarra}</p>
                   <p className="text-xs text-on-surface-variant">
                     {c.metodo_pago === 'mercadopago' ? '💳 MercadoPago' : '🏦 Transferencia'}
-                    · Envío: {c.envia_carrier} — {c.envia_service_descripcion || c.envia_service} (${fmt(c.monto_envio)})
+                    · Envío: {c.metodo_envio === 'coordinar'
+                      ? '💬 A coordinar por WhatsApp'
+                      : `${c.envia_carrier} — ${c.envia_service_descripcion || c.envia_service} ($${fmt(c.monto_envio)})`
+                    }
                   </p>
                   <p className="font-headline font-bold text-primary text-lg">${fmt(c.monto_cobrado)}</p>
                   {c.rechazo_motivo && <p className="text-xs text-error mt-1">Motivo: {c.rechazo_motivo}</p>}
@@ -578,7 +583,16 @@ function TabVentas() {
                 </div>
               )}
 
-              {c.estado === 'aprobado' && (
+              {c.estado === 'aprobado' && c.metodo_envio === 'coordinar' && (
+                <div className="pt-1 border-t border-outline-variant/10">
+                  <div className="flex items-center gap-2 text-sm bg-secondary/10 rounded-xl p-3 text-secondary">
+                    <span className="material-symbols-outlined text-base">chat</span>
+                    Envío a coordinar directamente por WhatsApp con el cliente.
+                  </div>
+                </div>
+              )}
+
+              {c.estado === 'aprobado' && c.metodo_envio !== 'coordinar' && (
                 <div className="pt-1 border-t border-outline-variant/10">
                   {c.envia_tracking_number ? (
                     <div className="flex items-center justify-between gap-2 text-sm bg-secondary/10 rounded-xl p-3">

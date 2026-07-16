@@ -10,8 +10,10 @@ function validarComprador(c) {
     && c.calle?.trim() && c.ciudad?.trim() && c.provincia?.trim() && c.codigo_postal?.trim();
 }
 
-function validarEnvio(e) {
-  return e && typeof e === 'object' && e.carrier && e.service && Number(e.precio) >= 0;
+function validarEnvio(e, metodoEnvio) {
+  if (!e || typeof e !== 'object' || !(Number(e.precio) >= 0)) return false;
+  if (metodoEnvio === 'coordinar') return true; // sin carrier/service: se coordina por WhatsApp
+  return !!(e.carrier && e.service);
 }
 
 function validarSucursal(envio, sucursal) {
@@ -19,7 +21,7 @@ function validarSucursal(envio, sucursal) {
   return sucursal && typeof sucursal === 'object' && sucursal.codigo;
 }
 
-async function crearConMercadoPago({ pizarra, comprador, envio, sucursal, baseUrl, supabase }) {
+async function crearConMercadoPago({ pizarra, comprador, envio, sucursal, metodoEnvio, baseUrl, supabase }) {
   const accessToken = process.env.MP_ACCESS_TOKEN;
   if (!accessToken) throw Object.assign(new Error('Configuración del servidor incompleta'), { status: 500 });
 
@@ -50,8 +52,9 @@ async function crearConMercadoPago({ pizarra, comprador, envio, sucursal, baseUr
     direccion_provincia:     comprador.provincia.trim().slice(0, 100),
     direccion_codigo_postal: comprador.codigo_postal.trim().slice(0, 20),
     direccion_referencia:    comprador.referencia?.trim().slice(0, 200) || null,
-    envia_carrier:             envio.carrier,
-    envia_service:             envio.service,
+    metodo_envio:              metodoEnvio,
+    envia_carrier:             envio.carrier || null,
+    envia_service:             envio.service || null,
     envia_service_descripcion: envio.descripcion || null,
     sucursal_codigo:           sucursal?.codigo || null,
     sucursal_nombre:           sucursal?.nombre || null,
@@ -109,7 +112,7 @@ async function crearConMercadoPago({ pizarra, comprador, envio, sucursal, baseUr
   }
 }
 
-async function crearPorTransferencia({ pizarra, comprador, envio, sucursal, baseUrl, supabase }) {
+async function crearPorTransferencia({ pizarra, comprador, envio, sucursal, metodoEnvio, baseUrl, supabase }) {
   const precioBase = Number(pizarra.precio);
   if (!precioBase || precioBase <= 0) throw Object.assign(new Error('Precio inválido'), { status: 400 });
 
@@ -146,8 +149,9 @@ async function crearPorTransferencia({ pizarra, comprador, envio, sucursal, base
     direccion_provincia:     comprador.provincia.trim().slice(0, 100),
     direccion_codigo_postal: comprador.codigo_postal.trim().slice(0, 20),
     direccion_referencia:    comprador.referencia?.trim().slice(0, 200) || null,
-    envia_carrier:             envio.carrier,
-    envia_service:             envio.service,
+    metodo_envio:              metodoEnvio,
+    envia_carrier:             envio.carrier || null,
+    envia_service:             envio.service || null,
     envia_service_descripcion: envio.descripcion || null,
     sucursal_codigo:           sucursal?.codigo || null,
     sucursal_nombre:           sucursal?.nombre || null,
@@ -174,7 +178,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
   if (bloquearSiOrigenInvalido(req, res)) return;
 
-  const { pizarra_id, comprador, envio, metodo, sucursal } = req.body || {};
+  const { pizarra_id, comprador, envio, metodo, sucursal, metodo_envio: metodoEnvio } = req.body || {};
 
   if (!pizarra_id || typeof pizarra_id !== 'string') {
     return res.status(400).json({ error: 'pizarra_id inválido' });
@@ -182,10 +186,13 @@ export default async function handler(req, res) {
   if (metodo !== 'mercadopago' && metodo !== 'transferencia') {
     return res.status(400).json({ error: 'metodo inválido' });
   }
+  if (metodoEnvio !== 'envia' && metodoEnvio !== 'coordinar') {
+    return res.status(400).json({ error: 'metodo_envio inválido' });
+  }
   if (!validarComprador(comprador)) {
     return res.status(400).json({ error: 'Datos del comprador incompletos o inválidos' });
   }
-  if (!validarEnvio(envio)) {
+  if (!validarEnvio(envio, metodoEnvio)) {
     return res.status(400).json({ error: 'Debés elegir una opción de envío' });
   }
   if (!validarSucursal(envio, sucursal)) {
@@ -221,8 +228,8 @@ export default async function handler(req, res) {
 
   try {
     const resultado = metodo === 'mercadopago'
-      ? await crearConMercadoPago({ pizarra, comprador, envio, sucursal, baseUrl, supabase })
-      : await crearPorTransferencia({ pizarra, comprador, envio, sucursal, baseUrl, supabase });
+      ? await crearConMercadoPago({ pizarra, comprador, envio, sucursal, metodoEnvio, baseUrl, supabase })
+      : await crearPorTransferencia({ pizarra, comprador, envio, sucursal, metodoEnvio, baseUrl, supabase });
     return res.status(200).json(resultado);
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message || 'Error al registrar la compra' });
