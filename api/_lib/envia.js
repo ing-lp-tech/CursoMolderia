@@ -110,9 +110,17 @@ export async function sucursalesDisponibles(carrier, codigoPostal, provincia) {
   let data = null;
   try { data = JSON.parse(rawText); } catch { /* se reporta abajo */ }
 
-  if (!res.ok || data === null) {
-    console.error('[ENVIA_BRANCHES_ERROR]', { url, status: res.status, body: rawText?.slice(0, 500) });
-    return [];
+  console.log('[ENVIA_BRANCHES_RESPONSE]', { url, status: res.status, body: rawText?.slice(0, 1500) });
+
+  if (!res.ok) {
+    const detail = data?.message || data?.error?.message || (rawText ? rawText.slice(0, 300) : null) || `HTTP ${res.status}`;
+    throw new Error(`envia.com respondió al buscar sucursales: ${detail}`);
+  }
+  if (data === null) {
+    throw new Error('envia.com devolvió una respuesta inesperada al buscar sucursales (no JSON)');
+  }
+  if (data.success === false) {
+    throw new Error(data.message || 'No hay sucursales para esos filtros');
   }
 
   return (data.data || []).map(normalizarSucursal).filter(s => s.codigo);
