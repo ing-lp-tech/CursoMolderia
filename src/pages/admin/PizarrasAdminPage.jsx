@@ -535,6 +535,11 @@ function TabVentas() {
                   <p className="text-on-surface-variant text-xs">
                     {c.direccion_ciudad}, {c.direccion_provincia} (CP {c.direccion_codigo_postal})
                   </p>
+                  {c.sucursal_nombre && (
+                    <p className="text-on-surface-variant text-xs mt-0.5">
+                      🏢 Retira en: {c.sucursal_nombre}{c.sucursal_direccion ? ` — ${c.sucursal_direccion}` : ''}
+                    </p>
+                  )}
                 </div>
                 <div>
                   <p className="font-bold truncate">{c.titulo_pizarra}</p>

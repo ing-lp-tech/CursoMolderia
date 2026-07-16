@@ -161,6 +161,9 @@ function PizarraModal({ pizarra, settings, onClose }) {
 
   const [opcionesEnvio, setOpcionesEnvio] = useState([]);
   const [envioElegido, setEnvioElegido] = useState(null);
+  const [sucursales, setSucursales] = useState([]);
+  const [sucursalElegida, setSucursalElegida] = useState(null);
+  const [cargandoSucursales, setCargandoSucursales] = useState(false);
 
   const descuento = Number(settings.moldes_descuento_transferencia) || 0;
   const precioMP = Number(pizarra.precio);
@@ -217,12 +220,42 @@ function PizarraModal({ pizarra, settings, onClose }) {
       const data = await safeJson(r);
       if (!r.ok || !data) throw new Error(data?.error || `Error del servidor (${r.status})`);
       setOpcionesEnvio(data.opciones);
-      setEnvioElegido(data.opciones[0] || null);
       setStep('envio');
+      if (data.opciones[0]) await elegirEnvio(data.opciones[0]);
     } catch (e) {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function elegirEnvio(op) {
+    setEnvioElegido(op);
+    setSucursalElegida(null);
+    setSucursales([]);
+    if (!op.requiere_sucursal) return;
+
+    setCargandoSucursales(true);
+    setError('');
+    try {
+      const r = await fetch('/api/envia-cotizar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          accion: 'sucursales',
+          carrier: op.carrier,
+          codigo_postal: form.codigo_postal.trim(),
+          provincia: form.provincia,
+        }),
+      });
+      const data = await safeJson(r);
+      if (!r.ok || !data) throw new Error(data?.error || `Error del servidor (${r.status})`);
+      setSucursales(data.sucursales);
+      setSucursalElegida(data.sucursales[0] || null);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setCargandoSucursales(false);
     }
   }
 
@@ -247,12 +280,13 @@ function PizarraModal({ pizarra, settings, onClose }) {
       service: envioElegido.service,
       descripcion: envioElegido.descripcion,
       precio: envioElegido.precio,
+      requiere_sucursal: envioElegido.requiere_sucursal,
     };
     try {
       const r = await fetch('/api/create-pizarra', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pizarra_id: pizarra.id, comprador, envio, metodo }),
+        body: JSON.stringify({ pizarra_id: pizarra.id, comprador, envio, metodo, sucursal: sucursalElegida }),
       });
       const data = await safeJson(r);
       if (!r.ok || !data) throw new Error(data?.error || `Error del servidor (${r.status})`);
@@ -436,7 +470,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
                 {opcionesEnvio.map(op => (
                   <button
                     key={`${op.carrier}-${op.service}`}
-                    onClick={() => setEnvioElegido(op)}
+                    onClick={() => elegirEnvio(op)}
                     className={`w-full rounded-2xl border-2 p-4 text-left transition-all ${
                       envioElegido?.service === op.service && envioElegido?.carrier === op.carrier
                         ? 'border-primary bg-primary/10' : 'border-outline-variant/40 hover:border-outline-variant'
@@ -453,6 +487,36 @@ function PizarraModal({ pizarra, settings, onClose }) {
                 ))}
               </div>
 
+              {envioElegido?.requiere_sucursal && (
+                <div className="space-y-2">
+                  <p className="text-sm font-bold text-on-surface uppercase tracking-wide">Elegí la sucursal de retiro</p>
+                  {cargandoSucursales ? (
+                    <div className="flex justify-center py-6">
+                      <span className="material-symbols-outlined text-primary text-2xl animate-spin">refresh</span>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-64 overflow-y-auto">
+                      {sucursales.map(s => (
+                        <button
+                          key={s.codigo}
+                          onClick={() => setSucursalElegida(s)}
+                          className={`w-full rounded-xl border-2 p-3 text-left transition-all ${
+                            sucursalElegida?.codigo === s.codigo
+                              ? 'border-primary bg-primary/10' : 'border-outline-variant/40 hover:border-outline-variant'
+                          }`}
+                        >
+                          <p className="font-bold text-sm text-on-surface">{s.nombre}</p>
+                          {s.direccion && <p className="text-xs text-on-surface-variant">{s.direccion}</p>}
+                        </button>
+                      ))}
+                      {!sucursales.length && (
+                        <p className="text-sm text-error">No se encontraron sucursales para esta dirección.</p>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="bg-surface-variant/50 rounded-2xl p-4 flex items-center justify-between">
                 <span className="text-sm font-bold text-on-surface-variant uppercase tracking-wide">Total (producto + envío)</span>
                 <span className="font-headline font-black text-primary text-lg">${totalConEnvio.toLocaleString('es-AR')}</span>
@@ -464,7 +528,11 @@ function PizarraModal({ pizarra, settings, onClose }) {
                 </p>
               )}
 
-              <button onClick={() => setStep('pago')} disabled={!envioElegido} className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed">
+              <button
+                onClick={() => setStep('pago')}
+                disabled={!envioElegido || (envioElegido.requiere_sucursal && !sucursalElegida)}
+                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              >
                 Continuar con el pago
               </button>
             </>
@@ -477,6 +545,9 @@ function PizarraModal({ pizarra, settings, onClose }) {
                 <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Comprando</p>
                 <p className="font-headline font-black text-on-surface">{pizarra.titulo}</p>
                 <p className="text-xs text-on-surface-variant mt-1">Envío: {envioElegido?.carrier} — {envioElegido?.descripcion} (${envioElegido?.precio.toLocaleString('es-AR')})</p>
+                {sucursalElegida && (
+                  <p className="text-xs text-on-surface-variant mt-1">Retiro en: {sucursalElegida.nombre}</p>
+                )}
               </div>
 
               <p className="text-sm font-bold text-on-surface uppercase tracking-wide">Elegí cómo pagar</p>

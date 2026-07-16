@@ -59,7 +59,7 @@ async function generarEnvioParaCompra(supabase, compra_id) {
   const { data: compra, error: compraErr } = await supabase
     .from('pizarras_compras')
     .select(`
-      id, estado, envia_shipment_id, envia_carrier, envia_service,
+      id, estado, envia_shipment_id, envia_carrier, envia_service, sucursal_codigo,
       nombre, whatsapp, email,
       direccion_calle, direccion_numero, direccion_piso_depto,
       direccion_ciudad, direccion_provincia, direccion_codigo_postal, direccion_referencia,
@@ -91,6 +91,7 @@ async function generarEnvioParaCompra(supabase, compra_id) {
   const resultado = await generarEnvio(pizarra, comprador, {
     carrier: compra.envia_carrier,
     service: compra.envia_service,
+    sucursalCodigo: compra.sucursal_codigo,
   });
 
   // Guardamos primero los campos "core" (existen desde la migración 04).

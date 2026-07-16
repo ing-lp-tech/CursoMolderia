@@ -72,7 +72,50 @@ function destinoDesdeComprador(comprador) {
     country: 'AR',
     postalCode: codigoPostalCPA(comprador.codigo_postal, comprador.provincia),
     reference: comprador.referencia || undefined,
+    branchCode: comprador.sucursalCodigo || undefined,
   };
+}
+
+// Servicios "a Sucursal" traen dropOffDescription tipo "Door - Branch" —
+// la segunda palabra indica cómo se maneja el destino. Si es "Branch",
+// hay que elegir una sucursal puntual antes de generar el envío.
+function requiereSucursalDestino(dropOffDescription) {
+  if (!dropOffDescription) return false;
+  const partes = String(dropOffDescription).split('-').map(s => s.trim().toLowerCase());
+  return partes[1] === 'branch' || partes[1] === 'sucursal';
+}
+
+function normalizarSucursal(b) {
+  return {
+    codigo: b.branch_code || b.branch_id || null,
+    nombre: b.reference || b.name || 'Sucursal',
+    direccion: b.address?.address
+      || [b.address?.street, b.address?.number, b.address?.locality].filter(Boolean).join(' ')
+      || '',
+  };
+}
+
+// Lista las sucursales de un carrier disponibles como destino para un código postal.
+export async function sucursalesDisponibles(carrier, codigoPostal, provincia) {
+  const token = process.env.ENVIA_API_TOKEN;
+  if (!token) throw new Error('Falta configurar ENVIA_API_TOKEN en las variables de entorno');
+
+  const zipcode = codigoPostalCPA(codigoPostal, provincia);
+  const url = `${queriesBase()}/branches/${encodeURIComponent(carrier)}/AR?zipcode=${encodeURIComponent(zipcode)}&type=2`;
+
+  const res = await fetch(url, {
+    headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
+  });
+  const rawText = await res.text();
+  let data = null;
+  try { data = JSON.parse(rawText); } catch { /* se reporta abajo */ }
+
+  if (!res.ok || data === null) {
+    console.error('[ENVIA_BRANCHES_ERROR]', { url, status: res.status, body: rawText?.slice(0, 500) });
+    return [];
+  }
+
+  return (data.data || []).map(normalizarSucursal).filter(s => s.codigo);
 }
 
 function paqueteDesdePizarra(pizarra) {
@@ -169,6 +212,7 @@ export async function cotizarEnvio(pizarra, comprador) {
       precio:       Number(o.totalPrice ?? o.total_price ?? o.price ?? 0),
       moneda:       o.currency || 'ARS',
       entrega_estimada: o.deliveryEstimate || o.delivery_estimate || null,
+      requiere_sucursal: requiereSucursalDestino(o.dropOffDescription),
     }))
     .filter(o => o.precio > 0)
     .sort((a, b) => a.precio - b.precio);
@@ -192,10 +236,10 @@ export async function cotizarEnvio(pizarra, comprador) {
 }
 
 // Genera el envío (guía/etiqueta) una vez que la compra fue aprobada.
-export async function generarEnvio(pizarra, comprador, { carrier, service }) {
+export async function generarEnvio(pizarra, comprador, { carrier, service, sucursalCodigo }) {
   const body = {
     origin: origenDesdeEnv(),
-    destination: destinoDesdeComprador(comprador),
+    destination: destinoDesdeComprador({ ...comprador, sucursalCodigo }),
     packages: paqueteDesdePizarra(pizarra),
     shipment: { type: 1, carrier, service },
     settings: { currency: 'ARS', printFormat: 'PDF', printSize: 'PAPER_4X6' },
