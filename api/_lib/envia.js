@@ -198,7 +198,7 @@ export async function generarEnvio(pizarra, comprador, { carrier, service }) {
     destination: destinoDesdeComprador(comprador),
     packages: paqueteDesdePizarra(pizarra),
     shipment: { type: 1, carrier, service },
-    settings: { currency: 'ARS', printFormat: 'PDF' },
+    settings: { currency: 'ARS', printFormat: 'PDF', printSize: 'PAPER_4X6' },
   };
 
   const data = await enviaFetch('/ship/generate', body);
