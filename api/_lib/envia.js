@@ -101,7 +101,9 @@ export async function sucursalesDisponibles(carrier, codigoPostal, provincia) {
   if (!token) throw new Error('Falta configurar ENVIA_API_TOKEN en las variables de entorno');
 
   const zipcode = codigoPostalCPA(codigoPostal, provincia);
-  const url = `${queriesBase()}/branches/${encodeURIComponent(carrier)}/AR?zipcode=${encodeURIComponent(zipcode)}&type=2`;
+  // Sin filtro de "type": una sucursal marcada solo como origen podría no
+  // matchear un filtro estricto type=2 (destino) aunque igual sirva para recibir.
+  const url = `${queriesBase()}/branches/${encodeURIComponent(carrier)}/AR?zipcode=${encodeURIComponent(zipcode)}`;
 
   const res = await fetch(url, {
     headers: { 'Authorization': `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -123,7 +125,16 @@ export async function sucursalesDisponibles(carrier, codigoPostal, provincia) {
     throw new Error(data.message || 'No hay sucursales para esos filtros');
   }
 
-  return (data.data || []).map(normalizarSucursal).filter(s => s.codigo);
+  const crudo = data.data || [];
+  const sucursales = crudo.map(normalizarSucursal).filter(s => s.codigo);
+
+  if (!sucursales.length) {
+    // Diagnóstico temporal: mostramos la URL y un extracto de la respuesta
+    // cruda para no quedar a ciegas mientras ajustamos los filtros correctos.
+    throw new Error(`envia.com no devolvió sucursales utilizables (${crudo.length} en bruto). URL: ${url} · Respuesta: ${rawText.slice(0, 400)}`);
+  }
+
+  return sucursales;
 }
 
 function paqueteDesdePizarra(pizarra) {
