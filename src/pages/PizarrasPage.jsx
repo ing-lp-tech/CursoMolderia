@@ -65,10 +65,14 @@ function Carousel({ images }) {
 
 // ── Form state ───────────────────────────────────────────────────────────────
 const FORM_EMPTY = {
-  nombre: '', whatsapp: '',
+  nombre: '', whatsapp: '', email: '',
   calle: '', numero: '', piso_depto: '',
   ciudad: '', provincia: '', codigo_postal: '', referencia: '',
 };
+
+function emailValido(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
+}
 
 function normalizeWhatsapp(raw) {
   const d = raw.replace(/\D/g, '');
@@ -178,6 +182,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
   function formValid() {
     return form.nombre.trim()
       && normalizeWhatsapp(form.whatsapp).length >= 10
+      && emailValido(form.email)
       && form.calle.trim() && form.ciudad.trim() && form.provincia && form.codigo_postal.trim();
   }
 
@@ -198,6 +203,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
           destino: {
             nombre: form.nombre.trim(),
             whatsapp: normalizeWhatsapp(form.whatsapp) || form.whatsapp.trim(),
+            email: form.email.trim(),
             calle: form.calle.trim(),
             numero: form.numero.trim(),
             piso_depto: form.piso_depto.trim(),
@@ -227,6 +233,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
     const comprador = {
       nombre:        form.nombre.trim(),
       whatsapp:      normalizeWhatsapp(form.whatsapp) || form.whatsapp.trim(),
+      email:         form.email.trim(),
       calle:         form.calle.trim(),
       numero:        form.numero.trim(),
       piso_depto:    form.piso_depto.trim(),
@@ -359,6 +366,11 @@ function PizarraModal({ pizarra, settings, onClose }) {
                       Se va a usar: {waHint}
                     </p>
                   )}
+                </div>
+                <div>
+                  <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Email *</label>
+                  <input name="email" value={form.email} onChange={handleFormChange} className="input-field w-full" placeholder="tu@email.com" type="email" />
+                  <p className="text-xs text-on-surface-variant mt-1">Lo necesita el correo para avisarte cuando el paquete llegue a la sucursal.</p>
                 </div>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-2">

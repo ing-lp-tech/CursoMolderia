@@ -60,7 +60,7 @@ async function generarEnvioParaCompra(supabase, compra_id) {
     .from('pizarras_compras')
     .select(`
       id, estado, envia_shipment_id, envia_carrier, envia_service,
-      nombre, whatsapp,
+      nombre, whatsapp, email,
       direccion_calle, direccion_numero, direccion_piso_depto,
       direccion_ciudad, direccion_provincia, direccion_codigo_postal, direccion_referencia,
       pizarras!pizarras_compras_pizarra_id_fkey(id, titulo, precio, peso_kg, alto_cm, ancho_cm, largo_cm)
@@ -78,6 +78,7 @@ async function generarEnvioParaCompra(supabase, compra_id) {
   const comprador = {
     nombre: compra.nombre,
     whatsapp: compra.whatsapp,
+    email: compra.email,
     calle: compra.direccion_calle,
     numero: compra.direccion_numero,
     piso_depto: compra.direccion_piso_depto,

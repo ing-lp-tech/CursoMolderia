@@ -6,6 +6,7 @@ import { setCors, bloquearSiOrigenInvalido } from './_lib/cors.js';
 function validarComprador(c) {
   return c && typeof c === 'object'
     && c.nombre?.trim() && c.whatsapp?.trim()
+    && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(c.email?.trim() || '')
     && c.calle?.trim() && c.ciudad?.trim() && c.provincia?.trim() && c.codigo_postal?.trim();
 }
 
@@ -36,7 +37,7 @@ async function crearConMercadoPago({ pizarra, comprador, envio, baseUrl, supabas
     metodo_pago:             'mercadopago',
     nombre:                  comprador.nombre.trim().slice(0, 200),
     whatsapp:                comprador.whatsapp.trim().slice(0, 50),
-    email:                   'sin-email@molderia-digital.com',
+    email:                   comprador.email.trim().slice(0, 254),
     direccion_calle:         comprador.calle.trim().slice(0, 200),
     direccion_numero:        comprador.numero?.trim().slice(0, 20) || null,
     direccion_piso_depto:    comprador.piso_depto?.trim().slice(0, 50) || null,
@@ -129,7 +130,7 @@ async function crearPorTransferencia({ pizarra, comprador, envio, baseUrl, supab
     metodo_pago:             'transferencia',
     nombre:                  comprador.nombre.trim().slice(0, 200),
     whatsapp:                comprador.whatsapp.trim().slice(0, 50),
-    email:                   'sin-email@molderia-digital.com',
+    email:                   comprador.email.trim().slice(0, 254),
     direccion_calle:         comprador.calle.trim().slice(0, 200),
     direccion_numero:        comprador.numero?.trim().slice(0, 20) || null,
     direccion_piso_depto:    comprador.piso_depto?.trim().slice(0, 50) || null,
