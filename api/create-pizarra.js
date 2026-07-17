@@ -178,16 +178,19 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Método no permitido' });
   if (bloquearSiOrigenInvalido(req, res)) return;
 
-  const { pizarra_id, comprador, envio, metodo, sucursal, metodo_envio: metodoEnvio } = req.body || {};
+  const { pizarra_id, comprador, envio, metodo, sucursal } = req.body || {};
+  // Compatibilidad hacia atrás: si el navegador del cliente tenía la página
+  // abierta desde antes de que existiera este campo, no lo va a mandar —
+  // en ese caso el único método que existía era "envia", así que lo asumimos
+  // en vez de rechazar la compra.
+  const metodoEnvioBody = req.body?.metodo_envio;
+  const metodoEnvio = (metodoEnvioBody === 'envia' || metodoEnvioBody === 'coordinar') ? metodoEnvioBody : 'envia';
 
   if (!pizarra_id || typeof pizarra_id !== 'string') {
     return res.status(400).json({ error: 'pizarra_id inválido' });
   }
   if (metodo !== 'mercadopago' && metodo !== 'transferencia') {
     return res.status(400).json({ error: 'metodo inválido' });
-  }
-  if (metodoEnvio !== 'envia' && metodoEnvio !== 'coordinar') {
-    return res.status(400).json({ error: 'metodo_envio inválido' });
   }
   if (!validarComprador(comprador)) {
     return res.status(400).json({ error: 'Datos del comprador incompletos o inválidos' });
