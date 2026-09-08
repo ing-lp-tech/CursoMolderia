@@ -5,7 +5,10 @@ import cristian from '../assets/cristian.jpg';
 import logo from '../assets/logo.png';
 import heroMolderia from '../assets/hero-molderia.jpg.jpg';
 import { getActiveFlashPromo } from '../utils/cupones';
+import { getSorteoPublicado } from '../utils/sorteos';
 import { useAppSettings } from '../context/AppSettingsContext';
+
+const MEDALLAS = ['🥇', '🥈', '🥉'];
 
 function useCountdown(targetDate) {
   const [timeLeft, setTimeLeft] = useState(null);
@@ -60,15 +63,91 @@ function FlashPromoBanner({ promo }) {
   );
 }
 
+function GanadoresSorteo({ sorteo }) {
+  if (!sorteo?.ganadores?.length) return null;
+
+  const unico = sorteo.ganadores.length === 1;
+
+  return (
+    <section className="py-24 px-6 lg:px-20 bg-surface-container-low relative overflow-hidden">
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[300px] bg-primary/10 blur-[120px] rounded-full pointer-events-none" />
+
+      <div className="container mx-auto relative z-10">
+        <div className="text-center mb-14">
+          <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20 mb-5">
+            <span className="material-symbols-outlined text-secondary text-sm">emoji_events</span>
+            <span className="text-secondary font-label text-[10px] uppercase tracking-[0.2em] font-bold">
+              Sorteo{sorteo.periodo ? ` · ${sorteo.periodo}` : ' mensual'}
+            </span>
+          </span>
+          <h2 className="font-headline text-3xl md:text-5xl font-bold">
+            {unico ? 'Ganador' : 'Ganadores'} del{' '}
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-primary via-secondary to-primary-container">
+              {sorteo.premio}
+            </span>
+          </h2>
+          {sorteo.descripcion && (
+            <p className="font-body text-on-surface-variant text-base md:text-lg mt-4 max-w-2xl mx-auto">
+              {sorteo.descripcion}
+            </p>
+          )}
+        </div>
+
+        <div className={`grid gap-6 mx-auto ${unico ? 'max-w-md' : 'max-w-4xl md:grid-cols-2 lg:grid-cols-3'}`}>
+          {sorteo.ganadores.map((nombre, i) => (
+            <div
+              key={`${nombre}-${i}`}
+              className="relative rounded-2xl border border-primary/25 bg-gradient-to-br from-surface-container to-surface-container-lowest p-8 text-center overflow-hidden"
+            >
+              <div className="absolute -top-16 -right-16 w-40 h-40 bg-primary/10 blur-[60px] rounded-full pointer-events-none" />
+              <span className="block text-5xl mb-4">{MEDALLAS[i] || '🎉'}</span>
+              <p className="font-headline text-2xl font-black break-words">{nombre}</p>
+              {!unico && (
+                <p className="font-label text-[10px] text-on-surface-variant uppercase tracking-widest mt-2">
+                  Puesto {i + 1}
+                </p>
+              )}
+              <div className="w-12 h-[2px] bg-primary/50 mx-auto my-5" />
+              <p className="font-label text-[10px] text-secondary uppercase tracking-widest">
+                {sorteo.premio}
+              </p>
+            </div>
+          ))}
+        </div>
+
+        <p className="text-center font-label text-[10px] text-outline uppercase tracking-[0.2em] mt-10">
+          Sorteado al azar entre {sorteo.totalParticipantes || 0} participantes
+          {sorteo.realizadoEn && ` · ${new Date(sorteo.realizadoEn).toLocaleDateString('es-AR', { day: '2-digit', month: 'long', year: 'numeric' })}`}
+        </p>
+
+        <div className="text-center mt-8">
+          <Link
+            to="/inscripcion"
+            className="inline-flex items-center gap-2 text-primary font-headline font-bold uppercase tracking-widest text-sm group hover:gap-3 transition-all"
+          >
+            Participá del próximo sorteo
+            <span className="material-symbols-outlined group-hover:translate-x-1 transition-transform">arrow_forward</span>
+          </Link>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default function LandingPage() {
   const { precio_base, precio_tachado, fecha_inicio } = useAppSettings();
   const [flashPromo, setFlashPromo] = useState(null);
+  const [sorteo, setSorteo] = useState(null);
 
   useEffect(() => {
     getActiveFlashPromo().then(setFlashPromo).catch(() => {});
     // Refresh every 2 minutes
     const id = setInterval(() => getActiveFlashPromo().then(setFlashPromo).catch(() => {}), 120000);
     return () => clearInterval(id);
+  }, []);
+
+  useEffect(() => {
+    getSorteoPublicado().then(setSorteo).catch(() => {});
   }, []);
 
   return (
@@ -254,6 +333,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Ganadores del sorteo mensual */}
+      <GanadoresSorteo sorteo={sorteo} />
 
       {/* Final CTA */}
       <section className="py-32 px-6 lg:px-20 text-center relative">

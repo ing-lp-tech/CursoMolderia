@@ -18,6 +18,7 @@ const TABS = [
   { key: 'cat_moldes',   label: 'Categorías',   icon: 'category',               tabla: 'moldes_categorias' },
   { key: 'subcat_moldes',label: 'Subcat.',      icon: 'account_tree',           tabla: 'moldes_subcategorias' },
   { key: 'compras',      label: 'Compras',      icon: 'shopping_bag',           tabla: 'moldes_compras' },
+  { key: 'sorteos',      label: 'Sorteos',      icon: 'casino',                 tabla: 'sorteos' },
 ];
 
 const ACCION_STYLE = {
@@ -60,6 +61,8 @@ function describeItem(tab, item) {
       return `Subcategoría: ${item.nombre || '—'}`;
     case 'compras':
       return `${item.nombre || '—'} — ${item.email || '—'} — ${item.titulo_molde || '—'} — ${fmtMonto(item.monto_cobrado)} (${item.metodo_pago || '—'})`;
+    case 'sorteos':
+      return `${item.titulo || 'Sin título'} — ${(item.participantes || []).length} participantes${(item.ganadores || []).length ? ` — Ganador(es): ${(item.ganadores || []).join(', ')}` : ''}`;
     default:
       return JSON.stringify(item).slice(0, 100);
   }

@@ -17,6 +17,7 @@ const FinanzasPage     = lazy(() => import('./pages/admin/FinanzasPage'));
 const TablreroKanban   = lazy(() => import('./pages/admin/TablreroKanban'));
 const CuponesPage      = lazy(() => import('./pages/admin/CuponesPage'));
 const CertificadosPage = lazy(() => import('./pages/admin/CertificadosPage'));
+const SorteosPage      = lazy(() => import('./pages/admin/SorteosPage'));
 const RecursosPage      = lazy(() => import('./pages/admin/RecursosPage'));
 const ConfiguracionPage = lazy(() => import('./pages/admin/ConfiguracionPage'));
 const PapeleraPage      = lazy(() => import('./pages/admin/PapeleraPage'));
@@ -86,6 +87,7 @@ export default function App() {
             <Route path="recursos"     element={<Suspense fallback={<AdminFallback />}><RecursosPage /></Suspense>} />
             <Route path="cupones"      element={<Suspense fallback={<AdminFallback />}><CuponesPage /></Suspense>} />
             <Route path="certificados" element={<Suspense fallback={<AdminFallback />}><CertificadosPage /></Suspense>} />
+            <Route path="sorteos"       element={<Suspense fallback={<AdminFallback />}><SorteosPage /></Suspense>} />
             <Route path="tablero"       element={<Suspense fallback={<AdminFallback />}><TablreroKanban /></Suspense>} />
             <Route path="configuracion" element={<Suspense fallback={<AdminFallback />}><ConfiguracionPage /></Suspense>} />
             <Route path="papelera"      element={<Suspense fallback={<AdminFallback />}><PapeleraPage /></Suspense>} />
