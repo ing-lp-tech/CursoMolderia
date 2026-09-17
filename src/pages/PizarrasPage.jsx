@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../lib/supabase';
 import { useAppSettings } from '../context/AppSettingsContext';
 import { PROVINCIAS_ARGENTINA } from '../utils/provinciasArgentina';
+import SelectorCreditos from '../components/SelectorCreditos';
 import pizarraDemo from '../assets/pizarra-digitalizando.png';
 
 const VENTAJAS = [
@@ -85,7 +86,7 @@ function normalizeWhatsapp(raw) {
 }
 
 // ── Post-purchase screen ─────────────────────────────────────────────────────
-function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion, settings, onClose }) {
+function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion, settings, sinEnvio = false, onClose }) {
   const wa = settings.moldes_whatsapp_comprobante?.replace(/\D/g, '');
 
   const direccionTexto = direccion
@@ -96,9 +97,11 @@ function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion,
     ? `Hola! Ya pagué con MercadoPago la pizarra digitalizadora (código #${compraId?.slice(0, 8) ?? ''}).`
     : `Hola! Acabo de realizar una compra de una pizarra digitalizadora (#${compraId?.slice(0, 8) ?? ''}). Adjunto mi comprobante de pago por $${monto?.toLocaleString('es-AR') ?? ''}.`;
 
-  const lineaCierre = metodoEnvio === 'coordinar'
-    ? `\n\nQuedó pendiente coordinar el envío directamente con vos. Mis datos de entrega:\n👤 ${direccion?.nombre || ''}\n📍 ${direccionTexto}`
-    : ` Te aviso para que apruebes mi compra y coordinemos el envío. ¡Gracias!`;
+  const lineaCierre = sinEnvio
+    ? ` Te aviso para que apruebes mi compra y me pases el código de digitalización. ¡Gracias!`
+    : metodoEnvio === 'coordinar'
+      ? `\n\nQuedó pendiente coordinar el envío directamente con vos. Mis datos de entrega:\n👤 ${direccion?.nombre || ''}\n📍 ${direccionTexto}`
+      : ` Te aviso para que apruebes mi compra y coordinemos el envío. ¡Gracias!`;
 
   const texto = encodeURIComponent(lineaBase + lineaCierre);
   const waLink = wa ? `https://wa.me/${wa}?text=${texto}` : null;
@@ -112,9 +115,11 @@ function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion,
         <div>
           <h2 className="font-headline font-black text-2xl text-primary mb-2">¡Compra registrada!</h2>
           <p className="text-on-surface-variant text-sm">
-            {metodoEnvio === 'coordinar'
-              ? <>Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, nos vamos a comunicar por WhatsApp para coordinar el envío.</>
-              : <>Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, generamos el envío y te pasamos el código de seguimiento.</>
+            {sinEnvio
+              ? <>Tu compra está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, te mandamos por WhatsApp tu <strong className="text-on-surface">código de digitalización</strong>.</>
+              : metodoEnvio === 'coordinar'
+                ? <>Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, nos vamos a comunicar por WhatsApp para coordinar el envío.</>
+                : <>Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, generamos el envío y te pasamos el código de seguimiento.</>
             }
           </p>
         </div>
@@ -160,8 +165,12 @@ function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion,
 }
 
 // ── Detail / purchase modal ──────────────────────────────────────────────────
-function PizarraModal({ pizarra, settings, onClose }) {
-  const [step, setStep] = useState('detalle'); // detalle | form | metodo_envio | envio | pago | verificacion
+function PizarraModal({ pizarra, planes = [], planInicial = null, settings, onClose }) {
+  // Si entró por una card de plan, ya arranca en el paso de planes con el suyo
+  // marcado: no lo mandamos de vuelta al detalle que acaba de leer.
+  const [step, setStep] = useState(planInicial ? 'planes' : 'detalle'); // detalle | planes | form | metodo_envio | envio | pago | verificacion
+  const [plan, setPlan] = useState(planInicial);
+  const [cantidad, setCantidad] = useState(planInicial?.cantidad_min || 1);
   const [form, setForm] = useState(FORM_EMPTY);
   const [metodo, setMetodo] = useState('mercadopago');
   const [metodoEnvio, setMetodoEnvio] = useState(null); // 'envia' | 'coordinar'
@@ -178,10 +187,35 @@ function PizarraModal({ pizarra, settings, onClose }) {
   const [cargandoSucursales, setCargandoSucursales] = useState(false);
 
   const descuento = Number(settings.moldes_descuento_transferencia) || 0;
-  const precioMP = Number(pizarra.precio);
-  const precioTransfer = Math.round(precioMP * (1 - descuento / 100));
+
+  // Con plan elegido manda el precio del plan: "Combo Taller" cobra $400.000
+  // aunque el producto figure a $250.000. Sin planes cargados, el precio sigue
+  // saliendo del producto, exactamente como antes.
+  const precioUnitario = Number(plan ? plan.precio : pizarra.precio);
+  const precioMP = precioUnitario * cantidad;
+  // El redondeo va sobre el precio unitario, igual que en el endpoint: si se
+  // redondeara el total, el panel y el checkout mostrarían números distintos.
+  const precioTransfer = Math.round(precioUnitario * (1 - descuento / 100)) * cantidad;
   const precioBaseElegido = metodo === 'mercadopago' ? precioMP : precioTransfer;
   const totalConEnvio = precioBaseElegido + (envioElegido?.precio || 0);
+
+  // Un plan de solo software no se despacha: ni dirección, ni cotización, ni
+  // costo de envío.
+  const exigeEnvio = plan ? plan.requiere_envio !== false : true;
+  const precioPlanMin = planes.length ? Math.min(...planes.map(pl => Number(pl.precio))) : null;
+
+  function elegirPlan(pl) {
+    setPlan(pl);
+    setCantidad(pl.cantidad_min || 1);
+    // Cambiar de plan puede cambiar si hay envío o no: la cotización vieja ya
+    // no sirve.
+    setMetodoEnvio(null);
+    setEnvioElegido(null);
+    setOpcionesEnvio([]);
+    setSucursales([]);
+    setSucursalElegida(null);
+    setError('');
+  }
 
   function handleFormChange(e) {
     const { name, value } = e.target;
@@ -195,10 +229,11 @@ function PizarraModal({ pizarra, settings, onClose }) {
   }
 
   function formValid() {
-    return form.nombre.trim()
+    const contactoOk = form.nombre.trim()
       && normalizeWhatsapp(form.whatsapp).length >= 10
-      && emailValido(form.email)
-      && form.calle.trim() && form.ciudad.trim() && form.provincia && form.codigo_postal.trim();
+      && emailValido(form.email);
+    if (!exigeEnvio) return !!contactoOk;
+    return !!(contactoOk && form.calle.trim() && form.ciudad.trim() && form.provincia && form.codigo_postal.trim());
   }
 
   async function safeJson(r) {
@@ -223,7 +258,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          pizarra_id: pizarra.id,
+          producto_id: pizarra.id,
           destino: {
             nombre: form.nombre.trim(),
             whatsapp: normalizeWhatsapp(form.whatsapp) || form.whatsapp.trim(),
@@ -281,7 +316,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
   }
 
   async function handleComprar() {
-    if (!envioElegido) { setError('Elegí una opción de envío'); return; }
+    if (exigeEnvio && !envioElegido) { setError('Elegí una opción de envío'); return; }
     setLoading(true);
     setError('');
     const comprador = {
@@ -296,18 +331,26 @@ function PizarraModal({ pizarra, settings, onClose }) {
       codigo_postal: form.codigo_postal.trim(),
       referencia:    form.referencia.trim(),
     };
-    const envio = {
+    const envio = exigeEnvio ? {
       carrier: envioElegido.carrier,
       service: envioElegido.service,
       descripcion: envioElegido.descripcion,
       precio: envioElegido.precio,
       requiere_sucursal: envioElegido.requiere_sucursal,
-    };
+    } : { precio: 0 };
     try {
-      const r = await fetch('/api/create-pizarra', {
+      const r = await fetch('/api/create-producto', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pizarra_id: pizarra.id, comprador, envio, metodo, metodo_envio: metodoEnvio, sucursal: sucursalElegida }),
+        body: JSON.stringify({
+          producto_id: pizarra.id,
+          plan_id: plan?.id || null,
+          cantidad,
+          comprador, envio, metodo,
+          metodo_envio: metodoEnvio,
+          sucursal: sucursalElegida,
+          retorno: '/pizarras',
+        }),
       });
       const data = await safeJson(r);
       if (!r.ok || !data) throw new Error(data?.error || `Error del servidor (${r.status})`);
@@ -331,9 +374,10 @@ function PizarraModal({ pizarra, settings, onClose }) {
       <PantallaVerificacion
         metodo={metodo}
         metodoEnvio={metodoEnvio}
+        sinEnvio={!exigeEnvio}
         monto={montoFinal}
         compraId={compraId}
-        direccion={{
+        direccion={exigeEnvio ? {
           nombre: form.nombre.trim(),
           calle: form.calle.trim(),
           numero: form.numero.trim(),
@@ -342,7 +386,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
           provincia: form.provincia,
           codigo_postal: form.codigo_postal.trim(),
           referencia: form.referencia.trim(),
-        }}
+        } : null}
         settings={settings}
         onClose={onClose}
       />
@@ -351,11 +395,25 @@ function PizarraModal({ pizarra, settings, onClose }) {
 
   const TITULOS = {
     detalle: pizarra.titulo,
-    form: 'Dirección de envío',
+    planes: 'Elegí tu plan',
+    form: exigeEnvio ? 'Dirección de envío' : 'Tus datos',
     metodo_envio: 'Método de envío',
     envio: 'Elegí el envío',
     pago: 'Método de pago',
   };
+
+  // Un solo lugar decide el camino de vuelta: los pasos que se saltean para
+  // adelante también se saltean para atrás.
+  function pasoAnterior() {
+    if (step === 'pago') {
+      if (!exigeEnvio) return 'form';
+      return metodoEnvio === 'coordinar' ? 'metodo_envio' : 'envio';
+    }
+    if (step === 'envio') return 'metodo_envio';
+    if (step === 'metodo_envio') return 'form';
+    if (step === 'form') return planes.length ? 'planes' : 'detalle';
+    return 'detalle';
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-end sm:items-center justify-center p-0 sm:p-4">
@@ -364,12 +422,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
         <div className="flex items-center justify-between px-6 pt-6 pb-2 sticky top-0 bg-surface-container z-10">
           {step !== 'detalle' && (
             <button
-              onClick={() => setStep(
-                step === 'pago' ? (metodoEnvio === 'coordinar' ? 'metodo_envio' : 'envio')
-                : step === 'envio' ? 'metodo_envio'
-                : step === 'metodo_envio' ? 'form'
-                : 'detalle'
-              )}
+              onClick={() => setStep(pasoAnterior())}
               className="text-on-surface-variant hover:text-on-surface"
             >
               <span className="material-symbols-outlined">arrow_back</span>
@@ -390,7 +443,10 @@ function PizarraModal({ pizarra, settings, onClose }) {
                 <div className="flex items-start justify-between gap-3 mb-2">
                   <h3 className="font-headline font-black text-xl text-on-surface">{pizarra.titulo}</h3>
                   <div className="text-right shrink-0">
-                    <p className="font-black text-primary text-xl">${Number(pizarra.precio).toLocaleString('es-AR')}</p>
+                    {precioPlanMin != null && (
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">desde</p>
+                    )}
+                    <p className="font-black text-primary text-xl">${(precioPlanMin ?? Number(pizarra.precio)).toLocaleString('es-AR')}</p>
                     {descuento > 0 && (
                       <p className="text-xs text-secondary font-bold">{descuento}% off con transferencia</p>
                     )}
@@ -414,7 +470,9 @@ function PizarraModal({ pizarra, settings, onClose }) {
                 <span className="material-symbols-outlined text-base">local_shipping</span>
                 Envío a todo el país con envia.com. El costo se calcula según tu dirección.
               </div>
-              {pizarra.stock > 0 ? (
+              {planes.length > 0 ? (
+                <button onClick={() => setStep('planes')} className="btn-primary w-full">Ver planes y comprar</button>
+              ) : pizarra.stock > 0 ? (
                 <button onClick={() => setStep('form')} className="btn-primary w-full">Comprar pizarra digitalizadora</button>
               ) : (
                 <button disabled className="btn-primary w-full opacity-50 cursor-not-allowed">Sin stock por el momento</button>
@@ -422,10 +480,104 @@ function PizarraModal({ pizarra, settings, onClose }) {
             </>
           )}
 
+          {/* STEP: Planes */}
+          {step === 'planes' && (
+            <>
+              <p className="text-sm text-on-surface-variant">
+                Elegí con qué plan querés arrancar. Lo podés cambiar hasta el momento de pagar.
+              </p>
+
+              <div className="space-y-3">
+                {planes.map(pl => {
+                  // Un plan que se despacha necesita stock; los créditos de
+                  // software se pueden vender siempre.
+                  const sinStock = pl.requiere_envio !== false && !(pizarra.stock > 0);
+                  const elegido = plan?.id === pl.id;
+                  return (
+                    <button
+                      key={pl.id}
+                      onClick={() => elegirPlan(pl)}
+                      disabled={sinStock}
+                      className={`w-full rounded-2xl border-2 p-4 text-left transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                        elegido ? 'border-primary bg-primary/10' : 'border-outline-variant/40 hover:border-outline-variant'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-headline font-black text-on-surface">{pl.nombre}</p>
+                            {pl.destacado && (
+                              <span className="text-[10px] font-bold uppercase tracking-wide bg-secondary/20 text-secondary rounded-full px-2 py-0.5">
+                                Más elegido
+                              </span>
+                            )}
+                          </div>
+                          {pl.descripcion && (
+                            <p className="text-xs text-on-surface-variant mt-0.5">{pl.descripcion}</p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="font-black text-primary">${Number(pl.precio).toLocaleString('es-AR')}</p>
+                          {pl.precio_sufijo && (
+                            <p className="text-[10px] text-on-surface-variant">{pl.precio_sufijo}</p>
+                          )}
+                        </div>
+                      </div>
+
+                      {pl.incluye && (
+                        <ul className="mt-3 space-y-1">
+                          {pl.incluye.split('\n').filter(Boolean).map((linea, i) => (
+                            <li key={i} className="flex items-start gap-2 text-xs text-on-surface-variant">
+                              <span className="material-symbols-outlined text-sm text-primary shrink-0 mt-0.5">check_circle</span>
+                              {linea}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+
+                      {sinStock && (
+                        <p className="text-xs text-error mt-2 font-bold">Sin stock por el momento</p>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {plan && plan.cantidad_max > plan.cantidad_min && (
+                <SelectorCreditos
+                  cantidad={cantidad}
+                  min={plan.cantidad_min}
+                  max={plan.cantidad_max}
+                  precioUnitario={plan.precio}
+                  onChange={setCantidad}
+                />
+              )}
+
+              {plan && plan.requiere_envio === false && (
+                <div className="flex items-center gap-2 text-xs text-on-surface-variant bg-surface-variant/50 rounded-xl p-3">
+                  <span className="material-symbols-outlined text-base">chat</span>
+                  Sin envío: recibís tu código por WhatsApp apenas confirmemos el pago.
+                </div>
+              )}
+
+              <button
+                onClick={() => setStep('form')}
+                disabled={!plan}
+                className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Continuar
+              </button>
+            </>
+          )}
+
           {/* STEP: Form (datos + dirección) */}
           {step === 'form' && (
             <>
-              <p className="text-sm text-on-surface-variant">Necesitamos tus datos y tu dirección para cotizar el envío.</p>
+              <p className="text-sm text-on-surface-variant">
+                {exigeEnvio
+                  ? 'Necesitamos tus datos y tu dirección para cotizar el envío.'
+                  : 'Solo necesitamos tus datos de contacto: a este WhatsApp te mandamos el código.'}
+              </p>
               <div className="space-y-3">
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Nombre completo *</label>
@@ -447,8 +599,11 @@ function PizarraModal({ pizarra, settings, onClose }) {
                 <div>
                   <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Email *</label>
                   <input name="email" value={form.email} onChange={handleFormChange} className="input-field w-full" placeholder="tu@email.com" type="email" />
-                  <p className="text-xs text-on-surface-variant mt-1">Lo necesita el correo para avisarte cuando el paquete llegue a la sucursal.</p>
+                  {exigeEnvio && (
+                    <p className="text-xs text-on-surface-variant mt-1">Lo necesita el correo para avisarte cuando el paquete llegue a la sucursal.</p>
+                  )}
                 </div>
+                {exigeEnvio && (<>
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-2">
                     <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Calle *</label>
@@ -484,6 +639,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
                   <label className="block text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Referencia (opcional)</label>
                   <input name="referencia" value={form.referencia} onChange={handleFormChange} className="input-field w-full" placeholder="Entre calles, color de casa, etc." />
                 </div>
+                </>)}
               </div>
 
               {error && (
@@ -493,7 +649,7 @@ function PizarraModal({ pizarra, settings, onClose }) {
               )}
 
               <button
-                onClick={() => setStep('metodo_envio')}
+                onClick={() => setStep(exigeEnvio ? 'metodo_envio' : 'pago')}
                 disabled={!formValid()}
                 className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -633,10 +789,17 @@ function PizarraModal({ pizarra, settings, onClose }) {
               <div className="bg-surface-variant/50 rounded-2xl p-4">
                 <p className="text-xs font-bold uppercase tracking-wide text-on-surface-variant mb-1">Comprando</p>
                 <p className="font-headline font-black text-on-surface">{pizarra.titulo}</p>
+                {plan && (
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Plan: {plan.nombre}{cantidad > 1 ? ` — ${cantidad} créditos` : ''}
+                  </p>
+                )}
                 <p className="text-xs text-on-surface-variant mt-1">
-                  Envío: {metodoEnvio === 'coordinar'
-                    ? 'A coordinar por WhatsApp'
-                    : `${envioElegido?.carrier} — ${envioElegido?.descripcion} ($${envioElegido?.precio.toLocaleString('es-AR')})`
+                  {!exigeEnvio
+                    ? 'Sin envío: el código llega por WhatsApp'
+                    : metodoEnvio === 'coordinar'
+                      ? 'Envío: a coordinar por WhatsApp'
+                      : `Envío: ${envioElegido?.carrier} — ${envioElegido?.descripcion} ($${envioElegido?.precio.toLocaleString('es-AR')})`
                   }
                 </p>
                 {sucursalElegida && (
@@ -763,8 +926,11 @@ function PizarraCard({ pizarra, onClick }) {
 export default function PizarrasPage() {
   const settings = useAppSettings();
   const [pizarras, setPizarras] = useState([]);
+  const [planes, setPlanes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selected, setSelected] = useState(null);
+  // Plan con el que se abre el modal cuando entran por una card de plan.
+  const [planInicial, setPlanInicial] = useState(null);
   const [retornoMP, setRetornoMP] = useState(null);
 
   useEffect(() => {
@@ -772,26 +938,68 @@ export default function PizarrasPage() {
     const estado = params.get('estado');
     const id = params.get('id');
     if ((estado === 'verificacion' || estado === 'fallo') && id) {
-      if (estado === 'verificacion') setRetornoMP({ compraId: id });
+      if (estado === 'verificacion') setRetornoMP({ compraId: id, sinEnvio: params.get('sin_envio') === '1' });
       window.history.replaceState({}, '', window.location.pathname);
     }
   }, []);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('pizarras')
+    // `productos` ahora guarda también plotters, PCs y accesorios, así que esta
+    // página se acota a la categoría "Pizarras". Si no se encontrara la
+    // categoría, se listan todos los productos activos en vez de dejar la
+    // página vacía.
+    const { data: categoria } = await supabase
+      .from('producto_categorias')
+      .select('id')
+      .eq('slug', 'pizarras')
+      .maybeSingle();
+
+    let query = supabase
+      .from('productos')
       .select('*')
       .eq('activo', true)
       .is('eliminado_en', null)
       .order('orden');
-    setPizarras(data || []);
+    if (categoria?.id) query = query.eq('categoria_id', categoria.id);
+
+    const { data } = await query;
+    const productos = data || [];
+    setPizarras(productos);
+
+    // Los planes viven en su propia tabla y se editan desde el panel: los
+    // precios de esta página salen de acá, no del código.
+    if (productos.length) {
+      const { data: filas } = await supabase
+        .from('producto_planes')
+        .select('*')
+        .in('producto_id', productos.map(x => x.id))
+        .eq('activo', true)
+        .is('eliminado_en', null)
+        .order('orden');
+      setPlanes(filas || []);
+    } else {
+      setPlanes([]);
+    }
+
     setLoading(false);
   }, []);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const irAlProducto = pizarras[0];
+  const planesDe = (productoId) => planes.filter(pl => pl.producto_id === productoId);
+  const planesDestacados = irAlProducto ? planesDe(irAlProducto.id) : [];
+
+  function abrirPlan(pl) {
+    setPlanInicial(pl);
+    setSelected(pizarras.find(x => x.id === pl.producto_id) || irAlProducto);
+  }
+
+  function cerrarModal() {
+    setSelected(null);
+    setPlanInicial(null);
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -851,6 +1059,66 @@ export default function PizarrasPage() {
         </div>
       </section>
 
+      {/* Planes */}
+      {planesDestacados.length > 0 && (
+        <section id="planes" className="max-w-6xl mx-auto px-4 pt-12">
+          <h2 className="font-headline font-black text-2xl sm:text-3xl text-on-surface text-center">
+            Elegí tu plan
+          </h2>
+          <p className="text-center text-sm text-on-surface-variant mt-2 mb-6">
+            Todos se compran desde acá, con MercadoPago o transferencia.
+          </p>
+
+          <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 items-stretch">
+            {planesDestacados.map(pl => (
+              <div
+                key={pl.id}
+                className={`card flex flex-col h-full ${pl.destacado ? 'ring-2 ring-primary/50' : ''}`}
+              >
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="font-headline font-black text-on-surface">{pl.nombre}</h3>
+                  {pl.destacado && (
+                    <span className="text-[10px] font-bold uppercase tracking-wide bg-secondary/20 text-secondary rounded-full px-2 py-0.5">
+                      Más elegido
+                    </span>
+                  )}
+                </div>
+
+                <div className="mt-2">
+                  <span className="font-headline font-black text-primary text-2xl">
+                    ${Number(pl.precio).toLocaleString('es-AR')}
+                  </span>
+                  {pl.precio_sufijo && (
+                    <span className="text-xs text-on-surface-variant ml-1">{pl.precio_sufijo}</span>
+                  )}
+                </div>
+
+                {pl.descripcion && (
+                  <p className="text-sm text-on-surface-variant mt-2">{pl.descripcion}</p>
+                )}
+
+                {pl.incluye && (
+                  <ul className="mt-3 space-y-1.5">
+                    {pl.incluye.split('\n').filter(Boolean).map((linea, i) => (
+                      <li key={i} className="flex items-start gap-2 text-xs text-on-surface-variant">
+                        <span className="material-symbols-outlined text-sm text-primary shrink-0 mt-0.5">check_circle</span>
+                        {linea}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <div className="mt-auto pt-4">
+                  <button onClick={() => abrirPlan(pl)} className="btn-primary w-full">
+                    {pl.cantidad_max > pl.cantidad_min ? 'Elegir cantidad' : 'Comprar'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
       {/* Potenciá tu taller */}
       <section className="max-w-6xl mx-auto px-4 pt-10">
         <p className="text-center text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-4">
@@ -903,7 +1171,13 @@ export default function PizarrasPage() {
       </div>
 
       {selected && (
-        <PizarraModal pizarra={selected} settings={settings} onClose={() => setSelected(null)} />
+        <PizarraModal
+          pizarra={selected}
+          planes={planesDe(selected.id)}
+          planInicial={planInicial}
+          settings={settings}
+          onClose={cerrarModal}
+        />
       )}
 
       {retornoMP && (
@@ -911,6 +1185,7 @@ export default function PizarrasPage() {
           metodo="mercadopago"
           monto={null}
           compraId={retornoMP.compraId}
+          sinEnvio={retornoMP.sinEnvio}
           settings={settings}
           onClose={() => setRetornoMP(null)}
         />

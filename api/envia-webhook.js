@@ -42,7 +42,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    let query = supabase.from('pizarras_compras').update({
+    let query = supabase.from('producto_compras').update({
       envia_estado: status || null,
       envia_estado_actualizado_en: new Date().toISOString(),
       envia_webhook_raw: req.body,

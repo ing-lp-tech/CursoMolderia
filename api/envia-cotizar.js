@@ -9,26 +9,30 @@ function validarDestino(d) {
 }
 
 async function handleCotizar(req, res, supabase) {
-  const { pizarra_id, destino } = req.body || {};
-  if (!pizarra_id || typeof pizarra_id !== 'string') {
-    return res.status(400).json({ error: 'pizarra_id inválido' });
+  const { destino } = req.body || {};
+  // `pizarra_id` es el nombre viejo del campo: lo sigue mandando cualquier
+  // navegador con la página cacheada de antes de la migración a productos.
+  const productoId = req.body?.producto_id || req.body?.pizarra_id;
+
+  if (!productoId || typeof productoId !== 'string') {
+    return res.status(400).json({ error: 'producto_id inválido' });
   }
   if (!validarDestino(destino)) {
     return res.status(400).json({ error: 'Datos de dirección incompletos' });
   }
 
   try {
-    const { data: pizarra, error: pizarraErr } = await supabase
-      .from('pizarras')
+    const { data: producto, error: productoErr } = await supabase
+      .from('productos')
       .select('id, titulo, precio, activo, eliminado_en, stock, peso_kg, alto_cm, ancho_cm, largo_cm')
-      .eq('id', pizarra_id)
+      .eq('id', productoId)
       .single();
 
-    if (pizarraErr || !pizarra) return res.status(404).json({ error: 'Producto no encontrado' });
-    if (!pizarra.activo || pizarra.eliminado_en) return res.status(400).json({ error: 'Producto no disponible' });
-    if (pizarra.stock <= 0) return res.status(400).json({ error: 'Sin stock disponible' });
+    if (productoErr || !producto) return res.status(404).json({ error: 'Producto no encontrado' });
+    if (!producto.activo || producto.eliminado_en) return res.status(400).json({ error: 'Producto no disponible' });
+    if (producto.stock <= 0) return res.status(400).json({ error: 'Sin stock disponible' });
 
-    const opciones = await cotizarEnvio(pizarra, destino);
+    const opciones = await cotizarEnvio(producto, destino);
     return res.status(200).json({ opciones });
   } catch (err) {
     console.error('[ENVIA_COTIZAR_ERROR]', err?.message || err, err?.diagnostico ? JSON.stringify(err.diagnostico).slice(0, 1000) : '');

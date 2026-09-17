@@ -18,6 +18,9 @@ const TABS = [
   { key: 'cat_moldes',   label: 'Categorías',   icon: 'category',               tabla: 'moldes_categorias' },
   { key: 'subcat_moldes',label: 'Subcat.',      icon: 'account_tree',           tabla: 'moldes_subcategorias' },
   { key: 'compras',      label: 'Compras',      icon: 'shopping_bag',           tabla: 'moldes_compras' },
+  { key: 'productos',    label: 'Productos',    icon: 'inventory_2',            tabla: 'productos' },
+  { key: 'prod_planes',  label: 'Planes',       icon: 'sell',                   tabla: 'producto_planes' },
+  { key: 'prod_compras', label: 'Ventas prod.', icon: 'local_shipping',         tabla: 'producto_compras' },
   { key: 'sorteos',      label: 'Sorteos',      icon: 'casino',                 tabla: 'sorteos' },
 ];
 
@@ -61,6 +64,12 @@ function describeItem(tab, item) {
       return `Subcategoría: ${item.nombre || '—'}`;
     case 'compras':
       return `${item.nombre || '—'} — ${item.email || '—'} — ${item.titulo_molde || '—'} — ${fmtMonto(item.monto_cobrado)} (${item.metodo_pago || '—'})`;
+    case 'productos':
+      return `${item.titulo || 'Sin título'} — ${fmtMonto(item.precio)} — Stock: ${item.stock ?? 0}`;
+    case 'prod_planes':
+      return `${item.nombre || 'Sin nombre'} — ${fmtMonto(item.precio)}${item.precio_sufijo ? ` ${item.precio_sufijo}` : ''}`;
+    case 'prod_compras':
+      return `${item.nombre || '—'} — ${item.titulo_producto || '—'}${Number(item.cantidad) > 1 ? ` ×${item.cantidad}` : ''} — ${fmtMonto(item.monto_cobrado)} (${item.metodo_pago || '—'})`;
     case 'sorteos':
       return `${item.titulo || 'Sin título'} — ${(item.participantes || []).length} participantes${(item.ganadores || []).length ? ` — Ganador(es): ${(item.ganadores || []).join(', ')}` : ''}`;
     default:
