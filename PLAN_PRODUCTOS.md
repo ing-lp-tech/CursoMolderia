@@ -20,8 +20,15 @@ ETAPA                                       ESTADO
 3 a 9                                       Pendientes
 ```
 
-Falta correr los scripts SQL en Supabase y verificar los checkpoints 1 y 2 en
-producción (Parte 13).
+Scripts 00 a 05 ya corridos en Supabase. Falta verificar los checkpoints 1 y 2
+en producción (Parte 13).
+
+**Cambio sobre el plan original:** los shims `api/create-pizarra.js` y
+`api/pizarra-admin.js` no existen como archivos. El plan Hobby de Vercel admite
+12 serverless functions y con ellos eran 13, así que el reenvío se hace con dos
+rewrites en `vercel.json`, que no consumen slot. El efecto para el comprador con
+la página cacheada es el mismo. En la Etapa 9, "reducir los shims" pasa a ser
+"borrar esos dos rewrites".
 
 ---
 

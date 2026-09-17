@@ -1,5 +1,9 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/" }],
+  "rewrites": [
+    { "source": "/api/create-pizarra", "destination": "/api/create-producto" },
+    { "source": "/api/pizarra-admin",  "destination": "/api/producto-admin" },
+    { "source": "/(.*)", "destination": "/" }
+  ],
   "headers": [
     {
       "source": "/(.*)",
