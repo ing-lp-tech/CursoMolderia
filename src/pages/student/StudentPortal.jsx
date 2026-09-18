@@ -66,8 +66,13 @@ async function fetchVimeoThumbnail(url) {
 // ── Componente ────────────────────────────────────────────────────────────────
 
 export default function StudentPortal() {
-  const { user, perfil, loading, signOut } = useAuth();
+  const { user, perfil, loading, signOut, isAdmin } = useAuth();
   const nombre = perfil?.nombre || user?.user_metadata?.nombre || user?.email?.split('@')[0] || 'Estudiante';
+
+  // El admin no es un alumno activado, pero tiene que poder ver el portal:
+  // es su propio material, y sin esto se topa con el muro de "pendiente de
+  // activación" como si lo hubieran degradado a alumno.
+  const tieneAcceso = !!perfil?.activo || isAdmin;
 
   const [activeTab,       setActiveTab]       = useState('recursos');
   const [recursos,        setRecursos]        = useState([]);
@@ -77,7 +82,7 @@ export default function StudentPortal() {
   const [thumbnails,      setThumbnails]      = useState({});
 
   useEffect(() => {
-    if (!perfil?.activo) { setLoadingRecursos(false); return; }
+    if (!tieneAcceso) { setLoadingRecursos(false); return; }
     let mounted = true;
 
     async function fetchData() {
@@ -99,7 +104,7 @@ export default function StudentPortal() {
 
     fetchData();
     return () => { mounted = false; };
-  }, [perfil?.activo]);
+  }, [tieneAcceso]);
 
   // Thumbnails: Vimeo via API, imágenes Drive directo
   useEffect(() => {
@@ -280,11 +285,24 @@ export default function StudentPortal() {
           <p className="text-on-surface-variant mt-2">Accedé a los videos y materiales de tu curso.</p>
         </div>
 
+        {isAdmin && !perfil?.activo && (
+          <div className="card border border-primary/30 bg-primary/5 flex items-center gap-3 mb-6">
+            <span className="material-symbols-outlined text-primary shrink-0">shield_person</span>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm">Estás viendo el portal como administrador</p>
+              <p className="text-xs text-on-surface-variant">
+                Así lo ve un alumno con la cuenta activada.
+              </p>
+            </div>
+            <a href="/admin" className="btn-secondary text-xs py-2 px-3 shrink-0">Ir al panel</a>
+          </div>
+        )}
+
         {loading ? (
           <div className="text-center py-20">
             <span className="material-symbols-outlined animate-spin text-4xl text-primary">refresh</span>
           </div>
-        ) : !perfil?.activo ? (
+        ) : !tieneAcceso ? (
           <div className="card border border-outline-variant/20 text-center py-16">
             <span className="material-symbols-outlined text-5xl text-on-surface-variant/30 mb-4">lock</span>
             <h2 className="font-headline font-bold text-xl mb-2">Acceso pendiente de activación</h2>
