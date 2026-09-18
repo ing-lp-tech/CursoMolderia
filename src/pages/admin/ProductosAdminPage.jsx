@@ -39,6 +39,7 @@ function aSlug(texto) {
 function TabCategorias() {
   const [categorias, setCategorias] = useState([]);
   const [subs,       setSubs]       = useState([]);
+  const [conteo,     setConteo]     = useState({});   // categoria_id → productos visibles
   const [loading,    setLoading]    = useState(true);
 
   const [modal,     setModal]     = useState(null); // 'categoria' | 'subcategoria'
@@ -48,12 +49,18 @@ function TabCategorias() {
   const [error,     setError]     = useState('');
 
   async function cargar() {
-    const [{ data: cats }, { data: subcats }] = await Promise.all([
+    const [{ data: cats }, { data: subcats }, { data: prods }] = await Promise.all([
       supabase.from('producto_categorias').select('*').is('eliminado_en', null).order('orden'),
       supabase.from('producto_subcategorias').select('*').is('eliminado_en', null).order('orden'),
+      // Solo para saber qué categorías tienen algo que mostrar.
+      supabase.from('productos').select('categoria_id').eq('activo', true).is('eliminado_en', null),
     ]);
     setCategorias(cats || []);
     setSubs(subcats || []);
+    setConteo((prods || []).reduce((acc, p) => {
+      acc[p.categoria_id] = (acc[p.categoria_id] || 0) + 1;
+      return acc;
+    }, {}));
     setLoading(false);
   }
 
@@ -64,6 +71,17 @@ function TabCategorias() {
   // la navbar lee de nav_items.
   async function toggleNavbar(cat) {
     const visible = !cat.visible_en_navbar;
+
+    // Un link a una categoría vacía lleva al cliente a una página que dice
+    // "no hay productos". Mejor avisarlo acá que descubrirlo en producción.
+    if (visible && !conteo[cat.id] && !confirm(
+      `"${cat.nombre}" no tiene productos visibles todavía.
+
+` +
+      `Si la mostrás en el navbar, el link va a llevar a una sección vacía. ` +
+      `¿Mostrarla igual?`
+    )) return;
+
     setCategorias(prev => prev.map(c => c.id === cat.id ? { ...c, visible_en_navbar: visible } : c));
 
     const { error: errCat } = await supabase
@@ -190,7 +208,13 @@ function TabCategorias() {
                 <span className={`material-symbols-outlined ${cat.color || 'text-primary'}`}>{cat.icono}</span>
                 <div className="flex-1 min-w-0">
                   <p className="font-bold text-sm">{cat.nombre}</p>
-                  <p className="text-xs text-on-surface-variant font-mono truncate">/tienda/{cat.slug}</p>
+                  <p className="text-xs text-on-surface-variant truncate">
+                    <span className="font-mono">/tienda/{cat.slug}</span>
+                    {' · '}
+                    <span className={conteo[cat.id] ? '' : 'text-error font-bold'}>
+                      {conteo[cat.id] || 0} producto{conteo[cat.id] === 1 ? '' : 's'}
+                    </span>
+                  </p>
                 </div>
 
                 <button
@@ -535,14 +559,23 @@ function TabProductos() {
       {showModal && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto">
           <form onSubmit={guardar}
-            className="bg-surface-container w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl p-5 space-y-4 border border-outline-variant/30 sm:my-4">
-            <div className="flex items-center justify-between">
-              <h3 className="font-headline font-bold text-lg">{editando ? 'Editar producto' : 'Nuevo producto'}</h3>
+            className="bg-surface-container w-full sm:max-w-lg rounded-t-2xl sm:rounded-2xl border border-outline-variant/30 sm:my-4 max-h-[95dvh] flex flex-col">
+            <div className="flex items-center justify-between px-5 pt-5 pb-3 border-b border-outline-variant/15 shrink-0">
+              <div className="min-w-0">
+                <h3 className="font-headline font-bold text-lg">{editando ? 'Editar producto' : 'Nuevo producto'}</h3>
+                {editando && (
+                  <p className="text-xs text-on-surface-variant truncate">
+                    Hoy está en: {nombreCat(form.categoria_id) || 'sin categoría'}
+                    {nombreSub(form.subcategoria_id) ? ` · ${nombreSub(form.subcategoria_id)}` : ''}
+                  </p>
+                )}
+              </div>
               <button type="button" onClick={() => setShowModal(false)}>
                 <span className="material-symbols-outlined text-on-surface-variant">close</span>
               </button>
             </div>
 
+            <div className="px-5 py-4 space-y-4 overflow-y-auto flex-1">
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Categoría *</label>
@@ -649,8 +682,9 @@ function TabProductos() {
             </div>
 
             {error && <div className="bg-error/10 border border-error/30 rounded-xl px-3 py-2 text-sm text-error">{error}</div>}
+            </div>
 
-            <div className="flex gap-3 pt-1">
+            <div className="flex gap-3 px-5 py-4 border-t border-outline-variant/15 shrink-0">
               <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancelar</button>
               <button type="submit" disabled={guardando} className="btn-primary flex-1">
                 {guardando ? 'Guardando…' : editando ? 'Guardar cambios' : 'Crear producto'}

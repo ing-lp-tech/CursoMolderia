@@ -106,12 +106,24 @@ export default function NavegacionPage() {
   }
 
   async function toggleVisible(item) {
-    setItems(prev => prev.map(x => x.id === item.id ? { ...x, visible: !item.visible } : x));
+    const visible = !item.visible;
+    setItems(prev => prev.map(x => x.id === item.id ? { ...x, visible } : x));
+
     const { error: err } = await supabase
       .from('nav_items')
-      .update({ visible: !item.visible })
+      .update({ visible })
       .eq('id', item.id);
-    if (err) { alert(err.message); await recargar(); }
+    if (err) { alert(err.message); await recargar(); return; }
+
+    // Si el link es el de una categoría, la categoría tiene que enterarse: si
+    // no, el panel de Productos seguiría mostrándola como "En el navbar"
+    // mientras el link está oculto. Un solo dato, una sola verdad.
+    if (item.categoria_id) {
+      await supabase
+        .from('producto_categorias')
+        .update({ visible_en_navbar: visible })
+        .eq('id', item.categoria_id);
+    }
   }
 
   // Mueve una fila y renumera toda la lista por posición. Renumerar evita el
