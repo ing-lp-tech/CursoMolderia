@@ -21,6 +21,7 @@ const TABS = [
   { key: 'productos',    label: 'Productos',    icon: 'inventory_2',            tabla: 'productos' },
   { key: 'prod_planes',  label: 'Planes',       icon: 'sell',                   tabla: 'producto_planes' },
   { key: 'prod_compras', label: 'Ventas prod.', icon: 'local_shipping',         tabla: 'producto_compras' },
+  { key: 'nav_items',    label: 'Navegación',   icon: 'menu',                   tabla: 'nav_items' },
   { key: 'sorteos',      label: 'Sorteos',      icon: 'casino',                 tabla: 'sorteos' },
 ];
 
@@ -70,6 +71,8 @@ function describeItem(tab, item) {
       return `${item.nombre || 'Sin nombre'} — ${fmtMonto(item.precio)}${item.precio_sufijo ? ` ${item.precio_sufijo}` : ''}`;
     case 'prod_compras':
       return `${item.nombre || '—'} — ${item.titulo_producto || '—'}${Number(item.cantidad) > 1 ? ` ×${item.cantidad}` : ''} — ${fmtMonto(item.monto_cobrado)} (${item.metodo_pago || '—'})`;
+    case 'nav_items':
+      return `${item.label || 'Sin texto'} → ${item.path || '—'}`;
     case 'sorteos':
       return `${item.titulo || 'Sin título'} — ${(item.participantes || []).length} participantes${(item.ganadores || []).length ? ` — Ganador(es): ${(item.ganadores || []).join(', ')}` : ''}`;
     default:

@@ -15,6 +15,7 @@ const NAV = [
   { to: '/admin/certificados', label: 'Certificados', icon: 'workspace_premium' },
   { to: '/admin/sorteos',      label: 'Sorteos',      icon: 'casino' },
   { to: '/admin/tablero',      label: 'Tablero',      icon: 'view_kanban' },
+  { to: '/admin/navegacion',   label: 'Navegación',   icon: 'menu' },
   { to: '/admin/configuracion', label: 'Configuración', icon: 'tune' },
 ];
 

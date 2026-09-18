@@ -26,6 +26,7 @@ const StudentPortal     = lazy(() => import('./pages/student/StudentPortal'));
 const MoldesPage        = lazy(() => import('./pages/MoldesPage'));
 const PizarrasPage      = lazy(() => import('./pages/PizarrasPage'));
 const PizarrasAdminPage = lazy(() => import('./pages/admin/PizarrasAdminPage'));
+const NavegacionPage    = lazy(() => import('./pages/admin/NavegacionPage'));
 
 function PublicLayout({ children }) {
   return (
@@ -93,6 +94,7 @@ export default function App() {
             <Route path="papelera"      element={<Suspense fallback={<AdminFallback />}><PapeleraPage /></Suspense>} />
             <Route path="moldes"        element={<Suspense fallback={<AdminFallback />}><MoldesAdminPage /></Suspense>} />
             <Route path="pizarras"      element={<Suspense fallback={<AdminFallback />}><PizarrasAdminPage /></Suspense>} />
+            <Route path="navegacion"    element={<Suspense fallback={<AdminFallback />}><NavegacionPage /></Suspense>} />
           </Route>
 
           {/* Catch-all → home */}

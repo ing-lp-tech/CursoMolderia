@@ -2,7 +2,12 @@ import { useState, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useAppSettings } from '../context/AppSettingsContext';
+import { supabase } from '../lib/supabase';
 
+// FALLBACK, no la fuente de verdad. Los links salen de la tabla `nav_items`
+// y se administran desde /admin/navegacion. Este array es lo que se muestra
+// mientras la consulta viaja, y lo que queda si Supabase no responde: la
+// navbar nunca puede quedar vacía.
 const NAV_LINKS = [
   { to: '/',            label: 'Inicio',      icon: 'home' },
   { to: '/temario',     label: 'Programa',    icon: 'tactic' },
@@ -12,11 +17,52 @@ const NAV_LINKS = [
   { to: '/inscripcion', label: 'Inscribirse', icon: 'payments' },
 ];
 
+// Un ítem puede apuntar afuera ('https://…'): ahí va <a>, no <Link>, porque
+// el router no sabe navegar fuera de la app.
+function NavItem({ link, className, onClick, children }) {
+  if (/^https?:\/\//i.test(link.to)) {
+    return (
+      <a
+        href={link.to}
+        target={link.nueva ? '_blank' : undefined}
+        rel="noreferrer"
+        className={className}
+        onClick={onClick}
+      >
+        {children}
+      </a>
+    );
+  }
+  return <Link to={link.to} className={className} onClick={onClick}>{children}</Link>;
+}
+
 export default function Navbar() {
   const { pathname }                  = useLocation();
   const { user, isAdmin, signOut }    = useAuth();
   const { precio_base, fecha_inicio, site_url } = useAppSettings();
   const [menuOpen, setMenuOpen]       = useState(false);
+  const [links, setLinks]             = useState(NAV_LINKS);
+
+  // Si la consulta falla o vuelve vacía, `links` se queda con el fallback.
+  useEffect(() => {
+    let vivo = true;
+    supabase
+      .from('nav_items')
+      .select('label, path, icono, abre_en_nueva_pestana')
+      .eq('visible', true)
+      .is('eliminado_en', null)
+      .order('orden')
+      .then(({ data }) => {
+        if (!vivo || !data?.length) return;
+        setLinks(data.map(i => ({
+          to: i.path,
+          label: i.label,
+          icon: i.icono || 'link',
+          nueva: i.abre_en_nueva_pestana,
+        })));
+      });
+    return () => { vivo = false; };
+  }, []);
 
   const wappMsg = encodeURIComponent(
 `🔥 ESTO TE PUEDE CAMBIAR LA VIDA
@@ -74,10 +120,10 @@ Quiero inscribirme: (Completar nombre y apellido)`
 
         {/* Desktop: links centrales */}
         <div className="hidden md:flex gap-1 items-center">
-          {NAV_LINKS.map(link => (
-            <Link
+          {links.map(link => (
+            <NavItem
               key={link.to}
-              to={link.to}
+              link={link}
               className={`font-headline font-bold uppercase text-sm tracking-tight transition-colors px-3 py-1.5 rounded-lg ${
                 pathname === link.to
                   ? 'text-secondary bg-secondary/10'
@@ -85,7 +131,7 @@ Quiero inscribirme: (Completar nombre y apellido)`
               }`}
             >
               {link.label}
-            </Link>
+            </NavItem>
           ))}
         </div>
 
@@ -216,10 +262,10 @@ Quiero inscribirme: (Completar nombre y apellido)`
 
             {/* Links de navegación pública */}
             <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant/40 px-2 pt-2 pb-1">Navegación</p>
-            {NAV_LINKS.map(link => (
-              <Link
+            {links.map(link => (
+              <NavItem
                 key={link.to}
-                to={link.to}
+                link={link}
                 onClick={close}
                 className={`flex items-center gap-4 p-4 rounded-xl font-headline font-bold text-base uppercase tracking-wide transition-all ${
                   pathname === link.to
@@ -229,7 +275,7 @@ Quiero inscribirme: (Completar nombre y apellido)`
               >
                 <span className="material-symbols-outlined text-xl">{link.icon}</span>
                 {link.label}
-              </Link>
+              </NavItem>
             ))}
 
             {/* Footer del menú */}

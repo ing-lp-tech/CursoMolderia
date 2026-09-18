@@ -17,8 +17,14 @@ ETAPA                                       ESTADO
                                             sección de planes en /pizarras,
                                             tabs Planes y Créditos en el panel)
 
-3 a 9                                       Pendientes
+3 — Navbar administrable                    Código listo (06 + NavegacionPage
+                                            + Navbar leyendo de nav_items)
+
+4 a 9                                       Pendientes
 ```
+
+Scripts extra fuera de la numeración original: `03b` (anulación de guías de
+envío) y `04b` (créditos incluidos por plan).
 
 Scripts 00 a 05 ya corridos en Supabase. Falta verificar los checkpoints 1 y 2
 en producción (Parte 13).
