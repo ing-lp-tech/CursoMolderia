@@ -10,6 +10,10 @@ import { setCors, bloquearSiOrigenInvalido } from './_lib/cors.js';
 // el mismo, nunca uno nuevo. Nada de esto puede tumbar la aprobación: si
 // fallara, la venta ya está aprobada y el código se carga a mano.
 async function emitirCredito(supabase, compra, plan, unidades) {
+  // Un plan físico vende 1 unidad que incluye N digitalizaciones; "Solo
+  // Software" vende N créditos sueltos (creditos_por_unidad = 1, el default).
+  const creditos = unidades * (Number(plan.creditos_por_unidad) || 1);
+
   const { data: yaEmitido } = await supabase
     .from('digitalizacion_creditos')
     .select('codigo, creditos_total')
@@ -28,7 +32,7 @@ async function emitirCredito(supabase, compra, plan, unidades) {
       cliente_nombre:   compra.nombre,
       cliente_whatsapp: compra.whatsapp,
       cliente_email:    compra.email,
-      creditos_total:   unidades,
+      creditos_total:   creditos,
     })
     .select('codigo, creditos_total')
     .single();
@@ -43,7 +47,7 @@ async function emitirCredito(supabase, compra, plan, unidades) {
 async function aprobar(supabase, compra_id) {
   const { data: compra, error: compraErr } = await supabase
     .from('producto_compras')
-    .select('id, estado, producto_id, plan_id, titulo_plan, cantidad, metodo_pago, monto_cobrado, titulo_producto, categoria_producto, nombre, whatsapp, email')
+    .select('id, estado, producto_id, plan_id, titulo_plan, cantidad, metodo_pago, monto_cobrado, monto_producto, monto_envio, envia_carrier, titulo_producto, categoria_producto, nombre, whatsapp, email')
     .eq('id', compra_id)
     .single();
 
@@ -56,7 +60,7 @@ async function aprobar(supabase, compra_id) {
   if (compra.plan_id) {
     const { data } = await supabase
       .from('producto_planes')
-      .select('id, nombre, requiere_envio, otorga_creditos')
+      .select('id, nombre, requiere_envio, otorga_creditos, creditos_por_unidad')
       .eq('id', compra.plan_id)
       .maybeSingle();
     plan = data || null;
@@ -92,17 +96,41 @@ async function aprobar(supabase, compra_id) {
     .single();
   const titularCobrador = titularRow?.value?.trim() || null;
 
+  // El envío va en su propio movimiento. Si se registrara todo junto, una venta
+  // de $1.000 con $14.627 de correo entraría como un ingreso de $15.627 y en la
+  // tabla no habría forma de ver que casi todo es plata del correo, no ganancia.
   const detalleCantidad = unidades > 1 ? ` ×${unidades}` : '';
   const detallePlan = compra.titulo_plan ? ` (${compra.titulo_plan})` : '';
-  const { error: finErr } = await supabase.from('finanzas_movimientos').insert({
+  const fechaHoy = new Date().toISOString().slice(0, 10);
+
+  // Compras viejas (previas a esta separación) pueden no tener el desglose:
+  // ahí se cae al total, que es lo que se cobró.
+  const montoEnvio = Number(compra.monto_envio) || 0;
+  const montoProducto = Number(compra.monto_producto ?? compra.monto_cobrado) || 0;
+
+  const movimientos = [{
     tipo:        'ingreso',
     categoria:   'Venta de producto',
     descripcion: `${compra.categoria_producto || 'Producto'}: ${compra.titulo_producto}${detallePlan}${detalleCantidad} — ${compra.nombre}`,
-    monto:       Number(compra.monto_cobrado),
+    monto:       montoProducto,
     metodo:      metodoPagoLabel,
-    fecha:       new Date().toISOString().slice(0, 10),
+    fecha:       fechaHoy,
     cobrador:    titularCobrador,
-  });
+  }];
+
+  if (montoEnvio > 0) {
+    movimientos.push({
+      tipo:        'ingreso',
+      categoria:   'Envío cobrado al cliente',
+      descripcion: `Envío ${compra.envia_carrier || ''} — ${compra.titulo_producto} — ${compra.nombre}`.replace('  ', ' '),
+      monto:       montoEnvio,
+      metodo:      metodoPagoLabel,
+      fecha:       fechaHoy,
+      cobrador:    titularCobrador,
+    });
+  }
+
+  const { error: finErr } = await supabase.from('finanzas_movimientos').insert(movimientos);
   if (finErr) console.error('[PRODUCTO_FINANZAS_INSERT]', finErr.message);
 
   const credito = plan?.otorga_creditos

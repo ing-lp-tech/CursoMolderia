@@ -423,16 +423,27 @@ function TabVentas() {
 
       const wa_num = compra.whatsapp.replace(/\D/g, '');
 
-      // El endpoint devuelve el código cuando el plan otorga créditos: ese
-      // mensaje es la entrega del producto, así que va primero.
+      // Un plan puede ser físico Y traer créditos ("Inicial" se despacha y
+      // además incluye digitalizaciones), así que el mensaje se arma por
+      // partes en vez de elegir una de tres variantes.
       const cred = data.credito;
-      const texto = encodeURIComponent(
-        cred
-          ? `Hola ${compra.nombre}! ✅ Tu pago fue aprobado.\nTu código de digitalización es:\n\n*${cred.codigo}*\n\nTe sirve para ${cred.creditos} ${cred.creditos === 1 ? 'digitalización' : 'digitalizaciones'}.\n¡Gracias por tu compra en Moldi Tex! 🧵`
-          : compra.metodo_envio === 'coordinar'
-            ? `Hola ${compra.nombre}! ✅ Tu pago fue aprobado. Coordinemos por acá el envío de tu *${compra.titulo_producto}*. ¡Gracias por tu compra en Moldi Tex! 📦`
-            : `Hola ${compra.nombre}! ✅ Tu pago fue aprobado. Ya estamos preparando el envío de tu *${compra.titulo_producto}* por ${compra.envia_carrier}. Te paso el código de seguimiento en cuanto lo generemos. ¡Gracias por tu compra en Moldi Tex! 📦`
-      );
+      const partes = [`Hola ${compra.nombre}! ✅ Tu pago fue aprobado.`];
+
+      if (compra.direccion_calle) {
+        partes.push(compra.metodo_envio === 'coordinar'
+          ? `Coordinemos por acá el envío de tu *${compra.titulo_producto}*.`
+          : `Ya estamos preparando el envío de tu *${compra.titulo_producto}* por ${compra.envia_carrier}. Te paso el código de seguimiento en cuanto lo generemos.`);
+      }
+
+      if (cred) {
+        partes.push(
+          `Tu código de digitalización es:\n\n*${cred.codigo}*\n\n` +
+          `Te sirve para ${cred.creditos} ${cred.creditos === 1 ? 'digitalización' : 'digitalizaciones'}.`
+        );
+      }
+
+      partes.push('¡Gracias por tu compra en Moldi Tex! 🧵');
+      const texto = encodeURIComponent(partes.join('\n\n'));
       window.open(`https://wa.me/${wa_num}?text=${texto}`, '_blank');
 
       setCompras(prev => prev.map(c => c.id === compra.id ? { ...c, estado: 'aprobado' } : c));
@@ -699,7 +710,7 @@ function TabVentas() {
 const PLAN_INICIAL = {
   producto_id: '', nombre: '', descripcion: '', incluye: '',
   precio: '0', precio_sufijo: '',
-  requiere_envio: true, otorga_creditos: false,
+  requiere_envio: true, otorga_creditos: false, creditos_por_unidad: 1,
   cantidad_min: 1, cantidad_max: 1,
   destacado: false, orden: 0, activo: true,
 };
@@ -757,6 +768,7 @@ function TabPlanes() {
       precio_sufijo: pl.precio_sufijo || '',
       requiere_envio: pl.requiere_envio,
       otorga_creditos: pl.otorga_creditos,
+      creditos_por_unidad: pl.creditos_por_unidad ?? 1,
       cantidad_min: pl.cantidad_min,
       cantidad_max: pl.cantidad_max,
       destacado: pl.destacado,
@@ -784,6 +796,7 @@ function TabPlanes() {
         precio_sufijo:   form.precio_sufijo.trim() || null,
         requiere_envio:  !!form.requiere_envio,
         otorga_creditos: !!form.otorga_creditos,
+        creditos_por_unidad: Math.max(1, Number(form.creditos_por_unidad) || 1),
         cantidad_min:    min,
         cantidad_max:    max,
         destacado:       !!form.destacado,
@@ -852,7 +865,9 @@ function TabPlanes() {
                   <span className="text-[10px] font-bold uppercase tracking-wide bg-secondary/20 text-secondary rounded-full px-2 py-0.5">Destacado</span>
                 )}
                 {pl.otorga_creditos && (
-                  <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary rounded-full px-2 py-0.5">Créditos</span>
+                  <span className="text-[10px] font-bold uppercase tracking-wide bg-primary/15 text-primary rounded-full px-2 py-0.5">
+                    {(pl.creditos_por_unidad ?? 1) > 1 ? `${pl.creditos_por_unidad} créditos c/u` : 'Créditos'}
+                  </span>
                 )}
                 {!pl.requiere_envio && (
                   <span className="text-[10px] font-bold uppercase tracking-wide bg-surface-variant text-on-surface-variant rounded-full px-2 py-0.5">Sin envío</span>
@@ -982,6 +997,20 @@ function TabPlanes() {
                   {form.otorga_creditos ? 'Al aprobar, emite un código de digitalización' : 'No emite código'}
                 </span>
               </label>
+
+              {form.otorga_creditos && (
+                <div className="pl-14">
+                  <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">
+                    Créditos por unidad
+                  </label>
+                  <input type="number" min={1} value={form.creditos_por_unidad} className="input-field"
+                    onChange={e => setForm(f => ({ ...f, creditos_por_unidad: e.target.value }))} />
+                  <p className="text-xs text-on-surface-variant mt-1">
+                    Cuántas digitalizaciones entrega cada unidad comprada. Una pizarra que
+                    incluye 10 digitalizaciones va con 10; los créditos sueltos van con 1.
+                  </p>
+                </div>
+              )}
 
               <label className="flex items-center gap-3 cursor-pointer py-1">
                 <div onClick={() => setForm(f => ({ ...f, destacado: !f.destacado }))}
