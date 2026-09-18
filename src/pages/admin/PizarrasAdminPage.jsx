@@ -1,18 +1,11 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
-import { compressImage } from '../../utils/imageCompression';
 import { registrarAuditoria } from '../../utils/auditoria';
+import { imgUrl, uploadImagen } from '../../utils/imagenesProducto';
+import SlotImagen from '../../components/SlotImagen';
 import { useAuth } from '../../context/AuthContext';
 
 const SUPER_ADMIN  = 'ing.lp.tech@gmail.com';
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const IMG_BUCKET   = 'pizarras-imagenes';
-
-function imgUrl(path) {
-  if (!path) return null;
-  return `${SUPABASE_URL}/storage/v1/object/public/${IMG_BUCKET}/${path}`;
-}
-
 function fmt(n) { return Number(n || 0).toLocaleString('es-AR'); }
 function fmtDate(d) {
   if (!d) return '—';
@@ -28,60 +21,6 @@ async function idCategoriaPizarras() {
     .eq('slug', 'pizarras')
     .maybeSingle();
   return data?.id || null;
-}
-
-async function uploadImagen(file, pizarraId, slot) {
-  const blob = await compressImage(file);
-  const path = `${pizarraId}/img_${slot}.jpg`;
-  const { error } = await supabase.storage.from(IMG_BUCKET).upload(path, blob, { contentType: 'image/jpeg', upsert: true });
-  if (error) throw error;
-  return path;
-}
-
-// ── Selector de imagen (slot individual) ─────────────────────────────────────
-function SlotImagen({ valor, onChange, label }) {
-  const ref = useRef();
-  const [preview, setPreview] = useState(valor ? imgUrl(valor) : null);
-  const [cargando, setCargando] = useState(false);
-
-  useEffect(() => { setPreview(valor ? imgUrl(valor) : null); }, [valor]);
-
-  async function handleFile(e) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setCargando(true);
-    try {
-      const blob = await compressImage(file);
-      const url  = URL.createObjectURL(blob);
-      setPreview(url);
-      onChange(file, blob);
-    } catch { alert('Error al procesar la imagen'); }
-    finally { setCargando(false); }
-  }
-
-  return (
-    <div className="flex flex-col items-center gap-1">
-      <div
-        onClick={() => ref.current?.click()}
-        className="w-24 h-24 rounded-xl border-2 border-dashed border-outline-variant/40 hover:border-primary/50 transition-all cursor-pointer overflow-hidden flex items-center justify-center bg-surface-variant relative"
-      >
-        {cargando && <span className="material-symbols-outlined text-primary animate-spin text-2xl">refresh</span>}
-        {!cargando && preview && <img src={preview} alt="" className="w-full h-full object-cover" />}
-        {!cargando && !preview && <span className="material-symbols-outlined text-on-surface-variant/40 text-3xl">add_photo_alternate</span>}
-        {!cargando && preview && (
-          <button
-            type="button"
-            onClick={e => { e.stopPropagation(); setPreview(null); onChange(null, null); }}
-            className="absolute top-1 right-1 bg-error text-white rounded-full p-0.5"
-          >
-            <span className="material-symbols-outlined text-xs">close</span>
-          </button>
-        )}
-      </div>
-      <span className="text-[10px] text-on-surface-variant">{label}</span>
-      <input ref={ref} type="file" accept="image/*" className="hidden" onChange={handleFile} />
-    </div>
-  );
 }
 
 // ════════════════════════════════════════════════════════════════

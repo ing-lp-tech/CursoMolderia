@@ -20,7 +20,11 @@ ETAPA                                       ESTADO
 3 — Navbar administrable                    Código listo (06 + NavegacionPage
                                             + Navbar leyendo de nav_items)
 
-4 a 9                                       Pendientes
+4 — Tienda unificada                        Código listo (TiendaPage,
+                                            ProductosAdminPage, modal de compra
+                                            extraído y compartido)
+
+5 a 9                                       Pendientes
 ```
 
 Scripts extra fuera de la numeración original: `03b` (anulación de guías de

@@ -19,6 +19,8 @@ const TABS = [
   { key: 'subcat_moldes',label: 'Subcat.',      icon: 'account_tree',           tabla: 'moldes_subcategorias' },
   { key: 'compras',      label: 'Compras',      icon: 'shopping_bag',           tabla: 'moldes_compras' },
   { key: 'productos',    label: 'Productos',    icon: 'inventory_2',            tabla: 'productos' },
+  { key: 'prod_cat',     label: 'Cat. prod.',   icon: 'category',               tabla: 'producto_categorias' },
+  { key: 'prod_subcat',  label: 'Subcat. prod.',icon: 'account_tree',           tabla: 'producto_subcategorias' },
   { key: 'prod_planes',  label: 'Planes',       icon: 'sell',                   tabla: 'producto_planes' },
   { key: 'prod_compras', label: 'Ventas prod.', icon: 'local_shipping',         tabla: 'producto_compras' },
   { key: 'nav_items',    label: 'Navegación',   icon: 'menu',                   tabla: 'nav_items' },
@@ -67,6 +69,10 @@ function describeItem(tab, item) {
       return `${item.nombre || '—'} — ${item.email || '—'} — ${item.titulo_molde || '—'} — ${fmtMonto(item.monto_cobrado)} (${item.metodo_pago || '—'})`;
     case 'productos':
       return `${item.titulo || 'Sin título'} — ${fmtMonto(item.precio)} — Stock: ${item.stock ?? 0}`;
+    case 'prod_cat':
+      return `Categoría: ${item.nombre || '—'} (/tienda/${item.slug || ''})`;
+    case 'prod_subcat':
+      return `Subcategoría: ${item.nombre || '—'}`;
     case 'prod_planes':
       return `${item.nombre || 'Sin nombre'} — ${fmtMonto(item.precio)}${item.precio_sufijo ? ` ${item.precio_sufijo}` : ''}`;
     case 'prod_compras':
