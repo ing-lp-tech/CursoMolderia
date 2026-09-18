@@ -41,11 +41,18 @@ export default async function handler(req, res) {
     return res.status(200).json({ ok: true, ignorado: true });
   }
 
+  // Si envia.com avisa que el envío se canceló, la compra queda marcada como
+  // guía anulada y el panel deja volver a generarla. No todas las
+  // cancelaciones llegan por acá (las hechas a mano en su panel muchas veces
+  // no disparan el evento), por eso el panel tiene además un botón manual.
+  const cancelado = /cancel|anul/i.test(String(status || ''));
+
   try {
     let query = supabase.from('producto_compras').update({
       envia_estado: status || null,
       envia_estado_actualizado_en: new Date().toISOString(),
       envia_webhook_raw: req.body,
+      ...(cancelado ? { envia_cancelado_en: new Date().toISOString() } : {}),
     });
 
     query = shipmentId

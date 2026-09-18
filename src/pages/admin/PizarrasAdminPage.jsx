@@ -391,6 +391,7 @@ function TabVentas() {
   const [aprobando,  setAprobando]  = useState(null);
   const [rechazando, setRechazando] = useState(null);
   const [generando,  setGenerando]  = useState(null);
+  const [anulando,   setAnulando]   = useState(null);
   const [eliminando, setEliminando] = useState(null);
   const [motivoMap,  setMotivoMap]  = useState({});
 
@@ -485,11 +486,43 @@ function TabVentas() {
         envia_tracking_number: data.tracking_number,
         envia_label_url: data.label_url,
         envia_tracking_url: data.tracking_url,
+        // Si esta guía reemplaza a una anulada, la ficha vuelve a estado vivo.
+        envia_cancelado_en: null,
+        envia_cancelado_por_email: null,
+        envia_estado: null,
       } : c));
     } catch (ex) {
       alert(ex?.message || 'Error inesperado');
     } finally {
       setGenerando(null);
+    }
+  }
+
+  async function anularEnvio(compra) {
+    if (!confirm(
+      `¿Marcar como anulada la guía de ${compra.nombre}?
+
+` +
+      `Esto NO cancela nada en envia.com: cancelala allá primero. ` +
+      `Acá queda registrada la anulación y vas a poder generar una guía nueva.`
+    )) return;
+    setAnulando(compra.id);
+    try {
+      const { data: { session } } = await supabase.auth.getSession();
+      const res = await fetch('/api/producto-admin', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
+        body: JSON.stringify({ compra_id: compra.id, accion: 'anular-envio' }),
+      });
+      const data = await res.json();
+      if (!res.ok) { alert(data.error || 'Error al anular la guía'); return; }
+      setCompras(prev => prev.map(c => c.id === compra.id
+        ? { ...c, envia_cancelado_en: new Date().toISOString() }
+        : c));
+    } catch (ex) {
+      alert(ex?.message || 'Error inesperado');
+    } finally {
+      setAnulando(null);
     }
   }
 
@@ -651,8 +684,8 @@ function TabVentas() {
 
               {c.estado === 'aprobado' && c.direccion_calle && c.metodo_envio !== 'coordinar' && (
                 <div className="pt-1 border-t border-outline-variant/10">
-                  {c.envia_tracking_number ? (
-                    <div className="flex items-center justify-between gap-2 text-sm bg-secondary/10 rounded-xl p-3">
+                  {c.envia_tracking_number && !c.envia_cancelado_en ? (
+                    <div className="flex items-center justify-between gap-2 text-sm bg-secondary/10 rounded-xl p-3 flex-wrap">
                       <div>
                         <p className="font-bold text-secondary">Envío generado</p>
                         <p className="text-xs text-on-surface-variant font-mono">Tracking: {c.envia_tracking_number}</p>
@@ -663,7 +696,7 @@ function TabVentas() {
                           </p>
                         )}
                       </div>
-                      <div className="flex gap-2 shrink-0">
+                      <div className="flex gap-2 shrink-0 flex-wrap">
                         {c.envia_tracking_url && (
                           <a href={c.envia_tracking_url} target="_blank" rel="noreferrer"
                             className="btn-secondary text-xs py-2 px-3">Ver seguimiento</a>
@@ -672,7 +705,33 @@ function TabVentas() {
                           <a href={c.envia_label_url} target="_blank" rel="noreferrer"
                             className="btn-secondary text-xs py-2 px-3">Ver etiqueta</a>
                         )}
+                        <button onClick={() => anularEnvio(c)} disabled={anulando === c.id}
+                          className="text-xs py-2 px-3 rounded-xl bg-error/10 text-error font-bold hover:bg-error/20 transition-all disabled:opacity-50">
+                          {anulando === c.id ? 'Anulando…' : 'Anular guía'}
+                        </button>
                       </div>
+                    </div>
+                  ) : c.envia_cancelado_en ? (
+                    <div className="space-y-2">
+                      <div className="text-sm bg-error/10 rounded-xl p-3">
+                        <p className="font-bold text-error">Guía anulada</p>
+                        <p className="text-xs text-on-surface-variant">
+                          {fmtDate(c.envia_cancelado_en)}
+                          {c.envia_cancelado_por_email ? ` · ${c.envia_cancelado_por_email}` : ''}
+                        </p>
+                        {c.envia_tracking_number && (
+                          <p className="text-xs text-on-surface-variant font-mono line-through opacity-70">
+                            Tracking anulado: {c.envia_tracking_number}
+                          </p>
+                        )}
+                      </div>
+                      <button onClick={() => generarEnvio(c)} disabled={generando === c.id}
+                        className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary/15 text-primary text-sm font-bold hover:bg-primary/25 transition-all disabled:opacity-50">
+                        {generando === c.id
+                          ? <><span className="material-symbols-outlined text-base animate-spin">refresh</span>Generando envío…</>
+                          : <><span className="material-symbols-outlined text-base">local_shipping</span>Generar una guía nueva</>
+                        }
+                      </button>
                     </div>
                   ) : (
                     <button onClick={() => generarEnvio(c)} disabled={generando === c.id}

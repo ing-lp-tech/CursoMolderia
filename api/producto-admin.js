@@ -149,7 +149,7 @@ async function generarEnvioParaCompra(supabase, compra_id) {
   const { data: compra, error: compraErr } = await supabase
     .from('producto_compras')
     .select(`
-      id, estado, envia_shipment_id, envia_carrier, envia_service, envia_service_descripcion, sucursal_codigo,
+      id, estado, envia_shipment_id, envia_cancelado_en, envia_carrier, envia_service, envia_service_descripcion, sucursal_codigo,
       nombre, whatsapp, email,
       direccion_calle, direccion_numero, direccion_piso_depto,
       direccion_ciudad, direccion_provincia, direccion_codigo_postal, direccion_referencia,
@@ -160,7 +160,10 @@ async function generarEnvioParaCompra(supabase, compra_id) {
 
   if (compraErr || !compra) throw Object.assign(new Error('Compra no encontrada'), { status: 404 });
   if (compra.estado !== 'aprobado') throw Object.assign(new Error('La compra debe estar aprobada para generar el envío'), { status: 400 });
-  if (compra.envia_shipment_id) throw Object.assign(new Error('Ya se generó el envío para esta compra'), { status: 400 });
+  // Una guía anulada no bloquea: justamente se anula para poder rehacerla.
+  if (compra.envia_shipment_id && !compra.envia_cancelado_en) {
+    throw Object.assign(new Error('Ya se generó el envío para esta compra'), { status: 400 });
+  }
   // Una compra de un plan sin envío no tiene dirección: envia.com rechazaría
   // la guía con un error mucho menos claro que este.
   if (!compra.direccion_calle) throw Object.assign(new Error('Esta compra no lleva envío: no hay guía que generar'), { status: 400 });
@@ -208,6 +211,10 @@ async function generarEnvioParaCompra(supabase, compra_id) {
     envia_tracking_number: resultado.tracking_number,
     envia_label_url:       resultado.label_url,
     envia_generado_en:     new Date().toISOString(),
+    // Si esta guía reemplaza a una anulada, la compra vuelve a tener envío vivo.
+    envia_cancelado_en:        null,
+    envia_cancelado_por_email: null,
+    envia_estado:              null,
   }).eq('id', compra_id);
 
   if (updateErr) {
@@ -227,6 +234,33 @@ async function generarEnvioParaCompra(supabase, compra_id) {
   }
 
   return { ok: true, ...resultado };
+}
+
+// Marca la guía como anulada. NO cancela nada en envia.com: eso se hace en el
+// panel de ellos, y esto deja al sistema al día con lo que ya pasó allá.
+// El tracking y la etiqueta vieja se conservan como rastro.
+async function anularEnvio(supabase, compra_id, email) {
+  const { data: compra, error: compraErr } = await supabase
+    .from('producto_compras')
+    .select('id, envia_shipment_id, envia_cancelado_en')
+    .eq('id', compra_id)
+    .single();
+
+  if (compraErr || !compra) throw Object.assign(new Error('Compra no encontrada'), { status: 404 });
+  if (!compra.envia_shipment_id) throw Object.assign(new Error('Esta compra no tiene guía generada'), { status: 400 });
+  if (compra.envia_cancelado_en) throw Object.assign(new Error('Esta guía ya figura anulada'), { status: 400 });
+
+  const { error } = await supabase.from('producto_compras').update({
+    envia_cancelado_en:        new Date().toISOString(),
+    envia_cancelado_por_email: email || null,
+  }).eq('id', compra_id);
+
+  if (error) {
+    console.error('[PRODUCTO_ENVIO_ANULAR]', error.message);
+    throw Object.assign(new Error('No se pudo registrar la anulación'), { status: 500 });
+  }
+
+  return { ok: true };
 }
 
 export default async function handler(req, res) {
@@ -255,14 +289,16 @@ export default async function handler(req, res) {
   if (!compra_id || typeof compra_id !== 'string') {
     return res.status(400).json({ error: 'compra_id inválido' });
   }
-  if (accion !== 'aprobar' && accion !== 'generar-envio') {
+  const ACCIONES = ['aprobar', 'generar-envio', 'anular-envio'];
+  if (!ACCIONES.includes(accion)) {
     return res.status(400).json({ error: 'accion inválida' });
   }
 
   try {
-    const resultado = accion === 'aprobar'
-      ? await aprobar(supabase, compra_id)
-      : await generarEnvioParaCompra(supabase, compra_id);
+    const resultado =
+      accion === 'aprobar'       ? await aprobar(supabase, compra_id) :
+      accion === 'generar-envio' ? await generarEnvioParaCompra(supabase, compra_id) :
+                                   await anularEnvio(supabase, compra_id, user.email);
     return res.status(200).json(resultado);
   } catch (err) {
     console.error('[PRODUCTO_ADMIN_ERROR]', accion, err?.message || err);
