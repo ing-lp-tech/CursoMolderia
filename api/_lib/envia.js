@@ -79,10 +79,18 @@ function destinoDesdeComprador(comprador) {
 // Servicios "a Sucursal" traen dropOffDescription tipo "Door - Branch" —
 // la segunda palabra indica cómo se maneja el destino. Si es "Branch",
 // hay que elegir una sucursal puntual antes de generar el envío.
-function requiereSucursalDestino(dropOffDescription) {
-  if (!dropOffDescription) return false;
-  const partes = String(dropOffDescription).split('-').map(s => s.trim().toLowerCase());
-  return partes[1] === 'branch' || partes[1] === 'sucursal';
+//
+// envia.com no siempre manda ese campo: cuando falta, el nombre del servicio
+// ("Correo Argentino Estándar a Sucursal") también lo dice. Sin este segundo
+// camino la compra se guarda sin sucursal y envia.com recién se queja al
+// generar la guía, con la venta ya cobrada y aprobada (error 1127,
+// "Destination branch code is required for home to branch service").
+function requiereSucursalDestino(dropOffDescription, servicio) {
+  if (dropOffDescription) {
+    const partes = String(dropOffDescription).split('-').map(s => s.trim().toLowerCase());
+    if (partes[1] === 'branch' || partes[1] === 'sucursal') return true;
+  }
+  return /sucursal|branch|agencia/i.test(String(servicio || ''));
 }
 
 function normalizarSucursal(b) {
@@ -239,7 +247,10 @@ export async function cotizarEnvio(pizarra, comprador) {
       precio:       Number(o.totalPrice ?? o.total_price ?? o.price ?? 0),
       moneda:       o.currency || 'ARS',
       entrega_estimada: o.deliveryEstimate || o.delivery_estimate || null,
-      requiere_sucursal: requiereSucursalDestino(o.dropOffDescription),
+      requiere_sucursal: requiereSucursalDestino(
+        o.dropOffDescription,
+        o.serviceDescription || o.service,
+      ),
     }))
     .filter(o => o.precio > 0)
     .sort((a, b) => a.precio - b.precio);

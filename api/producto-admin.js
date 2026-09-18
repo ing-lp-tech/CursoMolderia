@@ -121,7 +121,7 @@ async function generarEnvioParaCompra(supabase, compra_id) {
   const { data: compra, error: compraErr } = await supabase
     .from('producto_compras')
     .select(`
-      id, estado, envia_shipment_id, envia_carrier, envia_service, sucursal_codigo,
+      id, estado, envia_shipment_id, envia_carrier, envia_service, envia_service_descripcion, sucursal_codigo,
       nombre, whatsapp, email,
       direccion_calle, direccion_numero, direccion_piso_depto,
       direccion_ciudad, direccion_provincia, direccion_codigo_postal, direccion_referencia,
@@ -136,6 +136,19 @@ async function generarEnvioParaCompra(supabase, compra_id) {
   // Una compra de un plan sin envío no tiene dirección: envia.com rechazaría
   // la guía con un error mucho menos claro que este.
   if (!compra.direccion_calle) throw Object.assign(new Error('Esta compra no lleva envío: no hay guía que generar'), { status: 400 });
+
+  // Un servicio "a sucursal" sin código de sucursal lo rechaza envia.com con un
+  // JSON crudo (error 1127). Mejor decirle al admin qué le falta y dónde.
+  const aSucursal = /sucursal|branch|agencia/i.test(
+    `${compra.envia_service_descripcion || ''} ${compra.envia_service || ''}`
+  );
+  if (aSucursal && !compra.sucursal_codigo) {
+    throw Object.assign(new Error(
+      'Esta compra es a sucursal pero no tiene sucursal de destino guardada. ' +
+      'Cargá sucursal_codigo (y su nombre) en producto_compras antes de generar la guía, ' +
+      'o pedile al cliente que rehaga la compra eligiendo sucursal.'
+    ), { status: 400 });
+  }
 
   const producto = compra.productos;
   if (!producto) throw Object.assign(new Error('Producto de la compra no encontrado'), { status: 404 });
