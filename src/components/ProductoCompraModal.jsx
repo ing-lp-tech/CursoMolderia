@@ -75,16 +75,21 @@ function normalizeWhatsapp(raw) {
 }
 
 // ── Post-purchase screen ─────────────────────────────────────────────────────
-export function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion, settings, sinEnvio = false, onClose }) {
+// `producto` es el título, y puede venir vacío: al volver de MercadoPago la
+// página solo tiene el id de la compra en la URL, no el producto. Por eso el
+// mensaje cae a "mi compra" en vez de nombrar algo equivocado.
+export function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion, settings, producto = null, sinEnvio = false, onClose }) {
   const wa = settings.moldes_whatsapp_comprobante?.replace(/\D/g, '');
 
   const direccionTexto = direccion
     ? `${direccion.calle} ${direccion.numero || ''}${direccion.piso_depto ? ', ' + direccion.piso_depto : ''}, ${direccion.ciudad}, ${direccion.provincia} (CP ${direccion.codigo_postal})${direccion.referencia ? ' — Ref: ' + direccion.referencia : ''}`
     : '';
 
+  const queCompro = producto ? `"${producto}"` : 'mi compra';
+
   const lineaBase = metodo === 'mercadopago'
-    ? `Hola! Ya pagué con MercadoPago la pizarra digitalizadora (código #${compraId?.slice(0, 8) ?? ''}).`
-    : `Hola! Acabo de realizar una compra de una pizarra digitalizadora (#${compraId?.slice(0, 8) ?? ''}). Adjunto mi comprobante de pago por $${monto?.toLocaleString('es-AR') ?? ''}.`;
+    ? `Hola! Ya pagué con MercadoPago ${queCompro} (código #${compraId?.slice(0, 8) ?? ''}).`
+    : `Hola! Acabo de realizar la compra de ${queCompro} (#${compraId?.slice(0, 8) ?? ''}). Adjunto mi comprobante de pago por $${monto?.toLocaleString('es-AR') ?? ''}.`;
 
   const lineaCierre = sinEnvio
     ? ` Te aviso para que apruebes mi compra y me pases el código de digitalización. ¡Gracias!`
@@ -372,6 +377,7 @@ export default function ProductoCompraModal({
       <PantallaVerificacion
         metodo={metodo}
         metodoEnvio={metodoEnvio}
+        producto={pizarra.titulo}
         sinEnvio={!exigeEnvio}
         monto={montoFinal}
         compraId={compraId}
@@ -464,14 +470,18 @@ export default function ProductoCompraModal({
                   ))}
                 </ul>
               )}
-              <div className="flex items-center gap-2 text-xs text-on-surface-variant bg-surface-variant/50 rounded-xl p-3">
-                <span className="material-symbols-outlined text-base">local_shipping</span>
-                Envío a todo el país con envia.com. El costo se calcula según tu dirección.
-              </div>
+              {/* Un producto que no se despacha (créditos de software) no tiene
+                  por qué prometer un envío que nunca va a ocurrir. */}
+              {pizarra.requiere_envio !== false && (
+                <div className="flex items-center gap-2 text-xs text-on-surface-variant bg-surface-variant/50 rounded-xl p-3">
+                  <span className="material-symbols-outlined text-base">local_shipping</span>
+                  Envío a todo el país con envia.com. El costo se calcula según tu dirección.
+                </div>
+              )}
               {planes.length > 0 ? (
                 <button onClick={() => setStep('planes')} className="btn-primary w-full">Ver planes y comprar</button>
               ) : pizarra.stock > 0 ? (
-                <button onClick={() => setStep('form')} className="btn-primary w-full">Comprar pizarra digitalizadora</button>
+                <button onClick={() => setStep('form')} className="btn-primary w-full">Comprar {pizarra.titulo}</button>
               ) : (
                 <button disabled className="btn-primary w-full opacity-50 cursor-not-allowed">Sin stock por el momento</button>
               )}
