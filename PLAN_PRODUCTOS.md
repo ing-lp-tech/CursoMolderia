@@ -24,13 +24,26 @@ ETAPA                                       ESTADO
                                             ProductosAdminPage, modal de compra
                                             extraído y compartido)
 
-5 — Stock                                   Código listo (08 + la función
-                                            fn_registrar_movimiento_stock,
-                                            salida automática al aprobar,
-                                            tab Stock en /admin/productos,
-                                            tab Stock en la papelera)
+5 — Stock                                   ✅ VERIFICADA en producción
+                                            (08 corrido + salida automática al
+                                            aprobar una venta de papel, tab
+                                            Stock y papelera andando)
 
-6 a 9                                       Pendientes
+5b — Imágenes (script 07 + Parte 9)         PENDIENTE — traba el Checkpoint 4
+
+6 — Gancho de digitalización                Pendiente (script 09)
+
+7 — Categoría en Finanzas                   ✅ YA ESTABA HECHA
+                                            FinanzasPage.jsx:8 tiene las tres:
+                                            'Venta de producto', 'Venta de
+                                            pizarra digitalizadora' y 'Envío
+                                            cobrado al cliente'
+
+8 — Cargar plotters y PCs reales            En curso (papel ya cargado y
+                                            vendido de punta a punta)
+
+9 — Limpieza                                Pendiente (scripts 10 y 11, que
+                                            todavía no existen)
 ```
 
 Scripts extra fuera de la numeración original: `03b` (anulación de guías de
@@ -45,12 +58,10 @@ fallback y sirve la imagen grande. Nada se ve roto, pero **el Checkpoint 4
 ("las tarjetas cargan miniaturas") no se puede pasar hasta hacerlo.**
 Va como Etapa 5b, entre Stock y el gancho de digitalización.
 
-Scripts 00 a 05 ya corridos en Supabase. **Falta correr `08`** (Etapa 5) y
-verificar los checkpoints 1 y 2 en producción (Parte 13).
-
-Mientras `08` no esté corrido, la aprobación descuenta el stock como antes:
-`api/producto-admin.js` llama a la función nueva y, si todavía no existe, cae al
-update directo. Ninguna venta se pierde entre el deploy y el script.
+Scripts 00 a 06 y 08 ya corridos en Supabase. Las vistas de compatibilidad
+`pizarras` y `pizarras_compras` **siguen vivas**: debían borrarse a las 24-48 hs
+de la Etapa 1 y ya pasaron varios días. El script `10` que las borra todavía no
+está escrito.
 
 **Cambio sobre el plan original:** los shims `api/create-pizarra.js` y
 `api/pizarra-admin.js` no existen como archivos. El plan Hobby de Vercel admite
@@ -1084,12 +1095,16 @@ CHECKPOINT 6:
   □ El README del contrato queda en sql/productos/
 ```
 
-### Etapa 7 — Categoría en Finanzas
+### Etapa 7 — Categoría en Finanzas ✅ HECHA
+
+`FinanzasPage.jsx:8` ya incluye las tres categorías que inserta
+`api/producto-admin.js` al aprobar: `'Venta de producto'`, `'Venta de pizarra
+digitalizadora'` y `'Envío cobrado al cliente'`. No queda nada por hacer acá.
 
 ```
 CHECKPOINT 7:
-  □ 'Venta de producto' aparece en el desplegable y en los filtros
-  □ Los movimientos viejos siguen visibles e intactos
+  ✅ 'Venta de producto' aparece en el desplegable y en los filtros
+  ✅ Los movimientos viejos siguen visibles e intactos
 ```
 
 ### Etapa 8 — Cargar plotters y PCs reales
