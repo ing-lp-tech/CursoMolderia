@@ -444,8 +444,17 @@ function TabProductos() {
 
       // Las imágenes se suben recién ahora: si el formulario tenía un error, no
       // dejamos archivos sueltos en el bucket.
+      //
+      // La carpeta del storage sale del slug de la categoría elegida. Si el
+      // producto cambia de categoría más adelante, las fotos viejas quedan en
+      // la carpeta anterior: siguen sirviéndose igual (el path está guardado
+      // en la fila) y se reacomodan solas cuando las vuelvas a subir.
+      const slugCat = categorias.find(c => c.id === form.categoria_id)?.slug;
       for (let i = 0; i < 3; i++) {
-        if (imgs[i]) payload[`imagen_${i + 1}_path`] = await uploadImagen(imgs[i], id, i + 1);
+        if (!imgs[i]) continue;
+        const { imagen_path, thumb_path } = await uploadImagen(imgs[i], id, i + 1, slugCat);
+        payload[`imagen_${i + 1}_path`] = imagen_path;
+        payload[`thumb_${i + 1}_path`]  = thumb_path;
       }
 
       const { error: err } = editando
@@ -518,8 +527,8 @@ function TabProductos() {
             p.activo ? 'border-outline-variant/20' : 'border-outline-variant/10 opacity-60'
           }`}>
             <div className="w-14 h-14 rounded-xl overflow-hidden bg-surface-variant shrink-0 flex items-center justify-center">
-              {imgUrl(p.imagen_1_path)
-                ? <img src={imgUrl(p.imagen_1_path)} alt="" className="w-full h-full object-cover" />
+              {imgUrl(p.thumb_1_path || p.imagen_1_path)
+                ? <img src={imgUrl(p.thumb_1_path || p.imagen_1_path)} alt="" className="w-full h-full object-cover" />
                 : <span className="material-symbols-outlined text-on-surface-variant/30 text-2xl">inventory_2</span>}
             </div>
             <div className="flex-1 min-w-0">
@@ -859,8 +868,8 @@ function TabStock() {
             p.activo ? 'border-outline-variant/20' : 'border-outline-variant/10 opacity-60'
           }`}>
             <div className="w-11 h-11 rounded-xl overflow-hidden bg-surface-variant shrink-0 flex items-center justify-center">
-              {imgUrl(p.imagen_1_path)
-                ? <img src={imgUrl(p.imagen_1_path)} alt="" className="w-full h-full object-cover" />
+              {imgUrl(p.thumb_1_path || p.imagen_1_path)
+                ? <img src={imgUrl(p.thumb_1_path || p.imagen_1_path)} alt="" className="w-full h-full object-cover" />
                 : <span className="material-symbols-outlined text-on-surface-variant/30 text-xl">inventory_2</span>}
             </div>
             <div className="flex-1 min-w-0">

@@ -116,8 +116,18 @@ function TabProductos() {
         editando?.imagen_2_path || null,
         editando?.imagen_3_path || null,
       ];
+      const thumbs = [
+        editando?.thumb_1_path || null,
+        editando?.thumb_2_path || null,
+        editando?.thumb_3_path || null,
+      ];
+      // Esta pantalla es el sector de pizarras, así que la carpeta es siempre
+      // la misma; es el mismo slug que busca idCategoriaPizarras().
       for (let i = 0; i < 3; i++) {
-        if (imgBlobs[i]) paths[i] = await uploadImagen(imgs[i], pizarraId, i + 1);
+        if (!imgBlobs[i]) continue;
+        const subida = await uploadImagen(imgs[i], pizarraId, i + 1, 'pizarras');
+        paths[i]  = subida.imagen_path;
+        thumbs[i] = subida.thumb_path;
       }
 
       const payload = {
@@ -135,6 +145,9 @@ function TabProductos() {
         imagen_1_path:    paths[0],
         imagen_2_path:    paths[1],
         imagen_3_path:    paths[2],
+        thumb_1_path:     thumbs[0],
+        thumb_2_path:     thumbs[1],
+        thumb_3_path:     thumbs[2],
       };
 
       const { error: err } = editando
@@ -182,7 +195,7 @@ function TabProductos() {
 
       <div className="space-y-2">
         {pizarras.map(p => {
-          const portada = imgUrl(p.imagen_1_path);
+          const portada = imgUrl(p.thumb_1_path || p.imagen_1_path);
           return (
             <div key={p.id} className={`flex items-center gap-3 p-3 border border-outline-variant/20 rounded-xl transition-all ${!p.activo ? 'opacity-50' : ''}`}>
               <div className="w-14 h-14 rounded-xl overflow-hidden shrink-0 bg-surface-variant flex items-center justify-center">

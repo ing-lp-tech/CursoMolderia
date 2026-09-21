@@ -29,7 +29,10 @@ ETAPA                                       ESTADO
                                             aprobar una venta de papel, tab
                                             Stock y papelera andando)
 
-5b — Imágenes (script 07 + Parte 9)         PENDIENTE — traba el Checkpoint 4
+5b — Imágenes (script 07 + Parte 9)         Código listo (07 + comprimirWeb /
+                                            generarThumb + imgUrl decidiendo
+                                            bucket por la forma del path +
+                                            miniaturas en tienda y en el panel)
 
 6 — Gancho de digitalización                Pendiente (script 09)
 
@@ -42,21 +45,23 @@ ETAPA                                       ESTADO
 8 — Cargar plotters y PCs reales            En curso (papel ya cargado y
                                             vendido de punta a punta)
 
-9 — Limpieza                                Pendiente (scripts 10 y 11, que
-                                            todavía no existen)
+9 — Limpieza                                Script 10 escrito (borra las vistas
+                                            de compatibilidad). Falta el 11
+                                            (borrar el bucket viejo), que no se
+                                            puede hasta resubir las fotos.
 ```
+
+**Para correr ahora, en este orden:** `07` (bucket nuevo) y `10` (borrar las
+vistas de compatibilidad). Son independientes entre sí.
 
 Scripts extra fuera de la numeración original: `03b` (anulación de guías de
 envío) y `04b` (créditos incluidos por plan).
 
-**Hueco detectado en la Parte 13:** el script `07_storage_productos.sql` (bucket
-`productos-imagenes`) y toda la Parte 9 —WebP, miniaturas, `comprimirWeb()`,
-`generarThumb()`— no están asignados a ninguna etapa. Por eso se saltó del 06
-al 08. Hoy `imagenesProducto.js` sigue subiendo un JPEG al bucket viejo
-`pizarras-imagenes` y `thumb_1_path` nunca se escribe: `TiendaPage` cae al
-fallback y sirve la imagen grande. Nada se ve roto, pero **el Checkpoint 4
-("las tarjetas cargan miniaturas") no se puede pasar hasta hacerlo.**
-Va como Etapa 5b, entre Stock y el gancho de digitalización.
+**Hueco que tenía la Parte 13, ya resuelto:** el script `07_storage_productos.sql`
+y toda la Parte 9 —WebP, miniaturas, `comprimirWeb()`, `generarThumb()`— no
+estaban asignados a ninguna etapa, y sin ellos `thumb_1_path` no se escribía
+nunca y el Checkpoint 4 no se podía pasar. Quedaron como **Etapa 5b**, entre
+Stock y el gancho de digitalización.
 
 Scripts 00 a 06 y 08 ya corridos en Supabase. Las vistas de compatibilidad
 `pizarras` y `pizarras_compras` **siguen vivas**: debían borrarse a las 24-48 hs
