@@ -23,6 +23,7 @@ const TABS = [
   { key: 'prod_subcat',  label: 'Subcat. prod.',icon: 'account_tree',           tabla: 'producto_subcategorias' },
   { key: 'prod_planes',  label: 'Planes',       icon: 'sell',                   tabla: 'producto_planes' },
   { key: 'prod_compras', label: 'Ventas prod.', icon: 'local_shipping',         tabla: 'producto_compras' },
+  { key: 'prod_stock',   label: 'Stock',        icon: 'inventory',              tabla: 'movimientos_stock' },
   { key: 'nav_items',    label: 'Navegación',   icon: 'menu',                   tabla: 'nav_items' },
   { key: 'sorteos',      label: 'Sorteos',      icon: 'casino',                 tabla: 'sorteos' },
 ];
@@ -77,6 +78,12 @@ function describeItem(tab, item) {
       return `${item.nombre || 'Sin nombre'} — ${fmtMonto(item.precio)}${item.precio_sufijo ? ` ${item.precio_sufijo}` : ''}`;
     case 'prod_compras':
       return `${item.nombre || '—'} — ${item.titulo_producto || '—'}${Number(item.cantidad) > 1 ? ` ×${item.cantidad}` : ''} — ${fmtMonto(item.monto_cobrado)} (${item.metodo_pago || '—'})`;
+    case 'prod_stock': {
+      // Restaurar el registro devuelve el renglón al historial, no el stock:
+      // el número vive en productos.stock y se corrige con un ajuste.
+      const signo = item.tipo === 'entrada' ? '+' : item.tipo === 'salida' ? '−' : '=';
+      return `${signo}${item.cantidad ?? 0} (${item.tipo || '—'}) — quedó en ${item.stock_resultante ?? '—'}${item.motivo ? ` — ${item.motivo}` : ''}`;
+    }
     case 'nav_items':
       return `${item.label || 'Sin texto'} → ${item.path || '—'}`;
     case 'sorteos':

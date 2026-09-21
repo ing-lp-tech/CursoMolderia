@@ -698,6 +698,353 @@ function TabProductos() {
 }
 
 // ════════════════════════════════════════════════════════════════
+// TAB STOCK
+// ════════════════════════════════════════════════════════════════
+
+// `productos.stock` es el número de hoy; esto es el porqué de cada cambio.
+// Las salidas por venta las escribe api/producto-admin.js al aprobar; acá se
+// cargan las entradas de mercadería y los ajustes por conteo.
+//
+// Los tres movimientos pasan SIEMPRE por fn_registrar_movimiento_stock: mueve
+// el stock e inserta el registro en la misma transacción. Si se hicieran los
+// dos writes desde acá y el segundo fallara, el historial mentiría.
+
+// Las clases van escritas enteras y nunca armadas con template literals:
+// Tailwind escanea el texto del archivo, así que un `hover:${t.color}` genera
+// un string que el compilador nunca ve y la clase no llega al CSS.
+const TIPOS_MOV = {
+  entrada: {
+    label: 'Entrada', icon: 'add_box', signo: '+',
+    color: 'text-green-400', bg: 'bg-green-400/10', hover: 'hover:text-green-400',
+  },
+  salida: {
+    label: 'Salida', icon: 'indeterminate_check_box', signo: '−',
+    color: 'text-error', bg: 'bg-error/10', hover: 'hover:text-error',
+  },
+  ajuste: {
+    label: 'Ajuste', icon: 'tune', signo: '=',
+    color: 'text-amber-400', bg: 'bg-amber-400/10', hover: 'hover:text-amber-400',
+  },
+};
+
+const MOV_INICIAL = { producto_id: '', tipo: 'entrada', cantidad: '1', motivo: '' };
+
+function fechaCorta(iso) {
+  if (!iso) return '—';
+  return new Date(iso).toLocaleString('es-AR', {
+    day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit',
+  });
+}
+
+function TabStock() {
+  const [productos,   setProductos]   = useState([]);
+  const [movimientos, setMovimientos] = useState([]);
+  const [loading,     setLoading]     = useState(true);
+  const [filtroProd,  setFiltroProd]  = useState('todos');
+
+  const [showModal, setShowModal] = useState(false);
+  const [form,      setForm]      = useState(MOV_INICIAL);
+  const [guardando, setGuardando] = useState(false);
+  const [error,     setError]     = useState('');
+
+  async function cargar() {
+    const [{ data: prods }, { data: movs }] = await Promise.all([
+      supabase.from('productos').select('id, titulo, stock, imagen_1_path, activo')
+        .is('eliminado_en', null).order('orden'),
+      // Un historial largo no se lee: se mira lo último y se filtra por producto.
+      supabase.from('movimientos_stock').select('*')
+        .is('eliminado_en', null).order('creado_en', { ascending: false }).limit(200),
+    ]);
+    setProductos(prods || []);
+    setMovimientos(movs || []);
+    setLoading(false);
+  }
+
+  useEffect(() => { cargar(); }, []);
+
+  function abrirMovimiento(producto, tipo) {
+    setForm({
+      producto_id: producto.id,
+      tipo,
+      // En un ajuste se escribe el stock que quedó, no la diferencia: el
+      // número que el admin acaba de contar. Arranca en el actual.
+      cantidad: tipo === 'ajuste' ? String(producto.stock ?? 0) : '1',
+      motivo: '',
+    });
+    setError('');
+    setShowModal(true);
+  }
+
+  async function guardar(e) {
+    e.preventDefault();
+    setGuardando(true);
+    setError('');
+    try {
+      const cantidad = Number(form.cantidad);
+      if (!Number.isInteger(cantidad) || cantidad < 0) {
+        setError('La cantidad tiene que ser un número entero de 0 o más');
+        return;
+      }
+      if (cantidad === 0 && form.tipo !== 'ajuste') {
+        setError('Una entrada o una salida de 0 unidades no registra nada');
+        return;
+      }
+
+      const { data: { user } } = await supabase.auth.getUser();
+
+      const { data, error: err } = await supabase.rpc('fn_registrar_movimiento_stock', {
+        p_producto_id:      form.producto_id,
+        p_tipo:             form.tipo,
+        p_cantidad:         cantidad,
+        p_motivo:           form.motivo.trim() || null,
+        p_compra_id:        null,
+        p_creado_por:       user?.id || null,
+        p_creado_por_email: user?.email || null,
+      });
+      if (err) { setError(err.message); return; }
+
+      const prod = productos.find(p => p.id === form.producto_id);
+      await registrarAuditoria({
+        tabla: 'movimientos_stock', registroId: data?.id || form.producto_id, accion: 'creacion',
+        descripcion: `${TIPOS_MOV[form.tipo].label} de ${cantidad} en "${prod?.titulo || 'producto'}" → stock ${data?.stock_resultante ?? '?'}`,
+        datosNuevos: data,
+      });
+
+      setShowModal(false);
+      await cargar();
+    } catch (ex) {
+      setError(ex?.message || 'Error al registrar el movimiento');
+    } finally {
+      setGuardando(false);
+    }
+  }
+
+  // Borrar el registro NO devuelve el stock: el movimiento ya ocurrió en el
+  // mundo real. Si el número quedó mal, se corrige con un ajuste.
+  async function eliminar(mov) {
+    const prod = productos.find(p => p.id === mov.producto_id);
+    if (!confirm(
+      `¿Enviar este movimiento a la papelera?\n\n` +
+      `${TIPOS_MOV[mov.tipo]?.label} de ${mov.cantidad} en "${prod?.titulo || 'producto'}".\n\n` +
+      `El stock actual NO cambia: si quedó mal, corregilo con un ajuste.`
+    )) return;
+
+    const { data: { user } } = await supabase.auth.getUser();
+    await supabase.from('movimientos_stock').update({
+      eliminado_en: new Date().toISOString(),
+      eliminado_por: user?.id, eliminado_por_email: user?.email,
+    }).eq('id', mov.id);
+    await registrarAuditoria({
+      tabla: 'movimientos_stock', registroId: mov.id, accion: 'eliminacion',
+      descripcion: `Movimiento de stock enviado a papelera — ${prod?.titulo || 'producto'}`,
+      datosAnteriores: mov,
+    });
+    setMovimientos(prev => prev.filter(m => m.id !== mov.id));
+  }
+
+  const tituloProd = id => productos.find(p => p.id === id)?.titulo || 'Producto eliminado';
+  const visibles = movimientos.filter(m => filtroProd === 'todos' || m.producto_id === filtroProd);
+  const productoDelForm = productos.find(p => p.id === form.producto_id);
+
+  if (loading) return <div className="flex justify-center py-16"><span className="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span></div>;
+
+  return (
+    <div className="space-y-6">
+      {/* ── Stock actual, con los tres botones por producto ── */}
+      <div className="space-y-2">
+        <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Stock actual</h2>
+
+        {productos.map(p => (
+          <div key={p.id} className={`flex items-center gap-3 p-3 rounded-2xl border transition-all ${
+            p.activo ? 'border-outline-variant/20' : 'border-outline-variant/10 opacity-60'
+          }`}>
+            <div className="w-11 h-11 rounded-xl overflow-hidden bg-surface-variant shrink-0 flex items-center justify-center">
+              {imgUrl(p.imagen_1_path)
+                ? <img src={imgUrl(p.imagen_1_path)} alt="" className="w-full h-full object-cover" />
+                : <span className="material-symbols-outlined text-on-surface-variant/30 text-xl">inventory_2</span>}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="font-bold text-sm truncate">{p.titulo}</p>
+              <p className={`text-xs font-bold ${
+                p.stock > 0 ? 'text-on-surface-variant' : 'text-error'
+              }`}>
+                {p.stock > 0 ? `${p.stock} en stock` : 'Sin stock'}
+              </p>
+            </div>
+            <div className="flex gap-0.5 shrink-0">
+              {Object.entries(TIPOS_MOV).map(([tipo, t]) => (
+                <button key={tipo} onClick={() => abrirMovimiento(p, tipo)} title={t.label}
+                  className={`p-1.5 rounded-lg text-on-surface-variant hover:bg-surface-variant ${t.hover}`}>
+                  <span className="material-symbols-outlined text-base">{t.icon}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        ))}
+
+        {productos.length === 0 && (
+          <div className="text-center py-10">
+            <p className="text-on-surface-variant text-sm">Cargá un producto para empezar a mover stock</p>
+          </div>
+        )}
+      </div>
+
+      {/* ── Historial ── */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="text-xs font-bold uppercase tracking-widest text-on-surface-variant">Historial</h2>
+          <select value={filtroProd} onChange={e => setFiltroProd(e.target.value)}
+            className="input-field text-sm py-1.5 max-w-[16rem]">
+            <option value="todos">Todos los productos</option>
+            {productos.map(p => <option key={p.id} value={p.id}>{p.titulo}</option>)}
+          </select>
+        </div>
+
+        <div className="space-y-2">
+          {visibles.map(m => {
+            const t = TIPOS_MOV[m.tipo] || TIPOS_MOV.ajuste;
+            return (
+              <div key={m.id} className="flex items-center gap-3 p-3 rounded-2xl border border-outline-variant/20">
+                <div className={`w-9 h-9 rounded-xl shrink-0 flex items-center justify-center ${t.bg}`}>
+                  <span className={`material-symbols-outlined text-lg ${t.color}`}>{t.icon}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-bold text-sm truncate">
+                    <span className={t.color}>{t.signo}{m.cantidad}</span>
+                    {' · '}{tituloProd(m.producto_id)}
+                  </p>
+                  <p className="text-xs text-on-surface-variant truncate">
+                    {t.label} · queda {m.stock_resultante}
+                    {m.motivo ? ` · ${m.motivo}` : ''}
+                    {m.compra_id ? ' · por venta' : ''}
+                  </p>
+                  <p className="text-[11px] text-on-surface-variant/70">
+                    {fechaCorta(m.creado_en)}{m.creado_por_email ? ` · ${m.creado_por_email}` : ''}
+                  </p>
+                </div>
+                <button onClick={() => eliminar(m)} title="Enviar a la papelera"
+                  className="p-1.5 hover:bg-error/10 rounded-lg text-on-surface-variant hover:text-error shrink-0">
+                  <span className="material-symbols-outlined text-base">delete</span>
+                </button>
+              </div>
+            );
+          })}
+
+          {visibles.length === 0 && (
+            <div className="text-center py-12">
+              <span className="material-symbols-outlined text-5xl text-on-surface-variant/20 block mb-3">history</span>
+              <p className="text-on-surface-variant">Todavía no hay movimientos registrados</p>
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Modal ── */}
+      {showModal && (
+        <div className="fixed inset-0 bg-black/60 z-50 flex items-end sm:items-center justify-center sm:p-4 overflow-y-auto">
+          <form onSubmit={guardar} className="bg-surface w-full sm:max-w-md rounded-t-3xl sm:rounded-3xl max-h-[90vh] flex flex-col">
+            <div className="flex items-center justify-between px-5 py-4 border-b border-outline-variant/15 shrink-0">
+              <h3 className="font-headline font-bold">
+                {TIPOS_MOV[form.tipo].label} de stock
+              </h3>
+              <button type="button" onClick={() => setShowModal(false)}
+                className="p-1 hover:bg-surface-variant rounded-lg text-on-surface-variant">
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="p-5 space-y-4 overflow-y-auto">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Producto</label>
+                <select value={form.producto_id} required
+                  onChange={e => {
+                    const p = productos.find(x => x.id === e.target.value);
+                    setForm(f => ({
+                      ...f,
+                      producto_id: e.target.value,
+                      cantidad: f.tipo === 'ajuste' ? String(p?.stock ?? 0) : f.cantidad,
+                    }));
+                  }}
+                  className="input-field">
+                  <option value="">Elegí un producto</option>
+                  {productos.map(p => <option key={p.id} value={p.id}>{p.titulo} (stock {p.stock})</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Tipo</label>
+                <div className="grid grid-cols-3 gap-2">
+                  {Object.entries(TIPOS_MOV).map(([tipo, t]) => (
+                    <button key={tipo} type="button"
+                      onClick={() => setForm(f => ({
+                        ...f,
+                        tipo,
+                        cantidad: tipo === 'ajuste' ? String(productoDelForm?.stock ?? 0) : '1',
+                      }))}
+                      className={`flex flex-col items-center gap-1 py-2.5 rounded-xl border text-xs font-bold transition-all ${
+                        form.tipo === tipo
+                          ? 'bg-primary/15 border-primary/40 text-primary'
+                          : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-variant'
+                      }`}>
+                      <span className="material-symbols-outlined text-lg">{t.icon}</span>
+                      {t.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">
+                  {form.tipo === 'ajuste' ? 'El stock queda en' : 'Cantidad'}
+                </label>
+                <input type="number" min={form.tipo === 'ajuste' ? 0 : 1} step="1" required
+                  value={form.cantidad}
+                  onChange={e => setForm(f => ({ ...f, cantidad: e.target.value }))}
+                  className="input-field" />
+                <p className="text-xs text-on-surface-variant mt-1">
+                  {form.tipo === 'entrada' && 'Mercadería que entra al depósito: se suma al stock.'}
+                  {form.tipo === 'salida'  && 'Unidades que salen sin venta (rotura, regalo, muestra). El stock nunca baja de 0.'}
+                  {form.tipo === 'ajuste'  && 'Conteo físico: el stock pasa a ser exactamente este número.'}
+                </p>
+              </div>
+
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Motivo (opcional)</label>
+                <input type="text" value={form.motivo} maxLength={200}
+                  onChange={e => setForm(f => ({ ...f, motivo: e.target.value }))}
+                  placeholder={form.tipo === 'entrada' ? 'Compra al proveedor' : form.tipo === 'salida' ? 'Rotura en depósito' : 'Conteo de fin de mes'}
+                  className="input-field" />
+              </div>
+
+              {productoDelForm && (
+                <div className="bg-surface-variant/40 rounded-xl px-3 py-2.5 text-sm">
+                  Stock <strong>{productoDelForm.stock}</strong>
+                  <span className="mx-2 text-on-surface-variant">→</span>
+                  <strong className="text-primary">
+                    {form.tipo === 'entrada' ? (productoDelForm.stock || 0) + (Number(form.cantidad) || 0)
+                      : form.tipo === 'salida' ? Math.max(0, (productoDelForm.stock || 0) - (Number(form.cantidad) || 0))
+                      : (Number(form.cantidad) || 0)}
+                  </strong>
+                </div>
+              )}
+
+              {error && <div className="bg-error/10 border border-error/30 rounded-xl px-3 py-2 text-sm text-error">{error}</div>}
+            </div>
+
+            <div className="flex gap-3 px-5 py-4 border-t border-outline-variant/15 shrink-0">
+              <button type="button" onClick={() => setShowModal(false)} className="btn-secondary flex-1">Cancelar</button>
+              <button type="submit" disabled={guardando || !form.producto_id} className="btn-primary flex-1 disabled:opacity-50">
+                {guardando ? 'Registrando…' : 'Registrar'}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
 // PÁGINA
 // ════════════════════════════════════════════════════════════════
 
@@ -707,6 +1054,7 @@ export default function ProductosAdminPage() {
   const TABS = [
     { key: 'productos',  label: 'Productos',  icon: 'inventory_2' },
     { key: 'categorias', label: 'Categorías', icon: 'category' },
+    { key: 'stock',      label: 'Stock',      icon: 'inventory' },
   ];
 
   return (
@@ -734,6 +1082,7 @@ export default function ProductosAdminPage() {
 
       {tab === 'productos'  && <TabProductos />}
       {tab === 'categorias' && <TabCategorias />}
+      {tab === 'stock'      && <TabStock />}
     </div>
   );
 }

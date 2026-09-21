@@ -44,6 +44,40 @@ async function emitirCredito(supabase, compra, plan, unidades) {
   return { codigo: data.codigo, creditos: data.creditos_total };
 }
 
+// Descuenta el stock y deja el movimiento de salida en el historial.
+//
+// Nada de esto puede tumbar la aprobación: la venta ya está cobrada y
+// aprobada, y un problema de inventario se arregla después desde el panel.
+// Por eso no hay throw en ninguna rama, solo console.error.
+//
+// El fallback existe porque el deploy y el script 08 no ocurren en el mismo
+// instante: mientras la función no esté creada en Supabase, se descuenta como
+// se descontaba antes y no se pierde ninguna venta.
+async function descontarStock(supabase, compra, unidades) {
+  const motivo = `Venta aprobada — ${compra.nombre || 'cliente'}`;
+
+  const { error } = await supabase.rpc('fn_registrar_movimiento_stock', {
+    p_producto_id: compra.producto_id,
+    p_tipo:        'salida',
+    p_cantidad:    unidades,
+    p_motivo:      motivo,
+    p_compra_id:   compra.id,
+  });
+  if (!error) return;
+
+  console.error('[PRODUCTO_STOCK_RPC]', error.message);
+
+  const { data: producto } = await supabase
+    .from('productos').select('stock').eq('id', compra.producto_id).single();
+  if (!producto) return;
+
+  const { error: updateErr } = await supabase
+    .from('productos')
+    .update({ stock: Math.max(0, producto.stock - unidades) })
+    .eq('id', compra.producto_id);
+  if (updateErr) console.error('[PRODUCTO_STOCK_UPDATE]', updateErr.message);
+}
+
 async function aprobar(supabase, compra_id) {
   const { data: compra, error: compraErr } = await supabase
     .from('producto_compras')
@@ -79,13 +113,7 @@ async function aprobar(supabase, compra_id) {
   // Descontar stock (no bloquea la aprobación si falla)
   const unidades = Number(compra.cantidad) || 1;
   if (descuentaStock && compra.producto_id) {
-    const { data: producto } = await supabase.from('productos').select('stock').eq('id', compra.producto_id).single();
-    if (producto) {
-      await supabase
-        .from('productos')
-        .update({ stock: Math.max(0, producto.stock - unidades) })
-        .eq('id', compra.producto_id);
-    }
+    await descontarStock(supabase, compra, unidades);
   }
 
   const metodoPagoLabel = compra.metodo_pago === 'mercadopago' ? 'MercadoPago' : 'Transferencia bancaria';

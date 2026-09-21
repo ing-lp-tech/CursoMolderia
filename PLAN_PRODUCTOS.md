@@ -24,14 +24,33 @@ ETAPA                                       ESTADO
                                             ProductosAdminPage, modal de compra
                                             extraído y compartido)
 
-5 a 9                                       Pendientes
+5 — Stock                                   Código listo (08 + la función
+                                            fn_registrar_movimiento_stock,
+                                            salida automática al aprobar,
+                                            tab Stock en /admin/productos,
+                                            tab Stock en la papelera)
+
+6 a 9                                       Pendientes
 ```
 
 Scripts extra fuera de la numeración original: `03b` (anulación de guías de
 envío) y `04b` (créditos incluidos por plan).
 
-Scripts 00 a 05 ya corridos en Supabase. Falta verificar los checkpoints 1 y 2
-en producción (Parte 13).
+**Hueco detectado en la Parte 13:** el script `07_storage_productos.sql` (bucket
+`productos-imagenes`) y toda la Parte 9 —WebP, miniaturas, `comprimirWeb()`,
+`generarThumb()`— no están asignados a ninguna etapa. Por eso se saltó del 06
+al 08. Hoy `imagenesProducto.js` sigue subiendo un JPEG al bucket viejo
+`pizarras-imagenes` y `thumb_1_path` nunca se escribe: `TiendaPage` cae al
+fallback y sirve la imagen grande. Nada se ve roto, pero **el Checkpoint 4
+("las tarjetas cargan miniaturas") no se puede pasar hasta hacerlo.**
+Va como Etapa 5b, entre Stock y el gancho de digitalización.
+
+Scripts 00 a 05 ya corridos en Supabase. **Falta correr `08`** (Etapa 5) y
+verificar los checkpoints 1 y 2 en producción (Parte 13).
+
+Mientras `08` no esté corrido, la aprobación descuenta el stock como antes:
+`api/producto-admin.js` llama a la función nueva y, si todavía no existe, cae al
+update directo. Ninguna venta se pierde entre el deploy y el script.
 
 **Cambio sobre el plan original:** los shims `api/create-pizarra.js` y
 `api/pizarra-admin.js` no existen como archivos. El plan Hobby de Vercel admite
@@ -652,17 +671,29 @@ eliminado_en / eliminado_por / eliminado_por_email    soft delete
 ```
 
 ```
-TIPO      ORIGEN                                     CUÁNDO
-────────  ─────────────────────────────────────────  ──────────────────────────
-salida    api/producto-admin.js → acción 'aprobar'   Automático, en el mismo
-                                                     lugar donde HOY ya se
-                                                     descuenta el stock
-                                                     (pizarra-admin.js:25-30)
-entrada   Admin, a mano                               Reposición de mercadería
-ajuste    Admin, a mano                               Rotura, devolución, conteo
+TIPO      EFECTO SOBRE EL STOCK    ORIGEN                        CUÁNDO
+────────  ───────────────────────  ────────────────────────────  ─────────────────
+salida    stock − cantidad         api/producto-admin.js         Automático, en el
+          (nunca baja de 0)        → acción 'aprobar'            mismo lugar donde
+                                                                 HOY ya se descuenta
+                                                                 (pizarra-admin.js:25-30)
+salida    stock − cantidad         Admin, a mano                 Rotura, muestra,
+                                                                 regalo
+entrada   stock + cantidad         Admin, a mano                 Reposición de
+                                                                 mercadería
+ajuste    stock = cantidad         Admin, a mano                 Conteo físico:
+          (absoluto)                                             "conté y hay 7"
 ```
 
+**El `ajuste` es absoluto, no un delta.** La alternativa —una cantidad con signo— choca con la regla "cantidad siempre > 0", y en la práctica el admin cuenta lo que hay en la caja, no la diferencia. Una rotura o una devolución se registran como `salida` / `entrada`, que además dicen mejor qué pasó. Es el único tipo que admite `cantidad = 0` (se agotó).
+
+### Una función, no dos writes
+
+Mover `productos.stock` e insertar el movimiento son dos escrituras: si la segunda falla, el historial miente. Las dos van dentro de `fn_registrar_movimiento_stock`, en una sola transacción y con `for update` sobre la fila del producto, así dos aprobaciones simultáneas no leen el mismo stock viejo. La usan por igual el backend (service role) y el panel (`supabase.rpc`).
+
 La salida automática **no bloquea la aprobación si falla**, igual que hoy: una venta aprobada nunca se cae por un problema de log de inventario.
+
+Borrar un movimiento desde la papelera **no devuelve el stock**: el movimiento ya ocurrió en el mundo real y el número se corrige con un ajuste. Restaurarlo tampoco lo vuelve a aplicar.
 
 **RLS: esta tabla no es pública.** `revoke all ... from anon`. El inventario y el ritmo de ventas no son información para visitantes.
 
@@ -881,8 +912,10 @@ Los datos viven en `productos` (una sola fuente), pero la pantalla es propia.
 ### Archivos nuevos
 
 ```
-src/pages/admin/ProductosAdminPage.jsx     4 tabs: Categorías · Productos ·
-                                           Stock · Ventas
+src/pages/admin/ProductosAdminPage.jsx     3 tabs: Productos · Categorías ·
+                                           Stock
+                                           (Ventas queda en /admin/pizarras,
+                                            que nunca filtró por categoría)
 src/pages/admin/NavegacionPage.jsx         CRUD de nav_items + reordenar
 src/pages/TiendaPage.jsx                   Tienda pública (/tienda y
                                            /tienda/:categoria)
@@ -1024,12 +1057,18 @@ CHECKPOINT 4:
 ### Etapa 5 — Stock
 
 ```
-Correr 08
+Correr 08 → tab Stock en /admin/productos
 
 CHECKPOINT 5:
   □ Aprobar una venta genera un movimiento 'salida' con su compra_id
-  □ Una entrada manual actualiza el stock
-  □ Un ajuste no deja el stock por debajo de 0
+    y el stock del producto baja
+  □ Una entrada manual suma al stock y aparece en el historial
+  □ Una salida manual mayor al stock lo deja en 0, nunca en negativo
+  □ Un ajuste deja el stock exactamente en el número cargado
+  □ Un ajuste a 0 se acepta; una entrada de 0 se rechaza
+  □ El filtro por producto del historial muestra solo sus movimientos
+  □ Papelera → Stock: un movimiento borrado se ve y se restaura
+    (y el stock del producto NO cambia al borrarlo ni al restaurarlo)
 ```
 
 ### Etapa 6 — Gancho de digitalización
@@ -1095,6 +1134,8 @@ CHECKPOINT 8:
 | Bucket de digitalizaciones **privado** con signed URLs | Son moldes de tus clientes: su trabajo, no contenido público. Mismo mecanismo que `moldes-archivos`. |
 | Pizarras con sector propio en el admin | Ahí se enchufa la digitalización sin ensuciar el catálogo general, y vos entrás a un solo lugar a ver códigos, ventas y trabajos. |
 | `movimientos_stock` sin acceso `anon` | El inventario y el ritmo de ventas no son públicos. |
+| El stock se mueve por **función**, no por dos writes sueltos | El update del stock y el registro del movimiento entran en la misma transacción. Si fueran dos llamadas y la segunda fallara, el historial mentiría. El `for update` además evita que dos aprobaciones simultáneas descuenten una sola vez. |
+| El `ajuste` es un valor **absoluto** | El admin cuenta lo que hay en la caja, no la diferencia. Y un delta con signo rompería la regla "cantidad siempre > 0". Rotura y devolución tienen su propio tipo. |
 | La salida de stock no bloquea la aprobación | Igual que hoy: una venta aprobada no se cae por un problema de log. |
 | `NAV_LINKS` sobrevive como fallback | Un error de red no puede dejar el sitio sin navegación. |
 | El modal de compra se extrae, no se reescribe | Es código probado con plata real. Se mueve de archivo y se le agregan dos props. |
