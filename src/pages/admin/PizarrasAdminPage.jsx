@@ -12,6 +12,27 @@ function fmtDate(d) {
   return new Date(d).toLocaleString('es-AR', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
 }
 
+// Lee la respuesta de /api sin romperse si no vino JSON.
+//
+// Cuando el endpoint no existe —en `npm run dev`, si falta en la lista de
+// vite.config.js, o en un deploy a medio subir— el server devuelve el HTML de
+// la SPA, y res.json() tira "Unexpected end of JSON input", que no dice nada
+// sobre la causa. Acá se cambia por un mensaje que sí orienta.
+async function respuestaJson(res, queHacia) {
+  const texto = await res.text();
+  if (!texto) {
+    throw new Error(`El servidor no devolvió respuesta al ${queHacia} (HTTP ${res.status}).`);
+  }
+  try {
+    return JSON.parse(texto);
+  } catch {
+    throw new Error(
+      `El endpoint /api/producto-admin no respondió JSON al ${queHacia} (HTTP ${res.status}). ` +
+      `Si estás en localhost, revisá que la ruta esté en la lista de vite.config.js.`
+    );
+  }
+}
+
 // Esta pantalla es el sector propio de las pizarras: `productos` guarda también
 // plotters, PCs y accesorios, así que se acota a la categoría "Pizarras".
 async function idCategoriaPizarras() {
@@ -358,7 +379,7 @@ function TabVentas() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ compra_id: compra.id, accion: 'aprobar' }),
       });
-      const data = await res.json();
+      const data = await respuestaJson(res, 'aprobar la compra');
       if (!res.ok) { alert(data.error || 'Error al aprobar'); return; }
 
       const wa_num = compra.whatsapp.replace(/\D/g, '');
@@ -414,7 +435,7 @@ function TabVentas() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ compra_id: compra.id, accion: 'generar-envio' }),
       });
-      const data = await res.json();
+      const data = await respuestaJson(res, 'generar el envío');
       if (!res.ok) { alert(data.error || 'Error al generar el envío'); return; }
       if (!data.tracking_number) {
         alert('envia.com respondió OK pero no devolvió número de tracking. Revisá los logs de Vercel (ENVIA_GENERATE_RESPONSE) y "Mis Envíos" en shipping.envia.com antes de reintentar, para no generar un envío duplicado.');
@@ -453,7 +474,7 @@ function TabVentas() {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${session.access_token}` },
         body: JSON.stringify({ compra_id: compra.id, accion: 'anular-envio' }),
       });
-      const data = await res.json();
+      const data = await respuestaJson(res, 'anular la guía');
       if (!res.ok) { alert(data.error || 'Error al anular la guía'); return; }
       setCompras(prev => prev.map(c => c.id === compra.id
         ? { ...c, envia_cancelado_en: new Date().toISOString() }

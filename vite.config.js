@@ -19,16 +19,28 @@ const vercelApiMock = (env) => ({
         }
       };
 
-      const ROUTES = [
-        'create-preference',
-        'crear-alumno',
-        'eliminar-alumno',
-        'reset-password-alumno',
-        'create-molde-preference',
-        'create-molde-transferencia',
-        'molde-aprobar',
-      ];
-      const matched = ROUTES.find(r => req.url.includes(r));
+      // Cada endpoint de api/ que quieras usar en `npm run dev` tiene que
+      // estar acá. Si falta, la llamada cae al next(), Vite devuelve el HTML
+      // de la SPA y el fetch explota con "Unexpected end of JSON input", que
+      // no dice nada sobre la causa real.
+      //
+      // Los imports son funciones flecha para que Vite los resuelva de forma
+      // estática y los cargue recién cuando se usan.
+      const ROUTES = {
+        'create-preference':          () => import('./api/create-preference.js'),
+        'crear-alumno':               () => import('./api/crear-alumno.js'),
+        'eliminar-alumno':            () => import('./api/eliminar-alumno.js'),
+        'reset-password-alumno':      () => import('./api/reset-password-alumno.js'),
+        'create-molde-preference':    () => import('./api/create-molde-preference.js'),
+        'create-molde-transferencia': () => import('./api/create-molde-transferencia.js'),
+        'molde-aprobar':              () => import('./api/molde-aprobar.js'),
+        // Flujo de productos: comprar, cotizar el envío y aprobar desde el panel.
+        'create-producto':            () => import('./api/create-producto.js'),
+        'producto-admin':             () => import('./api/producto-admin.js'),
+        'envia-cotizar':              () => import('./api/envia-cotizar.js'),
+        'envia-webhook':              () => import('./api/envia-webhook.js'),
+      };
+      const matched = Object.keys(ROUTES).find(r => req.url.includes(r));
 
       if (!matched) { return next(); }
 
@@ -53,24 +65,7 @@ const vercelApiMock = (env) => ({
             });
           }
 
-          // Imports estáticos — Vite los resuelve desde la raíz del proyecto
-          let handler;
-          if (matched === 'create-preference') {
-            handler = (await import('./api/create-preference.js')).default;
-          } else if (matched === 'crear-alumno') {
-            handler = (await import('./api/crear-alumno.js')).default;
-          } else if (matched === 'eliminar-alumno') {
-            handler = (await import('./api/eliminar-alumno.js')).default;
-          } else if (matched === 'reset-password-alumno') {
-            handler = (await import('./api/reset-password-alumno.js')).default;
-          } else if (matched === 'create-molde-preference') {
-            handler = (await import('./api/create-molde-preference.js')).default;
-          } else if (matched === 'create-molde-transferencia') {
-            handler = (await import('./api/create-molde-transferencia.js')).default;
-          } else if (matched === 'molde-aprobar') {
-            handler = (await import('./api/molde-aprobar.js')).default;
-          }
-
+          const handler = (await ROUTES[matched]()).default;
           await handler(req, res);
         } catch(e) {
           console.error('[API Mock Error]', e);
