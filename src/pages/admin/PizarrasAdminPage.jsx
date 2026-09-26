@@ -1275,6 +1275,437 @@ function TabCreditos() {
 }
 
 // ════════════════════════════════════════════════════════════════
+// TAB DIGITALIZACIONES
+//
+// La galería de la cola que crea el script 09. Acá no se procesa nada:
+// se ve qué mandó cada cliente, en qué estado está y se bajan los
+// archivos que dejó el procesador. El crédito NO se descuenta desde acá:
+// lo hace un trigger de la base cuando la fila pasa a 'procesado'.
+// ════════════════════════════════════════════════════════════════
+
+const DIG_BUCKET     = 'digitalizaciones';
+const FIRMA_SEGUNDOS = 60 * 60 * 24;     // 24 hs, igual que en moldes
+
+const ESTADOS_DIG = {
+  pendiente:  { label: 'Pendiente',  icon: 'hourglass_top', clase: 'bg-tertiary/15 text-tertiary'   },
+  procesando: { label: 'Procesando', icon: 'autorenew',     clase: 'bg-primary/15 text-primary'     },
+  procesado:  { label: 'Procesado',  icon: 'check_circle',  clase: 'bg-secondary/15 text-secondary' },
+  error:      { label: 'Error',      icon: 'warning',       clase: 'bg-error/10 text-error'         },
+};
+
+// El bucket es privado: todo lo que se muestra o se baja pasa por acá.
+async function firmarArchivo(path) {
+  if (!path) return null;
+  const { data, error } = await supabase.storage
+    .from(DIG_BUCKET)
+    .createSignedUrl(path, FIRMA_SEGUNDOS);
+  if (error) {
+    alert(`No se pudo generar el link de descarga: ${error.message}`);
+    return null;
+  }
+  return data?.signedUrl || null;
+}
+
+async function abrirArchivo(path) {
+  const url = await firmarArchivo(path);
+  if (url) window.open(url, '_blank', 'noopener');
+}
+
+// Una sola llamada para firmar todas las fotos en vez de una por tarjeta.
+// Devuelve { digitalizacion_id → signed URL }.
+async function firmarMiniaturas(datos) {
+  const paths = datos.map(d => d.imagen_original_path).filter(Boolean);
+  if (paths.length === 0) return {};
+  const { data } = await supabase.storage.from(DIG_BUCKET).createSignedUrls(paths, FIRMA_SEGUNDOS);
+  if (!data) return {};
+  const porPath = Object.fromEntries(data.filter(x => x.signedUrl).map(x => [x.path, x.signedUrl]));
+  return Object.fromEntries(
+    datos.filter(d => porPath[d.imagen_original_path]).map(d => [d.id, porPath[d.imagen_original_path]])
+  );
+}
+
+async function traerDigitalizaciones() {
+  const { data, error } = await supabase
+    .from('digitalizaciones')
+    .select('*, credito:digitalizacion_creditos(codigo, estado, creditos_total, creditos_restantes)')
+    .is('eliminado_en', null)
+    .order('creado_en', { ascending: false });
+  if (error) throw error;
+  return data || [];
+}
+
+// Formulario para cargar una digitalización a mano.
+//
+// Existe por dos motivos: probar el circuito completo antes de que la app
+// del procesador esté hecha, y poder cargarle vos la foto al cliente que
+// la manda por WhatsApp en vez de usar la app.
+function FormCargarDigitalizacion({ onCargada, onCancelar }) {
+  const [codigos,  setCodigos]  = useState([]);
+  const [creditoId, setCreditoId] = useState('');
+  const [archivo,  setArchivo]  = useState(null);
+  const [notas,    setNotas]    = useState('');
+  const [subiendo, setSubiendo] = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    supabase
+      .from('digitalizacion_creditos')
+      .select('*')
+      .eq('estado', 'activo')
+      .is('eliminado_en', null)
+      .order('creado_en', { ascending: false })
+      .then(({ data }) => {
+        if (!vivo) return;
+        const conSaldo = (data || []).filter(c => c.creditos_restantes > 0);
+        setCodigos(conSaldo);
+        if (conSaldo.length === 1) setCreditoId(conSaldo[0].id);
+      });
+    return () => { vivo = false; };
+  }, []);
+
+  async function guardar() {
+    const credito = codigos.find(c => c.id === creditoId);
+    if (!credito) { alert('Elegí el código del cliente.'); return; }
+    if (!archivo)  { alert('Elegí la foto del molde.');     return; }
+
+    setSubiendo(true);
+    // El id se genera acá para poder armar la carpeta ANTES de insertar la
+    // fila: así el path guardado y el archivo subido no pueden diferir.
+    const id   = crypto.randomUUID();
+    const ext  = (archivo.name.split('.').pop() || 'jpg').toLowerCase();
+    const path = `${credito.codigo}/${id}/original.${ext}`;
+
+    // La foto se sube SIN comprimir: el procesador mide sobre esos píxeles
+    // (marcadores, escala) y recomprimirla le saca precisión.
+    const { error: errSubida } = await supabase.storage
+      .from(DIG_BUCKET)
+      .upload(path, archivo, { contentType: archivo.type || 'image/jpeg', upsert: true });
+
+    if (errSubida) {
+      setSubiendo(false);
+      alert(`No se pudo subir la foto: ${errSubida.message}`);
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from('digitalizaciones')
+      .insert({
+        id,
+        credito_id:           credito.id,
+        codigo:               credito.codigo,
+        cliente_nombre:       credito.cliente_nombre,
+        cliente_whatsapp:     credito.cliente_whatsapp,
+        cliente_email:        credito.cliente_email,
+        imagen_original_path: path,
+        notas:                notas.trim() || null,
+      })
+      .select('*, credito:digitalizacion_creditos(codigo, estado, creditos_total, creditos_restantes)')
+      .single();
+
+    setSubiendo(false);
+
+    if (error) {
+      // Sin fila, el archivo queda huérfano en el bucket: se borra.
+      await supabase.storage.from(DIG_BUCKET).remove([path]);
+      alert(error.message);
+      return;
+    }
+    onCargada(data);
+  }
+
+  return (
+    <div className="border border-primary/30 bg-primary/5 rounded-2xl p-4 space-y-3">
+      <h3 className="font-headline font-bold text-sm uppercase tracking-widest text-primary">
+        Cargar una digitalización
+      </h3>
+
+      {codigos.length === 0 ? (
+        <p className="text-sm text-on-surface-variant">
+          No hay códigos activos con créditos disponibles. Los códigos se emiten solos al aprobar
+          una venta con plan de digitalización (pestaña Créditos).
+        </p>
+      ) : (
+        <>
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">Código del cliente</label>
+            <select value={creditoId} onChange={e => setCreditoId(e.target.value)} className="input-field text-sm py-2">
+              <option value="">Elegí un código…</option>
+              {codigos.map(c => (
+                <option key={c.id} value={c.id}>
+                  {c.codigo} — {c.cliente_nombre || 'Sin nombre'} ({c.creditos_restantes} de {c.creditos_total})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">Foto del molde</label>
+            <input type="file" accept="image/*" onChange={e => setArchivo(e.target.files?.[0] || null)}
+              className="text-sm w-full file:mr-3 file:py-2 file:px-3 file:rounded-xl file:border-0 file:bg-primary/10 file:text-primary file:text-xs file:font-bold" />
+            <p className="text-[11px] text-on-surface-variant mt-1">
+              Se guarda tal cual, sin comprimir. Máximo 20 MB.
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-widest text-on-surface-variant mb-1">Notas (opcional)</label>
+            <input type="text" value={notas} onChange={e => setNotas(e.target.value)}
+              placeholder="Lo que haya que saber del trabajo" className="input-field text-sm py-2" />
+          </div>
+
+          <div className="flex gap-2">
+            <button onClick={guardar} disabled={subiendo}
+              className="flex items-center gap-1 px-4 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:opacity-90 transition-all disabled:opacity-40">
+              <span className={`material-symbols-outlined text-base ${subiendo ? 'animate-spin' : ''}`}>
+                {subiendo ? 'refresh' : 'upload'}
+              </span>
+              {subiendo ? 'Subiendo…' : 'Cargar'}
+            </button>
+            <button onClick={onCancelar} disabled={subiendo}
+              className="px-4 py-2 rounded-xl bg-surface-variant text-on-surface-variant text-xs font-bold hover:bg-surface-variant/70 transition-all disabled:opacity-40">
+              Cancelar
+            </button>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function TabDigitalizaciones() {
+  const [filas,     setFilas]     = useState([]);
+  const [miniaturas, setMiniaturas] = useState({});   // id → signed URL
+  const [loading,   setLoading]   = useState(true);
+  const [faltaTabla, setFaltaTabla] = useState(false);
+  const [filtro,    setFiltro]    = useState('todas');
+  const [busqueda,  setBusqueda]  = useState('');
+  const [guardando, setGuardando] = useState(null);
+  const [cargando,  setCargando]  = useState(false);
+
+  useEffect(() => {
+    let vivo = true;
+    traerDigitalizaciones()
+      .then(datos => {
+        if (!vivo) return;
+        setFilas(datos);
+        setLoading(false);
+        firmarMiniaturas(datos).then(m => { if (vivo) setMiniaturas(m); });
+      })
+      .catch(e => {
+        if (!vivo) return;
+        // La pantalla se abre igual y dice qué falta, en vez de quedarse
+        // girando para siempre.
+        console.error('[digitalizaciones]', e.message);
+        setFaltaTabla(true);
+        setLoading(false);
+      });
+    return () => { vivo = false; };
+  }, []);
+
+  // El crédito lo mueve el trigger, así que después de cambiar el estado se
+  // relee TODA la lista: los contadores de los otros trabajos del mismo
+  // código también cambiaron.
+  async function cambiarEstado(fila, estado) {
+    if (estado === fila.estado_procesamiento) return;
+    setGuardando(fila.id);
+    const cambios = { estado_procesamiento: estado };
+    if (estado === 'error' && !fila.error_mensaje) {
+      cambios.error_mensaje = prompt('¿Qué falló? (opcional)') || null;
+    }
+    const { error } = await supabase.from('digitalizaciones').update(cambios).eq('id', fila.id);
+    if (error) { setGuardando(null); alert(error.message); return; }
+
+    const datos = await traerDigitalizaciones();
+    setFilas(datos);
+    setGuardando(null);
+  }
+
+  async function eliminar(fila) {
+    if (!confirm(`¿Enviar la digitalización de ${fila.cliente_nombre || 'este cliente'} a la papelera?`)) return;
+    setGuardando(fila.id);
+    const { data: { user } } = await supabase.auth.getUser();
+    const { error } = await supabase.from('digitalizaciones').update({
+      eliminado_en: new Date().toISOString(), eliminado_por: user?.id, eliminado_por_email: user?.email,
+    }).eq('id', fila.id);
+    setGuardando(null);
+    if (error) { alert(error.message); return; }
+    await registrarAuditoria({
+      tabla: 'digitalizaciones', registroId: fila.id, accion: 'eliminacion',
+      descripcion: `Digitalización de "${fila.cliente_nombre || 'sin nombre'}" (${fila.codigo || 'sin código'}) enviada a papelera`,
+      datosAnteriores: fila,
+    });
+    setFilas(prev => prev.filter(x => x.id !== fila.id));
+  }
+
+  const FILTROS = [
+    { key: 'todas',      label: 'Todas' },
+    { key: 'pendiente',  label: 'Pendientes' },
+    { key: 'procesando', label: 'Procesando' },
+    { key: 'procesado',  label: 'Listas' },
+    { key: 'error',      label: 'Con error' },
+  ];
+
+  const conteo = key => key === 'todas' ? filas.length : filas.filter(f => f.estado_procesamiento === key).length;
+
+  const visibles = filas.filter(f => {
+    if (filtro !== 'todas' && f.estado_procesamiento !== filtro) return false;
+    const q = busqueda.trim().toLowerCase();
+    if (!q) return true;
+    return [f.codigo, f.cliente_nombre, f.cliente_whatsapp, f.cliente_email]
+      .some(v => (v || '').toLowerCase().includes(q));
+  });
+
+  if (loading) return <div className="flex justify-center py-16"><span className="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span></div>;
+
+  if (faltaTabla) {
+    return (
+      <div className="border border-error/30 bg-error/5 rounded-2xl p-6 text-center">
+        <span className="material-symbols-outlined text-4xl text-error block mb-2">database</span>
+        <p className="font-bold">Falta correr el script 09</p>
+        <p className="text-sm text-on-surface-variant mt-1">
+          La cola de digitalizaciones vive en la tabla <code>digitalizaciones</code>, que crea
+          <code> sql/productos/09_digitalizaciones.sql</code>. Corrélo en el SQL Editor de Supabase
+          y volvé a entrar.
+        </p>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-2 flex-wrap items-center">
+        {FILTROS.map(f => (
+          <button key={f.key} onClick={() => setFiltro(f.key)}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
+              filtro === f.key ? 'bg-primary/15 border-primary/40 text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-variant'
+            }`}>
+            {f.label} ({conteo(f.key)})
+          </button>
+        ))}
+        <button onClick={() => setCargando(v => !v)}
+          className="ml-auto flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:opacity-90 transition-all">
+          <span className="material-symbols-outlined text-base">{cargando ? 'close' : 'add_a_photo'}</span>
+          {cargando ? 'Cerrar' : 'Cargar'}
+        </button>
+      </div>
+
+      {cargando && (
+        <FormCargarDigitalizacion
+          onCancelar={() => setCargando(false)}
+          onCargada={fila => {
+            setFilas(prev => [fila, ...prev]);
+            firmarMiniaturas([fila]).then(m => setMiniaturas(prev => ({ ...prev, ...m })));
+            setCargando(false);
+          }}
+        />
+      )}
+
+      <input
+        type="search"
+        value={busqueda}
+        onChange={e => setBusqueda(e.target.value)}
+        placeholder="Buscar por cliente, código, WhatsApp o email"
+        className="input-field text-sm py-2"
+      />
+
+      <div className="space-y-2">
+        {visibles.map(f => {
+          const est   = ESTADOS_DIG[f.estado_procesamiento] || ESTADOS_DIG.pendiente;
+          const cred  = f.credito;
+          const thumb = miniaturas[f.id];
+          return (
+            <div key={f.id} className="border border-outline-variant/20 rounded-2xl p-4 space-y-3">
+              <div className="flex items-start gap-4 flex-wrap">
+                <button onClick={() => abrirArchivo(f.imagen_original_path)} disabled={!f.imagen_original_path}
+                  title="Ver la foto original"
+                  className="w-24 h-24 rounded-xl overflow-hidden bg-surface-variant shrink-0 flex items-center justify-center disabled:cursor-default">
+                  {thumb
+                    ? <img src={thumb} alt="" className="w-full h-full object-cover" />
+                    : <span className="material-symbols-outlined text-on-surface-variant/40 text-3xl">image</span>}
+                </button>
+
+                <div className="min-w-0 flex-1">
+                  <p className="font-bold text-sm">{f.cliente_nombre || 'Sin nombre'}</p>
+                  <p className="text-xs text-on-surface-variant">
+                    {f.cliente_whatsapp || '—'}{f.cliente_email ? ` · ${f.cliente_email}` : ''}
+                  </p>
+                  <p className="text-xs mt-1">
+                    <span className="font-mono font-bold text-primary">{f.codigo || 'sin código'}</span>
+                    {cred && (
+                      <span className="text-on-surface-variant">
+                        {' · '}quedan {cred.creditos_restantes} de {cred.creditos_total}
+                      </span>
+                    )}
+                  </p>
+                  <p className="text-xs text-on-surface-variant">
+                    {fmtDate(f.creado_en)}
+                    {f.procesado_en ? ` · procesado ${fmtDate(f.procesado_en)}` : ''}
+                  </p>
+                  {f.notas && <p className="text-xs text-on-surface-variant mt-1 italic">{f.notas}</p>}
+                  {f.estado_procesamiento === 'error' && f.error_mensaje && (
+                    <p className="text-xs text-error mt-1">{f.error_mensaje}</p>
+                  )}
+                  {f.estado_procesamiento === 'procesado' && !f.credito_consumido && (
+                    <p className="text-xs text-error mt-1">
+                      Quedó procesada sin descontar crédito: el código no tenía saldo.
+                    </p>
+                  )}
+                </div>
+
+                <span className={`text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5 shrink-0 ${est.clase}`}>
+                  {est.label}
+                </span>
+              </div>
+
+              <div className="flex gap-2 flex-wrap items-center pt-1 border-t border-outline-variant/10">
+                {f.archivo_pdf_path && (
+                  <button onClick={() => abrirArchivo(f.archivo_pdf_path)}
+                    className="flex items-center gap-1 px-3 py-2 rounded-xl bg-secondary/10 text-secondary text-xs font-bold hover:bg-secondary/20 transition-all">
+                    <span className="material-symbols-outlined text-base">picture_as_pdf</span>PDF
+                  </button>
+                )}
+                {f.archivo_dxf_path && (
+                  <button onClick={() => abrirArchivo(f.archivo_dxf_path)}
+                    className="flex items-center gap-1 px-3 py-2 rounded-xl bg-secondary/10 text-secondary text-xs font-bold hover:bg-secondary/20 transition-all">
+                    <span className="material-symbols-outlined text-base">download</span>DXF
+                  </button>
+                )}
+                {f.archivo_plt_path && (
+                  <button onClick={() => abrirArchivo(f.archivo_plt_path)}
+                    className="flex items-center gap-1 px-3 py-2 rounded-xl bg-secondary/10 text-secondary text-xs font-bold hover:bg-secondary/20 transition-all">
+                    <span className="material-symbols-outlined text-base">download</span>PLT
+                  </button>
+                )}
+
+                <select value={f.estado_procesamiento} onChange={e => cambiarEstado(f, e.target.value)}
+                  disabled={guardando === f.id}
+                  className="input-field text-xs py-1.5 w-auto disabled:opacity-40">
+                  {Object.entries(ESTADOS_DIG).map(([key, v]) => (
+                    <option key={key} value={key}>{v.label}</option>
+                  ))}
+                </select>
+
+                <button onClick={() => eliminar(f)} disabled={guardando === f.id}
+                  className="flex items-center gap-1 px-3 py-2 rounded-xl bg-error/10 text-error text-xs font-bold hover:bg-error/20 transition-all disabled:opacity-40 ml-auto">
+                  <span className="material-symbols-outlined text-base">delete</span>Eliminar
+                </button>
+              </div>
+            </div>
+          );
+        })}
+
+        {visibles.length === 0 && (
+          <div className="text-center py-16">
+            <span className="material-symbols-outlined text-5xl text-on-surface-variant/20 block mb-3">image_search</span>
+            <p className="text-on-surface-variant">Sin digitalizaciones en esta categoría</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ════════════════════════════════════════════════════════════════
 // PÁGINA PRINCIPAL — el sector propio de la pizarra
 //
 // Los datos viven en `productos` junto con el resto del catálogo, pero
@@ -1289,6 +1720,7 @@ export default function PizarrasAdminPage() {
     { key: 'planes',    label: 'Planes',    icon: 'sell' },
     { key: 'ventas',    label: 'Ventas',    icon: 'shopping_bag' },
     { key: 'creditos',  label: 'Créditos',  icon: 'key' },
+    { key: 'digitaliz', label: 'Digitalizaciones', icon: 'image_search' },
   ];
 
   return (
@@ -1316,6 +1748,7 @@ export default function PizarrasAdminPage() {
       {tab === 'planes'    && <TabPlanes />}
       {tab === 'ventas'    && <TabVentas />}
       {tab === 'creditos'  && <TabCreditos />}
+      {tab === 'digitaliz' && <TabDigitalizaciones />}
     </div>
   );
 }

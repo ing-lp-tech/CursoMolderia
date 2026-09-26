@@ -24,6 +24,7 @@ const TABS = [
   { key: 'prod_planes',  label: 'Planes',       icon: 'sell',                   tabla: 'producto_planes' },
   { key: 'prod_compras', label: 'Ventas prod.', icon: 'local_shipping',         tabla: 'producto_compras' },
   { key: 'prod_stock',   label: 'Stock',        icon: 'inventory',              tabla: 'movimientos_stock' },
+  { key: 'digitaliz',    label: 'Digitaliz.',   icon: 'image_search',           tabla: 'digitalizaciones' },
   { key: 'nav_items',    label: 'Navegación',   icon: 'menu',                   tabla: 'nav_items' },
   { key: 'sorteos',      label: 'Sorteos',      icon: 'casino',                 tabla: 'sorteos' },
 ];
@@ -84,6 +85,10 @@ function describeItem(tab, item) {
       const signo = item.tipo === 'entrada' ? '+' : item.tipo === 'salida' ? '−' : '=';
       return `${signo}${item.cantidad ?? 0} (${item.tipo || '—'}) — quedó en ${item.stock_resultante ?? '—'}${item.motivo ? ` — ${item.motivo}` : ''}`;
     }
+    case 'digitaliz':
+      // El archivo sigue en el bucket privado: borrar la fila no lo toca, así
+      // que restaurarla devuelve el trabajo entero.
+      return `${item.cliente_nombre || 'Sin nombre'} — ${item.codigo || 'sin código'} — ${item.estado_procesamiento || '—'}`;
     case 'nav_items':
       return `${item.label || 'Sin texto'} → ${item.path || '—'}`;
     case 'sorteos':

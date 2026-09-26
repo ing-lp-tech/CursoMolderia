@@ -29,12 +29,21 @@ ETAPA                                       ESTADO
                                             aprobar una venta de papel, tab
                                             Stock y papelera andando)
 
-5b — Imágenes (script 07 + Parte 9)         Código listo (07 + comprimirWeb /
-                                            generarThumb + imgUrl decidiendo
-                                            bucket por la forma del path +
-                                            miniaturas en tienda y en el panel)
+5b — Imágenes (script 07 + Parte 9)         07 ✅ CORRIDO el 26/09/2026: el
+                                            bucket productos-imagenes existe,
+                                            público, con sus 4 policies y
+                                            vacío. Falta resubir las 3 fotos
+                                            de la pizarra para que pasen del
+                                            bucket viejo a este, en WebP.
 
-6 — Gancho de digitalización                Pendiente (script 09)
+6 — Gancho de digitalización                09 ✅ CORRIDO el 26/09/2026: tabla,
+                                            bucket privado, trigger del crédito
+                                            y 4 policies, anon afuera. Código
+                                            listo (tab Digitalizaciones con
+                                            carga a mano, signed URLs, estados
+                                            y papelera + contrato en
+                                            sql/productos/README.md).
+                                            Falta el Checkpoint 6 en la app.
 
 7 — Categoría en Finanzas                   ✅ YA ESTABA HECHA
                                             FinanzasPage.jsx:8 tiene las tres:
@@ -45,17 +54,32 @@ ETAPA                                       ESTADO
 8 — Cargar plotters y PCs reales            En curso (papel ya cargado y
                                             vendido de punta a punta)
 
-9 — Limpieza                                Script 10 escrito (borra las vistas
-                                            de compatibilidad). Falta el 11
-                                            (borrar el bucket viejo), que no se
-                                            puede hasta resubir las fotos.
+9 — Limpieza                                Script 10 ✅ CORRIDO el 26/09/2026:
+                                            las vistas de compatibilidad ya no
+                                            están y las tablas quedaron
+                                            intactas (3 productos, 6 compras).
+                                            Falta el 11 (borrar el bucket
+                                            viejo), que no se puede hasta
+                                            resubir las fotos.
 ```
 
-**Para correr ahora, en este orden:** `07` (bucket nuevo) y `10` (borrar las
-vistas de compatibilidad). Son independientes entre sí.
+**No queda ningún script por correr.** Todos los de la numeración están
+aplicados; el `11` (borrar el bucket viejo) todavía no está escrito y no se
+puede correr hasta resubir las fotos.
+
+**Lo que sigue es todo en la app, sin SQL:**
+
+```
+□ Checkpoint 6 — cargar una digitalización de prueba y pasarla a
+  'procesado' para ver que el crédito baja solo
+□ Resubir las 3 fotos de la pizarra desde el panel (quedan en WebP en el
+  bucket nuevo)
+□ Etapa 8 — cargar los plotters y las PCs reales
+```
 
 Scripts extra fuera de la numeración original: `03b` (anulación de guías de
-envío) y `04b` (créditos incluidos por plan).
+envío), `04b` (créditos incluidos por plan) y `estado_scripts.sql`, que es solo
+de lectura y contesta cuáles de todos estos ya están corridos en la base.
 
 **Hueco que tenía la Parte 13, ya resuelto:** el script `07_storage_productos.sql`
 y toda la Parte 9 —WebP, miniaturas, `comprimirWeb()`, `generarThumb()`— no
@@ -63,10 +87,9 @@ estaban asignados a ninguna etapa, y sin ellos `thumb_1_path` no se escribía
 nunca y el Checkpoint 4 no se podía pasar. Quedaron como **Etapa 5b**, entre
 Stock y el gancho de digitalización.
 
-Scripts 00 a 06 y 08 ya corridos en Supabase. Las vistas de compatibilidad
-`pizarras` y `pizarras_compras` **siguen vivas**: debían borrarse a las 24-48 hs
-de la Etapa 1 y ya pasaron varios días. El script `10` que las borra todavía no
-está escrito.
+Scripts 00 a 10 ya corridos en Supabase. Las vistas de compatibilidad
+`pizarras` y `pizarras_compras` ya no existen: se borraron el 26/09/2026 con el
+script `10`, bastante después de las 24-48 hs previstas, sin consecuencias.
 
 **Cambio sobre el plan original:** los shims `api/create-pizarra.js` y
 `api/pizarra-admin.js` no existen como archivos. El plan Hobby de Vercel admite
@@ -1100,6 +1123,31 @@ CHECKPOINT 6:
   □ El README del contrato queda en sql/productos/
 ```
 
+**Tres cosas salieron distintas de como estaban escritas en la Parte 6:**
+
+- **La foto original no se comprime.** El plan decía `original.webp`. Se guarda
+  el archivo tal cual vino, con su extensión real: el procesador mide sobre esos
+  píxeles (marcadores ArUco, escala) y recomprimir a 1200px le saca justo la
+  precisión que necesita. Por eso el bucket admite 20 MB y no 2 MB.
+
+- **El trigger es BEFORE, no AFTER.** Así deja marcada la fila
+  (`credito_consumido`, `procesado_en`) en la misma escritura, sin un segundo
+  `update` que volvería a dispararlo. La columna `credito_consumido` no estaba
+  en la tabla del plan: es la que evita el doble cobro si el otro programador
+  también descuenta por su lado, y la que permite devolver el crédito si el
+  estado vuelve atrás.
+
+- **El bucket sí tiene policy de SELECT para `authenticated`.** En
+  `moldes-archivos` no la hay porque allá las signed URL las firma un endpoint
+  con service role; acá la galería firma desde el navegador y sin SELECT no
+  puede. El visitante anónimo sigue sin ver nada, que es lo que importa.
+
+**Lo que falta para cerrar la etapa:** el script `09` ya está corrido
+(26/09/2026, con tabla, bucket privado, trigger y policies verificados). Queda
+pasar el checkpoint desde la app. El endpoint `api/digitalizacion.js` sigue sin
+hacer a propósito: no hay app externa todavía, y es el último slot libre de
+Vercel.
+
 ### Etapa 7 — Categoría en Finanzas ✅ HECHA
 
 `FinanzasPage.jsx:8` ya incluye las tres categorías que inserta
@@ -1126,11 +1174,12 @@ CHECKPOINT 8:
 ### Etapa 9 — Limpieza
 
 ```
-□ Correr 10 (drop de las vistas de compatibilidad) — en realidad esto va
-  a las 24-48 hs de la Etapa 1, no acá
+✅ Correr 10 (drop de las vistas de compatibilidad) — hecho el 26/09/2026
 □ Volver a subir las 3 fotos de la pizarra para que queden en WebP
-□ Correr 11 (borrar el bucket viejo)
-□ Reducir los shims de los endpoints viejos
+□ Correr 11 (borrar el bucket viejo) — falta escribirlo, y no se puede
+  correr hasta que las fotos estén resubidas
+□ Borrar los dos rewrites de vercel.json (/api/create-pizarra y
+  /api/pizarra-admin)
 ```
 
 ---
