@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { PROVINCIAS_ARGENTINA } from '../utils/provinciasArgentina';
 import { imgUrl, productoImages } from '../utils/imagenesProducto';
+import { formatPrecio, monedaDe, cobroCoordinado, ofreceCotizacion, envioModoDe } from '../utils/producto';
 import SelectorCreditos from './SelectorCreditos';
 
 // Modal de compra de un producto: detalle → plan → datos → envío → pago.
@@ -207,6 +208,25 @@ export default function ProductoCompraModal({
   const exigeEnvio = plan ? plan.requiere_envio !== false : true;
   const precioPlanMin = planes.length ? Math.min(...planes.map(pl => Number(pl.precio))) : null;
 
+  // Moneda y modos los decide el producto (script 12). Los planes heredan la
+  // moneda del producto: un plan en dólares de una pizarra en pesos no existe.
+  const moneda = monedaDe(pizarra);
+  const precio = m => formatPrecio(m, moneda);
+
+  // Un producto en dólares, o marcado "a coordinar", no pasa por el checkout:
+  // MercadoPago Argentina cobra solo en pesos. Se cierra hablando.
+  const coordinado = cobroCoordinado(pizarra);
+  const modoEnvio = envioModoDe(pizarra);
+  const hayQueElegirEnvio = exigeEnvio && ofreceCotizacion(pizarra);
+
+  // Link de consulta para los productos que no se pagan acá.
+  const waVendedor = settings.moldes_whatsapp_comprobante?.replace(/\D/g, '');
+  const waConsulta = waVendedor
+    ? `https://wa.me/${waVendedor}?text=${encodeURIComponent(
+        `Hola! Me interesa "${pizarra.titulo}" (${precio(pizarra.precio)}). ¿Me pasás más información?`
+      )}`
+    : null;
+
   function elegirPlan(pl) {
     setPlan(pl);
     setCantidad(pl.cantidad_min || 1);
@@ -244,12 +264,31 @@ export default function ProductoCompraModal({
     try { return JSON.parse(text); } catch { return null; }
   }
 
-  function elegirCoordinarPorWhatsapp() {
+  // Los dos caminos que no pasan por la cotización automática: el comprador
+  // que la rechaza, y el producto que directamente no la ofrece.
+  //
+  // Los dos guardan `metodo_envio = 'coordinar'`, que es el único valor que
+  // admite la columna además de 'envia'. Lo que los distingue en el panel es la
+  // descripción, que viaja igual que la de un carrier real.
+  function fijarEnvioSinCotizar(descripcion) {
     setMetodoEnvio('coordinar');
-    setEnvioElegido({ carrier: null, service: null, descripcion: 'Coordinar por WhatsApp', precio: 0, requiere_sucursal: false });
+    setEnvioElegido({ carrier: null, service: null, descripcion, precio: 0, requiere_sucursal: false });
     setSucursalElegida(null);
     setError('');
     setStep('pago');
+  }
+
+  function elegirCoordinarPorWhatsapp() {
+    fijarEnvioSinCotizar('Coordinar por WhatsApp');
+  }
+
+  // Del formulario se sale para tres lados distintos según el producto.
+  function seguirDespuesDelFormulario() {
+    if (!exigeEnvio)      return setStep('pago');
+    if (hayQueElegirEnvio) return setStep('metodo_envio');
+    fijarEnvioSinCotizar(modoEnvio === 'incluido'
+      ? 'Envío incluido en el precio'
+      : 'A coordinar: este producto no se cotiza online');
   }
 
   async function handleCotizarEnvio() {
@@ -410,7 +449,10 @@ export default function ProductoCompraModal({
   // adelante también se saltean para atrás.
   function pasoAnterior() {
     if (step === 'pago') {
-      if (!exigeEnvio) return 'form';
+      // Sin envío, o con el envío ya decidido por el producto, el paso de
+      // método de envío nunca se mostró: volver ahí sería volver a una
+      // pregunta que no se hizo.
+      if (!exigeEnvio || !hayQueElegirEnvio) return 'form';
       return metodoEnvio === 'coordinar' ? 'metodo_envio' : 'envio';
     }
     if (step === 'envio') return 'metodo_envio';
@@ -450,8 +492,8 @@ export default function ProductoCompraModal({
                     {precioPlanMin != null && (
                       <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">desde</p>
                     )}
-                    <p className="font-black text-primary text-xl">${(precioPlanMin ?? Number(pizarra.precio)).toLocaleString('es-AR')}</p>
-                    {descuento > 0 && (
+                    <p className="font-black text-primary text-xl">{precio(precioPlanMin ?? Number(pizarra.precio))}</p>
+                    {descuento > 0 && !coordinado && (
                       <p className="text-xs text-secondary font-bold">{descuento}% off con transferencia</p>
                     )}
                   </div>
@@ -475,10 +517,29 @@ export default function ProductoCompraModal({
               {pizarra.requiere_envio !== false && (
                 <div className="flex items-center gap-2 text-xs text-on-surface-variant bg-surface-variant/50 rounded-xl p-3">
                   <span className="material-symbols-outlined text-base">local_shipping</span>
-                  Envío a todo el país con envia.com. El costo se calcula según tu dirección.
+                  {modoEnvio === 'incluido'
+                    ? 'Envío incluido en el precio, a todo el país.'
+                    : modoEnvio === 'coordinar'
+                      ? 'Por su tamaño, el envío de este producto se coordina por WhatsApp: el flete cambia bastante según la dirección.'
+                      : 'Envío a todo el país con envia.com. El costo se calcula según tu dirección.'}
                 </div>
               )}
-              {planes.length > 0 ? (
+              {/* Lo que no se paga acá no tiene checkout: tiene una conversación.
+                  Tampoco se le exige stock cargado, porque un plotter que se
+                  trae a pedido no tiene "3 disponibles". */}
+              {coordinado ? (
+                waConsulta ? (
+                  <a href={waConsulta} target="_blank" rel="noreferrer"
+                    className="btn-primary w-full flex items-center justify-center gap-2 bg-[#25D366] hover:bg-[#1EBE5A] text-black">
+                    <span className="material-symbols-outlined text-xl">chat</span>
+                    Consultar por WhatsApp
+                  </a>
+                ) : (
+                  <p className="text-sm text-on-surface-variant text-center bg-surface-variant/50 rounded-xl p-3">
+                    Escribinos para coordinar la compra de este producto.
+                  </p>
+                )
+              ) : planes.length > 0 ? (
                 <button onClick={() => setStep('planes')} className="btn-primary w-full">Ver planes y comprar</button>
               ) : pizarra.stock > 0 ? (
                 <button onClick={() => setStep('form')} className="btn-primary w-full">Comprar {pizarra.titulo}</button>
@@ -525,7 +586,7 @@ export default function ProductoCompraModal({
                           )}
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="font-black text-primary">${Number(pl.precio).toLocaleString('es-AR')}</p>
+                          <p className="font-black text-primary">{precio(pl.precio)}</p>
                           {pl.precio_sufijo && (
                             <p className="text-[10px] text-on-surface-variant">{pl.precio_sufijo}</p>
                           )}
@@ -657,7 +718,7 @@ export default function ProductoCompraModal({
               )}
 
               <button
-                onClick={() => setStep(exigeEnvio ? 'metodo_envio' : 'pago')}
+                onClick={seguirDespuesDelFormulario}
                 disabled={!formValid()}
                 className="btn-primary w-full flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
@@ -806,7 +867,7 @@ export default function ProductoCompraModal({
                   {!exigeEnvio
                     ? 'Sin envío: el código llega por WhatsApp'
                     : metodoEnvio === 'coordinar'
-                      ? 'Envío: a coordinar por WhatsApp'
+                      ? `Envío: ${envioElegido?.descripcion || 'a coordinar por WhatsApp'}`
                       : `Envío: ${envioElegido?.carrier} — ${envioElegido?.descripcion} ($${envioElegido?.precio.toLocaleString('es-AR')})`
                   }
                 </p>

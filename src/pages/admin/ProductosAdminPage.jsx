@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '../../lib/supabase';
 import { registrarAuditoria } from '../../utils/auditoria';
 import { imgUrl, uploadImagen } from '../../utils/imagenesProducto';
+import { formatPrecio, ENVIO_MODOS, cobroCoordinado, envioModoDe } from '../../utils/producto';
 import SlotImagen from '../../components/SlotImagen';
 
 // Catálogo completo: categorías, subcategorías y productos de cualquier tipo.
@@ -13,7 +14,6 @@ import SlotImagen from '../../components/SlotImagen';
 // Las ventas de TODOS los productos se siguen aprobando desde
 // /admin/pizarras → Ventas, que nunca filtró por categoría.
 
-function fmt(n) { return Number(n || 0).toLocaleString('es-AR'); }
 
 // ════════════════════════════════════════════════════════════════
 // TAB CATEGORÍAS
@@ -359,6 +359,7 @@ const PROD_INICIAL = {
   categoria_id: '', subcategoria_id: '',
   precio: '0', stock: '1', orden: 0, activo: true, requiere_envio: true,
   peso_kg: '1', alto_cm: '10', ancho_cm: '20', largo_cm: '30',
+  moneda: 'ARS', cobro_modo: 'online', envio_modo: 'cotizar',
 };
 
 function TabProductos() {
@@ -411,6 +412,9 @@ function TabProductos() {
       orden: p.orden ?? 0, activo: p.activo, requiere_envio: p.requiere_envio !== false,
       peso_kg: String(p.peso_kg ?? '1'), alto_cm: String(p.alto_cm ?? '10'),
       ancho_cm: String(p.ancho_cm ?? '20'), largo_cm: String(p.largo_cm ?? '30'),
+      moneda: p.moneda === 'USD' ? 'USD' : 'ARS',
+      cobro_modo: p.cobro_modo === 'coordinar' ? 'coordinar' : 'online',
+      envio_modo: ENVIO_MODOS[p.envio_modo] ? p.envio_modo : 'cotizar',
     });
     setImgs([null, null, null]);
     setError('');
@@ -436,6 +440,12 @@ function TabProductos() {
         orden: Number(form.orden) || 0,
         activo: !!form.activo,
         requiere_envio: !!form.requiere_envio,
+        moneda: form.moneda,
+        // En dólares el cobro es coordinado sí o sí: MercadoPago Argentina
+        // cobra solo en pesos. La base tiene la misma regla como constraint,
+        // así que mandar 'online' acá sería un error 400 y no un precio raro.
+        cobro_modo: form.moneda === 'USD' ? 'coordinar' : form.cobro_modo,
+        envio_modo: form.envio_modo,
         peso_kg: Number(form.peso_kg) || 0,
         alto_cm: Number(form.alto_cm) || 0,
         ancho_cm: Number(form.ancho_cm) || 0,
@@ -538,7 +548,19 @@ function TabProductos() {
                 {nombreSub(p.subcategoria_id) ? ` · ${nombreSub(p.subcategoria_id)}` : ''}
                 {' · '}Stock: {p.stock}
               </p>
-              <p className="text-sm font-headline font-bold text-primary">${fmt(p.precio)}</p>
+              <p className="text-sm font-headline font-bold text-primary flex items-center gap-2 flex-wrap">
+                {formatPrecio(p.precio, p.moneda)}
+                {cobroCoordinado(p) && (
+                  <span className="text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5 bg-secondary/15 text-secondary">
+                    a coordinar
+                  </span>
+                )}
+                {p.requiere_envio !== false && envioModoDe(p) !== 'cotizar' && (
+                  <span className="text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5 bg-surface-variant text-on-surface-variant">
+                    envío {envioModoDe(p) === 'incluido' ? 'incluido' : 'a coordinar'}
+                  </span>
+                )}
+              </p>
             </div>
             <div className="flex gap-0.5 shrink-0">
               <button onClick={() => toggleActivo(p)} title={p.activo ? 'Ocultar' : 'Mostrar'}
@@ -623,10 +645,24 @@ function TabProductos() {
                 onChange={e => setForm(f => ({ ...f, especificaciones: e.target.value }))} />
             </div>
 
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Moneda</label>
+                <select value={form.moneda} className="input-field"
+                  onChange={e => setForm(f => ({
+                    ...f,
+                    moneda: e.target.value,
+                    // Elegir dólares decide también el cobro. Se muestra abajo
+                    // en gris para que se vea por qué quedó así.
+                    cobro_modo: e.target.value === 'USD' ? 'coordinar' : f.cobro_modo,
+                  }))}>
+                  <option value="ARS">$ Pesos</option>
+                  <option value="USD">USD Dólares</option>
+                </select>
+              </div>
               <div>
                 <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Precio *</label>
-                <input type="number" min={0} step={100} value={form.precio} className="input-field"
+                <input type="number" min={0} step={form.moneda === 'USD' ? 50 : 100} value={form.precio} className="input-field"
                   onChange={e => setForm(f => ({ ...f, precio: e.target.value }))} />
               </div>
               <div>
@@ -639,6 +675,40 @@ function TabProductos() {
                 <input type="number" min={0} value={form.orden} className="input-field"
                   onChange={e => setForm(f => ({ ...f, orden: e.target.value }))} />
               </div>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Cómo se paga</label>
+              <select value={form.moneda === 'USD' ? 'coordinar' : form.cobro_modo}
+                disabled={form.moneda === 'USD'}
+                className="input-field disabled:opacity-60"
+                onChange={e => setForm(f => ({ ...f, cobro_modo: e.target.value }))}>
+                <option value="online">Checkout web (MercadoPago o transferencia)</option>
+                <option value="coordinar">A coordinar por WhatsApp</option>
+              </select>
+              <p className="text-[11px] text-on-surface-variant mt-1">
+                {form.moneda === 'USD'
+                  ? 'En dólares el cobro es siempre coordinado: MercadoPago Argentina cobra solo en pesos. El botón de la tienda lleva a tu WhatsApp con el producto ya escrito.'
+                  : form.cobro_modo === 'coordinar'
+                    ? 'El botón de la tienda lleva a tu WhatsApp en vez de al checkout. No se registra ninguna venta hasta que la cierres vos.'
+                    : 'El comprador paga en la web y la venta te entra sola en Ventas para que la apruebes.'}
+              </p>
+            </div>
+
+            <div>
+              <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">Cómo se envía</label>
+              <select value={form.envio_modo} className="input-field"
+                disabled={!form.requiere_envio}
+                onChange={e => setForm(f => ({ ...f, envio_modo: e.target.value }))}>
+                {Object.entries(ENVIO_MODOS).map(([key, v]) => (
+                  <option key={key} value={key}>{v.label}</option>
+                ))}
+              </select>
+              <p className="text-[11px] text-on-surface-variant mt-1">
+                {form.requiere_envio
+                  ? ENVIO_MODOS[form.envio_modo]?.ayuda
+                  : 'Este producto no se despacha, así que no se pide dirección ni se cobra envío.'}
+              </p>
             </div>
 
             <div>

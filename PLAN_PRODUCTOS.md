@@ -36,14 +36,16 @@ ETAPA                                       ESTADO
                                             de la pizarra para que pasen del
                                             bucket viejo a este, en WebP.
 
-6 — Gancho de digitalización                09 ✅ CORRIDO el 26/09/2026: tabla,
-                                            bucket privado, trigger del crédito
-                                            y 4 policies, anon afuera. Código
-                                            listo (tab Digitalizaciones con
-                                            carga a mano, signed URLs, estados
-                                            y papelera + contrato en
-                                            sql/productos/README.md).
-                                            Falta el Checkpoint 6 en la app.
+6 — Gancho de digitalización                ✅ VERIFICADA en producción el
+                                            26/09/2026: se cargó una foto con
+                                            el código MTX-KVA3-B7CL, se pasó a
+                                            'procesado' y el crédito bajó solo
+                                            (1 → 0, código en AGOTADO).
+                                            Queda sin hacer, a propósito, el
+                                            procesador de imagen a PDF/DXF: es
+                                            del otro programador, y la página
+                                            pública /digitalizar, que todavía
+                                            no está decidida.
 
 7 — Categoría en Finanzas                   ✅ YA ESTABA HECHA
                                             FinanzasPage.jsx:8 tiene las tres:
@@ -54,6 +56,11 @@ ETAPA                                       ESTADO
 8 — Cargar plotters y PCs reales            En curso (papel ya cargado y
                                             vendido de punta a punta)
 
+8b — Moneda y modo de envío                 Código listo (12 + moneda ARS/USD,
+     (no estaba en el plan)                 cobro online o a coordinar, y
+                                            envío cotizar/coordinar/incluido
+                                            por producto). Falta correr el 12.
+
 9 — Limpieza                                Script 10 ✅ CORRIDO el 26/09/2026:
                                             las vistas de compatibilidad ya no
                                             están y las tablas quedaron
@@ -63,19 +70,60 @@ ETAPA                                       ESTADO
                                             resubir las fotos.
 ```
 
-**No queda ningún script por correr.** Todos los de la numeración están
-aplicados; el `11` (borrar el bucket viejo) todavía no está escrito y no se
-puede correr hasta resubir las fotos.
+**Para correr ahora:** `12` (moneda y modo de envío por producto). El `11`
+(borrar el bucket viejo) todavía no está escrito y no se puede correr hasta
+resubir las fotos. Todo el resto de la numeración ya está aplicado.
 
 **Lo que sigue es todo en la app, sin SQL:**
 
 ```
-□ Checkpoint 6 — cargar una digitalización de prueba y pasarla a
-  'procesado' para ver que el crédito baja solo
+✅ Checkpoint 6 — hecho el 26/09/2026
+□ Devolver el crédito de la prueba: la digitalización de prueba se cargó
+  con el código de una clienta real. Se arregla pasando la fila de vuelta
+  a 'pendiente' (el trigger devuelve el crédito) y recién después
+  borrándola.
 □ Resubir las 3 fotos de la pizarra desde el panel (quedan en WebP en el
   bucket nuevo)
 □ Etapa 8 — cargar los plotters y las PCs reales
 ```
+
+## Etapa 8b — Moneda y modo de envío (agregada el 27/09/2026)
+
+No estaba en el plan. Salió de cargar el primer plotter: el catálogo daba por
+sentadas dos cosas que no son ciertas para todo lo que se vende.
+
+**Un plotter se cotiza en dólares.** El precio era un número sin moneda y se
+asumía ARS en todos lados. Ahora `productos.moneda` es `'ARS'` o `'USD'`.
+
+**Un plotter de tizada mide 2,4 × 0,9 × 0,7 m.** Envios.com no lo cotiza, y
+aunque lo hiciera, el flete de algo así cambia tanto según la dirección que un
+número automático sería mentira. Ahora `productos.envio_modo` elige entre
+`cotizar` (lo de siempre), `coordinar` (sin cotización automática) e `incluido`
+(sin cargo).
+
+**En dólares no se paga online, y lo exige la base.** MercadoPago Argentina
+cobra solo en pesos. Se evaluó convertir con una cotización cargada a mano y se
+descartó: una cotización que hay que acordarse de actualizar es una forma
+elegante de vender barato el día que te olvidás. Un producto en USD manda al
+comprador a WhatsApp. No es una convención del frontend —que se saltea pegándole
+al endpoint— sino la constraint `productos_usd_coordina_check`.
+
+Los tres defaults son el comportamiento anterior, así que nada de lo ya cargado
+cambia.
+
+```
+CHECKPOINT 8b:
+  □ Un producto en pesos se sigue comprando igual que antes, de punta a punta
+  □ Un producto en USD muestra "USD 4.000" y el botón lleva a WhatsApp
+  □ Un producto con envío "a coordinar" se compra sin pasar por la cotización
+  □ Pegarle a /api/create-producto con un producto en USD devuelve 400
+```
+
+**Decisión abierta:** la página pública `/digitalizar`, donde el cliente pega su
+código y sube la foto solo, en vez de mandártela por WhatsApp para que la
+cargues vos. No estaba en el plan original y es lo único que falta para que el
+circuito no dependa de vos en el medio. El procesador de imagen sigue siendo
+del otro programador en cualquier caso.
 
 Scripts extra fuera de la numeración original: `03b` (anulación de guías de
 envío), `04b` (créditos incluidos por plan) y `estado_scripts.sql`, que es solo
@@ -1115,12 +1163,12 @@ CHECKPOINT 5:
 ```
 Correr 09 → tab Digitalizaciones (el tab Créditos ya existe desde la Etapa 2)
 
-CHECKPOINT 6:
-  □ Los códigos emitidos aparecen con sus créditos restantes
-  □ Cargando una digitalización de prueba a mano, aparece en la galería
-    como 'pendiente'
-  □ Pasándola a 'procesado' a mano, el crédito se descuenta solo
-  □ El README del contrato queda en sql/productos/
+CHECKPOINT 6 — pasado el 26/09/2026:
+  ✅ Los códigos emitidos aparecen con sus créditos restantes
+  ✅ Cargando una digitalización de prueba a mano, aparece en la galería
+     como 'pendiente'
+  ✅ Pasándola a 'procesado' a mano, el crédito se descuenta solo
+  ✅ El README del contrato queda en sql/productos/
 ```
 
 **Tres cosas salieron distintas de como estaban escritas en la Parte 6:**

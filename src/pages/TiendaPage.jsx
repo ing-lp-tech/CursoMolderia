@@ -4,6 +4,7 @@ import { supabase } from '../lib/supabase';
 import { useAppSettings } from '../context/AppSettingsContext';
 import ProductoCompraModal, { PantallaVerificacion } from '../components/ProductoCompraModal';
 import { imgUrl } from '../utils/imagenesProducto';
+import { formatPrecio, cobroCoordinado } from '../utils/producto';
 
 // Tienda pública: /tienda y /tienda/:categoria
 //
@@ -65,10 +66,18 @@ function ProductoCard({ producto, onClick }) {
       </div>
       <div className="space-y-1 flex-1 flex flex-col">
         <h3 className="font-headline font-black text-on-surface text-base leading-tight line-clamp-2">{producto.titulo}</h3>
-        <span className="font-black text-primary text-lg">${Number(producto.precio).toLocaleString('es-AR')}</span>
-        <p className={`text-xs mt-auto ${sinStock ? 'text-error' : 'text-on-surface-variant'}`}>
-          {sinStock ? 'Sin stock' : `${producto.stock} disponibles`}
-        </p>
+        <span className="font-black text-primary text-lg">{formatPrecio(producto.precio, producto.moneda)}</span>
+        {cobroCoordinado(producto) && (
+          <span className="text-[10px] font-bold uppercase tracking-widest text-secondary">Consultá por WhatsApp</span>
+        )}
+        {/* Un plotter que se trae a pedido no tiene "3 disponibles", y cantarle
+            "Sin stock" al visitante lo espanta de algo que sí se puede vender.
+            Con cobro a coordinar, el stock no dice nada útil. */}
+        {!cobroCoordinado(producto) && (
+          <p className={`text-xs mt-auto ${sinStock ? 'text-error' : 'text-on-surface-variant'}`}>
+            {sinStock ? 'Sin stock' : `${producto.stock} disponibles`}
+          </p>
+        )}
       </div>
     </button>
   );

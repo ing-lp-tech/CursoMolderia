@@ -24,13 +24,25 @@ async function handleCotizar(req, res, supabase) {
   try {
     const { data: producto, error: productoErr } = await supabase
       .from('productos')
-      .select('id, titulo, precio, activo, eliminado_en, stock, peso_kg, alto_cm, ancho_cm, largo_cm')
+      .select('id, titulo, precio, activo, eliminado_en, stock, peso_kg, alto_cm, ancho_cm, largo_cm, envio_modo')
       .eq('id', productoId)
       .single();
 
     if (productoErr || !producto) return res.status(404).json({ error: 'Producto no encontrado' });
     if (!producto.activo || producto.eliminado_en) return res.status(400).json({ error: 'Producto no disponible' });
     if (producto.stock <= 0) return res.status(400).json({ error: 'Sin stock disponible' });
+
+    // Un producto marcado "a coordinar" o "envío incluido" no se cotiza. El
+    // frontend ni siquiera ofrece el botón, pero este endpoint es público:
+    // sin esto, pegarle a mano devolvería una cotización que después el
+    // checkout descarta, y el comprador vería dos números distintos.
+    if (producto.envio_modo && producto.envio_modo !== 'cotizar') {
+      return res.status(400).json({
+        error: producto.envio_modo === 'incluido'
+          ? 'El envío de este producto ya está incluido en el precio.'
+          : 'El envío de este producto se coordina por WhatsApp, no se cotiza online.',
+      });
+    }
 
     const opciones = await cotizarEnvio(producto, destino);
     return res.status(200).json({ opciones });

@@ -35,6 +35,21 @@ function validarSucursal(envio, sucursal, exigeEnvio) {
   return sucursal && typeof sucursal === 'object' && sucursal.codigo;
 }
 
+// Un producto en dólares, o marcado "a coordinar", no se paga en la web:
+// MercadoPago Argentina cobra solo en pesos. El frontend ya muestra un botón de
+// WhatsApp en vez del checkout, pero esa es una decisión del navegador y el
+// navegador no es de fiar: acá se vuelve a decidir, con la fila de la base.
+function seCobraOnline(producto) {
+  return producto.moneda !== 'USD' && producto.cobro_modo !== 'coordinar';
+}
+
+// 'cotizar' es el único modo en el que la cotización automática tiene sentido.
+// Con 'coordinar' (el plotter que el correo no cotiza) e 'incluido' (sin cargo),
+// el envío vale 0 y lo decide el servidor, no lo que venga en el body.
+function envioLoDecideElProducto(producto) {
+  return producto.requiere_envio !== false && producto.envio_modo && producto.envio_modo !== 'cotizar';
+}
+
 // Cuando hay plan, el precio sale del PLAN, no del producto: "Combo Taller"
 // cobra $400.000 aunque la pizarra figure a $250.000.
 function precioUnitarioDe(producto, plan) {
@@ -263,7 +278,7 @@ export default async function handler(req, res) {
   try {
     const { data, error: productoErr } = await supabase
       .from('productos')
-      .select('id, titulo, precio, activo, eliminado_en, stock, requiere_envio, producto_categorias(nombre)')
+      .select('id, titulo, precio, activo, eliminado_en, stock, requiere_envio, moneda, cobro_modo, envio_modo, producto_categorias(nombre)')
       .eq('id', productoId)
       .single();
     if (productoErr || !data) return res.status(404).json({ error: 'Producto no encontrado' });
@@ -272,6 +287,12 @@ export default async function handler(req, res) {
   } catch (err) {
     console.error('[PRODUCTO_ERROR] QUERY', err?.message || err);
     return res.status(500).json({ error: 'Error al buscar el producto' });
+  }
+
+  if (!seCobraOnline(producto)) {
+    return res.status(400).json({
+      error: 'Este producto no se paga por la web: escribinos por WhatsApp y lo coordinamos.',
+    });
   }
 
   // El plan es opcional: un plotter se compra sin plan y el precio sale del
@@ -313,13 +334,28 @@ export default async function handler(req, res) {
     });
   }
 
+  // Se pisa lo que haya mandado el navegador: si el producto no se cotiza, el
+  // envío vale 0 y no tiene carrier, venga lo que venga en el body.
+  const envioFinal = envioLoDecideElProducto(producto)
+    ? {
+        carrier: null,
+        service: null,
+        descripcion: producto.envio_modo === 'incluido'
+          ? 'Envío incluido en el precio'
+          : 'A coordinar: este producto no se cotiza online',
+        precio: 0,
+        requiere_sucursal: false,
+      }
+    : envio;
+  const metodoEnvioFinal = envioLoDecideElProducto(producto) ? 'coordinar' : metodoEnvio;
+
   if (exigeEnvio && !validarDireccion(comprador)) {
     return res.status(400).json({ error: 'Faltan datos de la dirección de envío' });
   }
-  if (!validarEnvio(envio, metodoEnvio, exigeEnvio)) {
+  if (!validarEnvio(envioFinal, metodoEnvioFinal, exigeEnvio)) {
     return res.status(400).json({ error: 'Debés elegir una opción de envío' });
   }
-  if (!validarSucursal(envio, sucursal, exigeEnvio)) {
+  if (!validarSucursal(envioFinal, sucursal, exigeEnvio)) {
     return res.status(400).json({ error: 'Debés elegir una sucursal de destino' });
   }
 
@@ -327,7 +363,10 @@ export default async function handler(req, res) {
   const baseUrl = host.startsWith('localhost') ? `http://${host}` : `https://${host}`;
 
   try {
-    const args = { producto, plan, comprador, envio, sucursal, metodoEnvio, cantidad, exigeEnvio, retorno, baseUrl, supabase };
+    const args = {
+      producto, plan, comprador, sucursal, cantidad, exigeEnvio, retorno, baseUrl, supabase,
+      envio: envioFinal, metodoEnvio: metodoEnvioFinal,
+    };
     const resultado = metodo === 'mercadopago'
       ? await crearConMercadoPago(args)
       : await crearPorTransferencia(args);
