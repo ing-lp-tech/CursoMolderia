@@ -85,6 +85,7 @@ function normalizeWhatsapp(raw) {
 // `extraCreditos`: créditos de regalo que gana por haber pagado con transferencia.
 export function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion, settings, producto = null, sinEnvio = false, conPlan = false, extraCreditos = 0, onClose }) {
   const wa = settings.moldes_whatsapp_comprobante?.replace(/\D/g, '');
+  const [aliasCopiado, setAliasCopiado] = useState(false);
 
   const direccionTexto = direccion
     ? `${direccion.calle} ${direccion.numero || ''}${direccion.piso_depto ? ', ' + direccion.piso_depto : ''}, ${direccion.ciudad}, ${direccion.provincia} (CP ${direccion.codigo_postal})${direccion.referencia ? ' — Ref: ' + direccion.referencia : ''}`
@@ -105,53 +106,87 @@ export function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, dir
   const texto = encodeURIComponent(lineaBase + lineaCierre);
   const waLink = wa ? `https://wa.me/${wa}?text=${texto}` : null;
 
+  const esTransferencia = metodo === 'transferencia';
+
+  async function copiarAlias() {
+    try {
+      await navigator.clipboard.writeText(settings.moldes_alias);
+      setAliasCopiado(true);
+      setTimeout(() => setAliasCopiado(false), 2000);
+    } catch {
+      window.prompt('Copiá el alias:', settings.moldes_alias);
+    }
+  }
+
+  // Tiene que entrar entera en la pantalla de una notebook: compacta, y con
+  // scroll propio si igual no alcanza (celular apaisado, zoom alto).
   return (
     <div className="fixed inset-0 z-50 bg-black/60 flex items-center justify-center p-4">
-      <div className="bg-surface-container rounded-3xl shadow-2xl max-w-md w-full p-8 text-center space-y-6">
-        <div className="w-16 h-16 rounded-full bg-primary/20 flex items-center justify-center mx-auto">
-          <span className="material-symbols-outlined text-3xl text-primary">hourglass_top</span>
-        </div>
-        <div>
-          <h2 className="font-headline font-black text-2xl text-primary mb-2">¡Compra registrada!</h2>
-          <p className="text-on-surface-variant text-sm">
-            {sinEnvio
-              ? <>Tu compra está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, te mandamos por WhatsApp tu <strong className="text-on-surface">código de digitalización</strong>{conPlan && compraId ? ' y también lo vas a ver en la página de seguimiento' : ''}.</>
-              : metodoEnvio === 'coordinar'
-                ? <>Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, nos vamos a comunicar por WhatsApp para coordinar el envío.</>
-                : <>Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, generamos el envío y te pasamos el código de seguimiento.</>
-            }
-          </p>
-        </div>
-
-        {metodo === 'transferencia' && (
-          <div className="bg-secondary/10 rounded-2xl p-4 text-left space-y-2 text-sm">
-            <p className="font-bold text-on-surface uppercase tracking-wide text-xs mb-3">Datos para transferir</p>
-            {settings.moldes_titular && <p><span className="text-on-surface-variant">Titular:</span> <strong>{settings.moldes_titular}</strong></p>}
-            {settings.moldes_banco && <p><span className="text-on-surface-variant">Banco:</span> <strong>{settings.moldes_banco}</strong></p>}
-            {settings.moldes_cbu && <p><span className="text-on-surface-variant">CBU:</span> <strong className="font-mono">{settings.moldes_cbu}</strong></p>}
-            {settings.moldes_alias && <p><span className="text-on-surface-variant">Alias:</span> <strong>{settings.moldes_alias}</strong></p>}
-            {monto != null && <p className="pt-1"><span className="text-on-surface-variant">Monto:</span> <strong className="text-primary text-base">${monto.toLocaleString('es-AR')}</strong></p>}
+      <div className="bg-surface-container rounded-3xl shadow-2xl max-w-md w-full max-h-[92dvh] overflow-y-auto p-6 space-y-4">
+        <div className="flex items-center gap-3">
+          <div className="w-11 h-11 rounded-full bg-primary/20 flex items-center justify-center shrink-0">
+            <span className="material-symbols-outlined text-2xl text-primary">hourglass_top</span>
           </div>
-        )}
-
-        {metodo === 'transferencia' && (
-          <div className="rounded-2xl border-2 border-[#25D366]/50 bg-[#25D366]/10 p-4 text-left text-sm space-y-1">
-            <p className="font-headline font-black text-on-surface">📲 Después de transferir, mandanos el comprobante</p>
-            <p className="text-on-surface-variant">
-              Envialo por WhatsApp{wa ? <> al <strong className="text-on-surface font-mono">+{wa}</strong></> : ''}.
-              Sin el comprobante no podemos aprobar tu compra.
+          <div>
+            <h2 className="font-headline font-black text-xl text-primary leading-tight">¡Compra registrada!</h2>
+            <p className="text-on-surface-variant text-xs">
+              {esTransferencia
+                ? 'Falta tu transferencia y el comprobante.'
+                : <>En <strong className="text-on-surface">verificación</strong>: te avisamos por WhatsApp.</>}
             </p>
+          </div>
+        </div>
+
+        {esTransferencia && (
+          <div className="rounded-2xl bg-secondary/10 p-4 text-sm space-y-3">
+            <div className="flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-secondary/25 text-secondary text-xs font-black flex items-center justify-center shrink-0">1</span>
+              <div className="min-w-0 flex-1 space-y-1">
+                <p>
+                  Transferí <strong className="text-primary text-base">{monto != null ? `$${monto.toLocaleString('es-AR')}` : 'el total'}</strong>
+                </p>
+                {settings.moldes_alias && (
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="truncate">Alias: <strong className="font-mono">{settings.moldes_alias}</strong></p>
+                    <button onClick={copiarAlias}
+                      className="flex items-center gap-1 px-2 py-1 rounded-lg bg-secondary/20 text-secondary text-xs font-bold hover:bg-secondary/30 transition-all shrink-0">
+                      <span className="material-symbols-outlined text-sm">{aliasCopiado ? 'check' : 'content_copy'}</span>
+                      {aliasCopiado ? 'Copiado' : 'Copiar'}
+                    </button>
+                  </div>
+                )}
+                {settings.moldes_cbu && <p className="text-xs break-all">CBU: <span className="font-mono">{settings.moldes_cbu}</span></p>}
+                {(settings.moldes_titular || settings.moldes_banco) && (
+                  <p className="text-xs text-on-surface-variant">
+                    {[settings.moldes_titular, settings.moldes_banco].filter(Boolean).join(' · ')}
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="flex items-start gap-3">
+              <span className="w-6 h-6 rounded-full bg-secondary/25 text-secondary text-xs font-black flex items-center justify-center shrink-0">2</span>
+              <p>
+                <strong>Mandanos el comprobante por WhatsApp</strong>
+                {wa && <> al <span className="font-mono">+{wa}</span></>}. Sin él no podemos aprobar tu compra.
+              </p>
+            </div>
+
             {extraCreditos > 0 && (
-              <p className="text-secondary font-bold pt-1">
-                🎁 Por pagar con transferencia te sumamos {extraCreditos} {extraCreditos === 1 ? 'crédito' : 'créditos'} de regalo.
+              <p className="text-secondary font-bold text-xs pl-9">
+                🎁 +{extraCreditos} {extraCreditos === 1 ? 'crédito' : 'créditos'} de regalo por pagar con transferencia
               </p>
             )}
           </div>
         )}
 
-        {metodo === 'mercadopago' && (
+        {!esTransferencia && (
           <p className="text-sm text-on-surface-variant">
-            Pagaste con MercadoPago. Una vez que verifiquemos tu pago, coordinamos el envío.
+            {sinEnvio
+              ? 'Cuando confirmemos tu pago te mandamos tu código de digitalización.'
+              : metodoEnvio === 'coordinar'
+                ? 'Cuando confirmemos tu pago te escribimos para coordinar el envío.'
+                : 'Cuando confirmemos tu pago generamos el envío y te pasamos el seguimiento.'}
           </p>
         )}
 
@@ -160,27 +195,26 @@ export function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, dir
             href={waLink}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center justify-center gap-2 w-full rounded-2xl px-5 py-4 font-headline font-black text-base uppercase tracking-wide text-white bg-[#25D366] hover:bg-[#1EBE5A] shadow-lg shadow-[#25D366]/30 ring-4 ring-[#25D366]/20 transition-all"
+            className="flex items-center justify-center gap-2 w-full rounded-2xl px-4 py-3 font-headline font-black text-sm uppercase tracking-wide text-white bg-[#25D366] hover:bg-[#1EBE5A] shadow-lg shadow-[#25D366]/30 transition-all"
           >
-            <span className="material-symbols-outlined text-2xl">chat</span>
-            {metodo === 'transferencia' ? 'Enviar comprobante por WhatsApp' : 'Avisar por WhatsApp ahora'}
-          </a>
-        )}
-        {waLink && (
-          <p className="text-xs text-on-surface-variant -mt-3">
-            👆 Este paso es clave: nos llega tu aviso al instante y aprobamos más rápido.
-          </p>
-        )}
-
-        {conPlan && compraId && (
-          <a href={linkSeguimiento(compraId)}
-            className="flex items-center justify-center gap-2 w-full rounded-2xl px-5 py-3 font-bold text-sm text-primary bg-primary/10 hover:bg-primary/20 transition-all">
-            <span className="material-symbols-outlined text-xl">key</span>
-            Seguir mi compra y ver mi código
+            <span className="material-symbols-outlined text-xl">chat</span>
+            {esTransferencia ? 'Enviar comprobante por WhatsApp' : 'Avisar por WhatsApp ahora'}
           </a>
         )}
 
-        <button onClick={onClose} className="btn-secondary w-full">Volver al catálogo</button>
+        <div className="flex gap-2">
+          {conPlan && compraId && (
+            <a href={linkSeguimiento(compraId)}
+              className="flex-1 flex items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 font-bold text-sm text-primary bg-primary/10 hover:bg-primary/20 transition-all">
+              <span className="material-symbols-outlined text-lg">key</span>
+              Ver mi código
+            </a>
+          )}
+          <button onClick={onClose}
+            className="flex-1 rounded-xl px-3 py-2.5 font-bold text-sm text-on-surface-variant border border-outline-variant/40 hover:bg-surface-variant transition-all">
+            Volver al catálogo
+          </button>
+        </div>
       </div>
     </div>
   );
