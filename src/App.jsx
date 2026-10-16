@@ -29,6 +29,7 @@ const PizarrasAdminPage = lazy(() => import('./pages/admin/PizarrasAdminPage'));
 const NavegacionPage    = lazy(() => import('./pages/admin/NavegacionPage'));
 const ProductosAdminPage = lazy(() => import('./pages/admin/ProductosAdminPage'));
 const TiendaPage        = lazy(() => import('./pages/TiendaPage'));
+const SoftwarePage      = lazy(() => import('./pages/SoftwarePage'));
 
 function PublicLayout({ children }) {
   return (
@@ -66,6 +67,7 @@ export default function App() {
           <Route path="/pizarras" element={<PublicLayout><Suspense fallback={<AdminFallback />}><PizarrasPage /></Suspense></PublicLayout>} />
           <Route path="/tienda" element={<PublicLayout><Suspense fallback={<AdminFallback />}><TiendaPage /></Suspense></PublicLayout>} />
           <Route path="/tienda/:categoria" element={<PublicLayout><Suspense fallback={<AdminFallback />}><TiendaPage /></Suspense></PublicLayout>} />
+          <Route path="/software" element={<PublicLayout><Suspense fallback={<AdminFallback />}><SoftwarePage /></Suspense></PublicLayout>} />
 
           {/* Student portal — lazy */}
           <Route

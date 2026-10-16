@@ -14,6 +14,14 @@ const DEFAULTS = {
   moldes_banco: '',
   moldes_descuento_transferencia: 0,
   moldes_whatsapp_comprobante: '',
+  // Software de digitalización: a dónde va el comprador con su código.
+  // Vacío = todavía no hay hosting, y la página lo dice en vez de mostrar un
+  // botón que lleva a ningún lado.
+  software_url: '',
+  software_boton: 'Abrir el software',
+  // Créditos de regalo para quien paga un plan con créditos por
+  // transferencia/alias. Lo suma el servidor al aprobar; acá es para mostrarlo.
+  transferencia_creditos_extra: 1,
 };
 
 const AppSettingsContext = createContext({ ...DEFAULTS, loaded: false, refetch: () => {} });
@@ -33,6 +41,11 @@ function parseSettings(data) {
     moldes_banco:                    map.moldes_banco                    || '',
     moldes_descuento_transferencia:  map.moldes_descuento_transferencia  ? Number(map.moldes_descuento_transferencia) : 0,
     moldes_whatsapp_comprobante:     map.moldes_whatsapp_comprobante     || '',
+    software_url:                    map.software_url                    || '',
+    software_boton:                  map.software_boton                  || DEFAULTS.software_boton,
+    transferencia_creditos_extra:    map.transferencia_creditos_extra != null && map.transferencia_creditos_extra !== ''
+                                       ? Math.max(0, Math.trunc(Number(map.transferencia_creditos_extra)) || 0)
+                                       : DEFAULTS.transferencia_creditos_extra,
   };
 }
 

@@ -9,10 +9,29 @@ import { setCors, bloquearSiOrigenInvalido } from './_lib/cors.js';
 // Es idempotente: si el código ya existe (por un reintento del panel) devuelve
 // el mismo, nunca uno nuevo. Nada de esto puede tumbar la aprobación: si
 // fallara, la venta ya está aprobada y el código se carga a mano.
+// Créditos de regalo por pagar con transferencia/alias. Se configura en
+// /admin/configuracion (`transferencia_creditos_extra`); sin fila, es 1.
+async function creditosExtraPorTransferencia(supabase) {
+  const { data } = await supabase
+    .from('app_settings')
+    .select('value')
+    .eq('id', 'transferencia_creditos_extra')
+    .maybeSingle();
+  if (data?.value === undefined || data?.value === null || data?.value === '') return 1;
+  return Math.max(0, Math.trunc(Number(data.value)) || 0);
+}
+
 async function emitirCredito(supabase, compra, plan, unidades) {
   // Un plan físico vende 1 unidad que incluye N digitalizaciones; "Solo
   // Software" vende N créditos sueltos (creditos_por_unidad = 1, el default).
-  const creditos = unidades * (Number(plan.creditos_por_unidad) || 1);
+  const comprados = unidades * (Number(plan.creditos_por_unidad) || 1);
+
+  // Pagar por transferencia trae créditos de regalo: no hay comisión de
+  // MercadoPago, y se le devuelve parte de esa diferencia al cliente.
+  const extra = compra.metodo_pago === 'transferencia'
+    ? await creditosExtraPorTransferencia(supabase)
+    : 0;
+  const creditos = comprados + extra;
 
   const { data: yaEmitido } = await supabase
     .from('digitalizacion_creditos')
@@ -20,7 +39,7 @@ async function emitirCredito(supabase, compra, plan, unidades) {
     .eq('compra_id', compra.id)
     .is('eliminado_en', null)
     .maybeSingle();
-  if (yaEmitido) return { codigo: yaEmitido.codigo, creditos: yaEmitido.creditos_total };
+  if (yaEmitido) return { codigo: yaEmitido.codigo, creditos: yaEmitido.creditos_total, extra: 0 };
 
   // `codigo` lo genera el default de la columna (fn_generar_codigo_credito):
   // así dos aprobaciones simultáneas no pueden sacar el mismo.
@@ -33,6 +52,7 @@ async function emitirCredito(supabase, compra, plan, unidades) {
       cliente_whatsapp: compra.whatsapp,
       cliente_email:    compra.email,
       creditos_total:   creditos,
+      notas:            extra > 0 ? `Incluye ${extra} de regalo por pagar con transferencia` : null,
     })
     .select('codigo, creditos_total')
     .single();
@@ -41,7 +61,7 @@ async function emitirCredito(supabase, compra, plan, unidades) {
     console.error('[PRODUCTO_CREDITO_INSERT]', error.message);
     return null;
   }
-  return { codigo: data.codigo, creditos: data.creditos_total };
+  return { codigo: data.codigo, creditos: data.creditos_total, extra };
 }
 
 // Descuenta el stock y deja el movimiento de salida en el historial.

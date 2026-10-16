@@ -39,6 +39,8 @@ const vercelApiMock = (env) => ({
         'producto-admin':             () => import('./api/producto-admin.js'),
         'envia-cotizar':              () => import('./api/envia-cotizar.js'),
         'envia-webhook':              () => import('./api/envia-webhook.js'),
+        // Códigos de digitalización: lo que ve el comprador y lo que usa el software.
+        'digitalizacion':             () => import('./api/digitalizacion.js'),
       };
       const matched = Object.keys(ROUTES).find(r => req.url.includes(r));
 

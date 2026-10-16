@@ -8,7 +8,7 @@ import { setCors, bloquearSiOrigenInvalido } from './_lib/cors.js';
 
 // Páginas desde las que se puede comprar. Se valida contra esta lista para
 // que nadie pueda inyectar una URL de retorno arbitraria en MercadoPago.
-const RETORNOS_VALIDOS = ['/pizarras', '/tienda'];
+const RETORNOS_VALIDOS = ['/pizarras', '/tienda', '/software'];
 
 // El contacto se pide siempre: sin WhatsApp no hay forma de avisarle al
 // comprador, ni de mandarle el código si compró créditos.
@@ -142,6 +142,13 @@ async function crearConMercadoPago({ producto, plan, comprador, envio, sucursal,
 
   const sufijoRetorno = exigeEnvio ? '' : '&sin_envio=1';
 
+  // Quien compra un plan (de pizarra o "Solo Software") vuelve a /software,
+  // donde sigue el estado de su compra y, cuando se aprueba, copia su código y
+  // entra al software. Lo demás vuelve a la página desde la que compró.
+  const urlExito = plan
+    ? `${baseUrl}/software?compra=${compraId}`
+    : `${baseUrl}${retorno}?estado=verificacion&id=${compraId}${sufijoRetorno}`;
+
   const client = new MercadoPagoConfig({ accessToken, options: { timeout: 8000 } });
   const preference = new Preference(client);
 
@@ -169,8 +176,8 @@ async function crearConMercadoPago({ producto, plan, comprador, envio, sucursal,
           // Al volver de MercadoPago la página no puede leer la compra (anon no
           // tiene select sobre producto_compras), así que le avisamos por la URL
           // si hay envío o no: es lo único que cambia en el texto que ve.
-          success: `${baseUrl}${retorno}?estado=verificacion&id=${compraId}${sufijoRetorno}`,
-          pending: `${baseUrl}${retorno}?estado=verificacion&id=${compraId}${sufijoRetorno}`,
+          success: urlExito,
+          pending: urlExito,
           failure: `${baseUrl}${retorno}?estado=fallo&id=${compraId}`,
         },
         auto_return: 'approved',

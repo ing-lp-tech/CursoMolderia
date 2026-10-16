@@ -3,6 +3,7 @@ import { PROVINCIAS_ARGENTINA } from '../utils/provinciasArgentina';
 import { imgUrl, productoImages } from '../utils/imagenesProducto';
 import { formatPrecio, monedaDe, cobroCoordinado, ofreceCotizacion, envioModoDe } from '../utils/producto';
 import SelectorCreditos from './SelectorCreditos';
+import { linkSeguimiento } from '../utils/software';
 
 // Modal de compra de un producto: detalle → plan → datos → envío → pago.
 //
@@ -79,7 +80,10 @@ function normalizeWhatsapp(raw) {
 // `producto` es el título, y puede venir vacío: al volver de MercadoPago la
 // página solo tiene el id de la compra en la URL, no el producto. Por eso el
 // mensaje cae a "mi compra" en vez de nombrar algo equivocado.
-export function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion, settings, producto = null, sinEnvio = false, onClose }) {
+// `conPlan`: compró un plan (de pizarra o "Solo Software"). Se le ofrece seguir
+// la compra en /software, donde aparece su código cuando se aprueba.
+// `extraCreditos`: créditos de regalo que gana por haber pagado con transferencia.
+export function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, direccion, settings, producto = null, sinEnvio = false, conPlan = false, extraCreditos = 0, onClose }) {
   const wa = settings.moldes_whatsapp_comprobante?.replace(/\D/g, '');
 
   const direccionTexto = direccion
@@ -111,7 +115,7 @@ export function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, dir
           <h2 className="font-headline font-black text-2xl text-primary mb-2">¡Compra registrada!</h2>
           <p className="text-on-surface-variant text-sm">
             {sinEnvio
-              ? <>Tu compra está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, te mandamos por WhatsApp tu <strong className="text-on-surface">código de digitalización</strong>.</>
+              ? <>Tu compra está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, te mandamos por WhatsApp tu <strong className="text-on-surface">código de digitalización</strong>{conPlan && compraId ? ' y también lo vas a ver en la página de seguimiento' : ''}.</>
               : metodoEnvio === 'coordinar'
                 ? <>Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, nos vamos a comunicar por WhatsApp para coordinar el envío.</>
                 : <>Tu pedido está <strong className="text-on-surface">en verificación</strong>. Una vez que confirmemos tu pago, generamos el envío y te pasamos el código de seguimiento.</>
@@ -130,6 +134,21 @@ export function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, dir
           </div>
         )}
 
+        {metodo === 'transferencia' && (
+          <div className="rounded-2xl border-2 border-[#25D366]/50 bg-[#25D366]/10 p-4 text-left text-sm space-y-1">
+            <p className="font-headline font-black text-on-surface">📲 Después de transferir, mandanos el comprobante</p>
+            <p className="text-on-surface-variant">
+              Envialo por WhatsApp{wa ? <> al <strong className="text-on-surface font-mono">+{wa}</strong></> : ''}.
+              Sin el comprobante no podemos aprobar tu compra.
+            </p>
+            {extraCreditos > 0 && (
+              <p className="text-secondary font-bold pt-1">
+                🎁 Por pagar con transferencia te sumamos {extraCreditos} {extraCreditos === 1 ? 'crédito' : 'créditos'} de regalo.
+              </p>
+            )}
+          </div>
+        )}
+
         {metodo === 'mercadopago' && (
           <p className="text-sm text-on-surface-variant">
             Pagaste con MercadoPago. Una vez que verifiquemos tu pago, coordinamos el envío.
@@ -144,13 +163,21 @@ export function PantallaVerificacion({ metodo, metodoEnvio, monto, compraId, dir
             className="flex items-center justify-center gap-2 w-full rounded-2xl px-5 py-4 font-headline font-black text-base uppercase tracking-wide text-white bg-[#25D366] hover:bg-[#1EBE5A] shadow-lg shadow-[#25D366]/30 ring-4 ring-[#25D366]/20 transition-all"
           >
             <span className="material-symbols-outlined text-2xl">chat</span>
-            Avisar por WhatsApp ahora
+            {metodo === 'transferencia' ? 'Enviar comprobante por WhatsApp' : 'Avisar por WhatsApp ahora'}
           </a>
         )}
         {waLink && (
           <p className="text-xs text-on-surface-variant -mt-3">
             👆 Este paso es clave: nos llega tu aviso al instante y aprobamos más rápido.
           </p>
+        )}
+
+        {conPlan && compraId && (
+          <a href={linkSeguimiento(compraId)}
+            className="flex items-center justify-center gap-2 w-full rounded-2xl px-5 py-3 font-bold text-sm text-primary bg-primary/10 hover:bg-primary/20 transition-all">
+            <span className="material-symbols-outlined text-xl">key</span>
+            Seguir mi compra y ver mi código
+          </a>
         )}
 
         <button onClick={onClose} className="btn-secondary w-full">Volver al catálogo</button>
@@ -191,6 +218,9 @@ export default function ProductoCompraModal({
   const [cargandoSucursales, setCargandoSucursales] = useState(false);
 
   const descuento = Number(settings.moldes_descuento_transferencia) || 0;
+  // Créditos de regalo por pagar con transferencia: solo para planes que dan
+  // código. Los suma el servidor al aprobar; acá solo se anuncian.
+  const extraTransfer = plan?.otorga_creditos ? (Number(settings.transferencia_creditos_extra) || 0) : 0;
 
   // Con plan elegido manda el precio del plan: "Combo Taller" cobra $400.000
   // aunque el producto figure a $250.000. Sin planes cargados, el precio sigue
@@ -418,6 +448,8 @@ export default function ProductoCompraModal({
         metodoEnvio={metodoEnvio}
         producto={pizarra.titulo}
         sinEnvio={!exigeEnvio}
+        conPlan={!!plan}
+        extraCreditos={metodo === 'transferencia' ? extraTransfer : 0}
         monto={montoFinal}
         compraId={compraId}
         direccion={exigeEnvio ? {
@@ -909,6 +941,11 @@ export default function ProductoCompraModal({
                       <div>
                         <p className="font-bold text-on-surface text-sm">Transferencia bancaria</p>
                         {descuento > 0 && <p className="text-xs text-secondary font-bold">{descuento}% de descuento en el producto</p>}
+                        {extraTransfer > 0 && (
+                          <p className="text-xs text-secondary font-bold">
+                            🎁 +{extraTransfer} {extraTransfer === 1 ? 'crédito' : 'créditos'} de regalo
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
@@ -922,9 +959,13 @@ export default function ProductoCompraModal({
                       {settings.moldes_banco && <p><span className="font-bold">Banco:</span> {settings.moldes_banco}</p>}
                       {settings.moldes_cbu && <p><span className="font-bold">CBU:</span> <span className="font-mono">{settings.moldes_cbu}</span></p>}
                       {settings.moldes_alias && <p><span className="font-bold">Alias:</span> {settings.moldes_alias}</p>}
-                      <p className="mt-2 flex items-start gap-1">
+                      <p className="mt-2 flex items-start gap-1 font-bold text-on-surface">
                         <span className="material-symbols-outlined text-base text-secondary shrink-0 mt-0.5">info</span>
-                        Después de registrar la compra, envianos el comprobante por WhatsApp.
+                        <span>
+                          Después de transferir, mandanos el comprobante por WhatsApp
+                          {settings.moldes_whatsapp_comprobante ? ` al +${settings.moldes_whatsapp_comprobante.replace(/\D/g, '')}` : ''}.
+                          Sin el comprobante no podemos aprobar tu compra.
+                        </span>
                       </p>
                     </div>
                   )}

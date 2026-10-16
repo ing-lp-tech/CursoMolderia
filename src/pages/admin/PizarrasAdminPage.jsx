@@ -4,6 +4,8 @@ import { registrarAuditoria } from '../../utils/auditoria';
 import { imgUrl, uploadImagen } from '../../utils/imagenesProducto';
 import SlotImagen from '../../components/SlotImagen';
 import { useAuth } from '../../context/AuthContext';
+import { useAppSettings } from '../../context/AppSettingsContext';
+import { linkSeguimiento } from '../../utils/software';
 
 const SUPER_ADMIN  = 'ing.lp.tech@gmail.com';
 function fmt(n) { return Number(n || 0).toLocaleString('es-AR'); }
@@ -412,8 +414,15 @@ function TabVentas() {
       if (cred) {
         partes.push(
           `Tu código de digitalización es:\n\n*${cred.codigo}*\n\n` +
-          `Te sirve para ${cred.creditos} ${cred.creditos === 1 ? 'digitalización' : 'digitalizaciones'}.`
+          `Te sirve para ${cred.creditos} ${cred.creditos === 1 ? 'digitalización' : 'digitalizaciones'}` +
+          (cred.extra > 0 ? ` (incluye ${cred.extra} de regalo por pagar con transferencia 🎁).` : '.')
         );
+      }
+
+      // Todo plan termina en /software: ahí copia el código y entra al
+      // software, cuya dirección se cambia desde Configuración sin tocar esto.
+      if (compra.plan_id) {
+        partes.push(`Copiá tu código y entrá al software desde acá:\n${linkSeguimiento(compra.id)}`);
       }
 
       partes.push('¡Gracias por tu compra en Moldi Tex! 🧵');
@@ -1079,9 +1088,10 @@ function TabPlanes() {
 // ════════════════════════════════════════════════════════════════
 // TAB CRÉDITOS
 //
-// Los códigos que se emiten al aprobar una compra de "Solo Software".
-// Hasta que exista la cola de digitalizaciones (Etapa 6), el consumo
-// se marca a mano desde acá.
+// Los códigos que se emiten al aprobar una compra con un plan que da
+// créditos, más los que creás a mano para clientes especiales. Se gastan
+// desde el software (/api/codigo-software), desde la cola de
+// digitalizaciones o a mano desde acá.
 // ════════════════════════════════════════════════════════════════
 
 async function traerCreditos() {
@@ -1093,6 +1103,114 @@ async function traerCreditos() {
   return data || [];
 }
 
+function estaVencido(c) {
+  return !!c.vence_en && new Date(c.vence_en) <= new Date();
+}
+
+const NUEVO_CODIGO = { cliente_nombre: '', cliente_whatsapp: '', cliente_email: '', creditos: '10', vence: '', notas: '', porAlias: false };
+
+// Un código sin compra detrás: cortesía, canje, cliente especial, o alguien
+// que pagó por alias y mandó el comprobante por WhatsApp. El código lo genera
+// la base (default de la columna), igual que en una venta: así no puede salir
+// repetido.
+function FormNuevoCodigo({ onCreado, onCancelar }) {
+  const settings = useAppSettings();
+  const extraAlias = Number(settings.transferencia_creditos_extra) || 0;
+  const [form, setForm] = useState(NUEVO_CODIGO);
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  async function guardar(e) {
+    e.preventDefault();
+    const creditos = Math.trunc(Number(form.creditos));
+    if (!Number.isFinite(creditos) || creditos < 1) { setError('La cantidad de usos tiene que ser 1 o más.'); return; }
+    if (!form.cliente_nombre.trim()) { setError('Poné a quién se lo das: después lo buscás por nombre.'); return; }
+
+    // "Usos" es lo que pagó; el regalo por alias se suma acá y queda anotado.
+    const extra = form.porAlias ? extraAlias : 0;
+    const notas = [
+      extra > 0 ? `Pagó por alias: incluye ${extra} de regalo` : form.porAlias ? 'Pagó por alias' : '',
+      form.notas.trim(),
+    ].filter(Boolean).join(' · ');
+
+    setGuardando(true);
+    setError('');
+    const { data, error: err } = await supabase
+      .from('digitalizacion_creditos')
+      .insert({
+        cliente_nombre:   form.cliente_nombre.trim().slice(0, 200),
+        cliente_whatsapp: form.cliente_whatsapp.replace(/\D/g, '') || null,
+        cliente_email:    form.cliente_email.trim() || null,
+        creditos_total:   creditos + extra,
+        // Vence al final del día elegido, no a la medianoche en que empieza.
+        vence_en:         form.vence ? new Date(`${form.vence}T23:59:59`).toISOString() : null,
+        notas:            notas || null,
+      })
+      .select()
+      .single();
+    setGuardando(false);
+    if (err) { setError(err.message); return; }
+
+    registrarAuditoria({
+      tabla: 'digitalizacion_creditos', registroId: data.id, accion: 'crear',
+      descripcion: `Código manual ${data.codigo} con ${data.creditos_total} usos para "${data.cliente_nombre}"`,
+      datosNuevos: data,
+    });
+    onCreado(data);
+  }
+
+  return (
+    <form onSubmit={guardar} className="border border-primary/30 bg-primary/5 rounded-2xl p-4 space-y-3">
+      <p className="font-headline font-bold">Nuevo código</p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <input value={form.cliente_nombre} onChange={e => set('cliente_nombre', e.target.value)}
+          placeholder="Nombre del cliente *" className="input-field text-sm py-2" />
+        <input value={form.cliente_whatsapp} onChange={e => set('cliente_whatsapp', e.target.value)}
+          placeholder="WhatsApp (5491112345678)" className="input-field text-sm py-2 font-mono" />
+        <input type="email" value={form.cliente_email} onChange={e => set('cliente_email', e.target.value)}
+          placeholder="Email (opcional)" className="input-field text-sm py-2" />
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+            Usos
+            <input type="number" min="1" step="1" value={form.creditos} onChange={e => set('creditos', e.target.value)}
+              className="input-field text-sm py-2 mt-1" />
+          </label>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+            Vence (opcional)
+            <input type="date" value={form.vence} onChange={e => set('vence', e.target.value)}
+              className="input-field text-sm py-2 mt-1" />
+          </label>
+        </div>
+      </div>
+      <input value={form.notas} onChange={e => set('notas', e.target.value)}
+        placeholder="Notas (ej: cortesía por el taller de octubre)" className="input-field text-sm py-2" />
+      <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+        <input type="checkbox" checked={form.porAlias} onChange={e => set('porAlias', e.target.checked)}
+          className="w-4 h-4 accent-primary" />
+        <span>
+          Pagó por alias y mandó el comprobante
+          {extraAlias > 0 && <span className="text-secondary font-bold"> → +{extraAlias} de regalo</span>}
+        </span>
+      </label>
+      {form.porAlias && extraAlias > 0 && (
+        <p className="text-xs text-on-surface-variant -mt-1">
+          El código sale con {(Math.trunc(Number(form.creditos)) || 0) + extraAlias} usos: los {Math.trunc(Number(form.creditos)) || 0} que pagó más {extraAlias} de regalo.
+        </p>
+      )}
+      {error && <p className="text-sm text-error">{error}</p>}
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onCancelar} className="px-4 py-2 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-variant">
+          Cancelar
+        </button>
+        <button type="submit" disabled={guardando} className="btn-primary text-sm py-2 disabled:opacity-50">
+          {guardando ? 'Creando…' : 'Crear código'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 function TabCreditos() {
   const [creditos,  setCreditos]  = useState([]);
   const [loading,   setLoading]   = useState(true);
@@ -1100,6 +1218,7 @@ function TabCreditos() {
   const [busqueda,  setBusqueda]  = useState('');
   const [copiado,   setCopiado]   = useState(null);
   const [guardando, setGuardando] = useState(null);
+  const [creando,   setCreando]   = useState(false);
 
   useEffect(() => {
     let vivo = true;
@@ -1125,6 +1244,37 @@ function TabCreditos() {
       .single();
     setGuardando(null);
     if (error) { alert(error.message); return; }
+    setCreditos(prev => prev.map(x => x.id === c.id ? data : x));
+  }
+
+  // Sube o baja el límite de usos de un código: regalarle 5 más a un cliente,
+  // o corregir uno que se cargó de más. No puede quedar por debajo de lo que
+  // ya se usó (la base lo rechaza con un check).
+  async function cambiarLimite(c) {
+    const resp = prompt(
+      `Límite de usos de ${c.codigo}\n(ya usó ${c.creditos_usados}; el nuevo límite no puede ser menor)`,
+      String(c.creditos_total)
+    );
+    if (resp === null) return;
+    const total = Math.trunc(Number(resp));
+    if (!Number.isFinite(total) || total < 1) { alert('Tiene que ser un número de 1 en adelante.'); return; }
+    if (total < c.creditos_usados) { alert(`Ya usó ${c.creditos_usados}: el límite no puede ser menor.`); return; }
+    if (total === c.creditos_total) return;
+
+    setGuardando(c.id);
+    const { data, error } = await supabase
+      .from('digitalizacion_creditos')
+      .update({ creditos_total: total })
+      .eq('id', c.id)
+      .select()
+      .single();
+    setGuardando(null);
+    if (error) { alert(error.message); return; }
+    registrarAuditoria({
+      tabla: 'digitalizacion_creditos', registroId: c.id, accion: 'editar',
+      descripcion: `Límite de ${c.codigo}: ${c.creditos_total} → ${total}`,
+      datosAnteriores: { creditos_total: c.creditos_total }, datosNuevos: { creditos_total: total },
+    });
     setCreditos(prev => prev.map(x => x.id === c.id ? data : x));
   }
 
@@ -1159,7 +1309,8 @@ function TabCreditos() {
     const restantes = c.creditos_restantes;
     const texto = encodeURIComponent(
       `Hola ${c.cliente_nombre || ''}! Tu código de digitalización es *${c.codigo}*. ` +
-      `Te quedan ${restantes} ${restantes === 1 ? 'digitalización' : 'digitalizaciones'}.`
+      `Te quedan ${restantes} ${restantes === 1 ? 'digitalización' : 'digitalizaciones'}.\n\n` +
+      `Consultalo y entrá al software desde acá:\n${window.location.origin}/software`
     );
     return `https://wa.me/${num}?text=${texto}`;
   }
@@ -1185,7 +1336,7 @@ function TabCreditos() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 flex-wrap items-center">
         {FILTROS.map(f => (
           <button key={f.key} onClick={() => setFiltro(f.key)}
             className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
@@ -1194,7 +1345,25 @@ function TabCreditos() {
             {f.label} ({conteo(f.key)})
           </button>
         ))}
+        {!creando && (
+          <button onClick={() => setCreando(true)}
+            className="ml-auto flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:opacity-90 transition-all">
+            <span className="material-symbols-outlined text-base">add</span>Nuevo código
+          </button>
+        )}
       </div>
+
+      {creando && (
+        <FormNuevoCodigo
+          onCancelar={() => setCreando(false)}
+          onCreado={nuevo => {
+            setCreditos(prev => [nuevo, ...prev]);
+            setCreando(false);
+            setFiltro('activo');
+            setBusqueda(nuevo.codigo);
+          }}
+        />
+      )}
 
       <input
         type="search"
@@ -1222,7 +1391,18 @@ function TabCreditos() {
                   <p className="text-xs text-on-surface-variant">
                     {c.cliente_whatsapp || '—'}{c.cliente_email ? ` · ${c.cliente_email}` : ''}
                   </p>
-                  <p className="text-xs text-on-surface-variant">Emitido: {fmtDate(c.creado_en)}</p>
+                  <p className="text-xs text-on-surface-variant">
+                    Emitido: {fmtDate(c.creado_en)}
+                    {!c.compra_id && (
+                      <span className="ml-2 text-[10px] font-bold uppercase tracking-widest bg-tertiary/15 text-tertiary rounded-full px-2 py-0.5">Manual</span>
+                    )}
+                  </p>
+                  {c.vence_en && (
+                    <p className={`text-xs ${estaVencido(c) ? 'text-error font-bold' : 'text-on-surface-variant'}`}>
+                      {estaVencido(c) ? 'Venció' : 'Vence'}: {fmtDate(c.vence_en)}
+                    </p>
+                  )}
+                  {c.notas && <p className="text-xs text-on-surface-variant italic mt-0.5">{c.notas}</p>}
                 </div>
 
                 <div className="text-right shrink-0">
@@ -1246,6 +1426,10 @@ function TabCreditos() {
                 <button onClick={() => cambiarUsados(c, -1)} disabled={guardando === c.id || c.creditos_usados === 0}
                   className="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-variant text-on-surface-variant text-xs font-bold hover:bg-surface-variant/70 transition-all disabled:opacity-40">
                   <span className="material-symbols-outlined text-base">undo</span>Devolver 1
+                </button>
+                <button onClick={() => cambiarLimite(c)} disabled={guardando === c.id}
+                  className="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-variant text-on-surface-variant text-xs font-bold hover:bg-surface-variant/70 transition-all disabled:opacity-40">
+                  <span className="material-symbols-outlined text-base">tune</span>Cambiar límite
                 </button>
                 {wa && (
                   <a href={wa} target="_blank" rel="noreferrer"

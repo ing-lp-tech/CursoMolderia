@@ -1,10 +1,10 @@
 # Créditos de digitalización — contrato para la app externa
 
-**Estado: la app de digitalización todavía no existe. El endpoint tampoco.**
-La base y el panel ya están: la cola de trabajos, el bucket privado y el
-descuento automático del crédito. Este documento fija cómo se conecta la app
-cuando se construya, para que quien la haga sepa contra qué programa y para que
-las decisiones ya tomadas no se pierdan.
+**Estado: el endpoint ya existe (`api/digitalizacion.js` + script 13). La app de
+digitalización todavía no.** La base y el panel ya están: la cola de trabajos,
+el bucket privado, el descuento automático del crédito y la API para validar y
+consumir códigos. Este documento fija cómo se conecta la app, para que quien la
+haga sepa contra qué programa y para que las decisiones ya tomadas no se pierdan.
 
 ---
 
@@ -19,11 +19,22 @@ las decisiones ya tomadas no se pierdan.
 | Bucket privado `digitalizaciones` | ✅ creado (script 09) |
 | Descuento automático del crédito | ✅ trigger `trg_digitalizacion_consume_credito` |
 | Galería del admin | ✅ `/admin/pizarras → Digitalizaciones` |
-| `api/digitalizacion.js` (endpoint para la app) | ❌ sin hacer |
+| `api/digitalizacion.js` (validar y consumir códigos) | ✅ hecho, necesita el script 13 y `SOFTWARE_API_KEY` |
+| `credito_usos` + `fn_usar_credito()` | ✅ script 13 |
+| Página `/software` (el comprador ve y copia su código) | ✅ |
+| Códigos manuales con límite a elección | ✅ `/admin/pizarras → Créditos → Nuevo código` |
+| Dirección del software, editable | ✅ `/admin/configuracion → Software de digitalización` |
 
-Mientras el endpoint no exista, las digitalizaciones se cargan a mano desde el
-panel (botón **Cargar**) y se les mueve el estado desde la misma tarjeta. El
-crédito se descuenta solo al pasar a **procesado**.
+Hay **dos formas de gastar un código**, y las dos suman al mismo contador:
+
+- **Por API** (`accion: 'consumir'`): el software descuenta cuando el cliente
+  usa el código. Queda un renglón en `credito_usos`.
+- **Por la cola** (`digitalizaciones`): el trigger descuenta al pasar a
+  **procesado**. Las digitalizaciones se pueden seguir cargando a mano desde el
+  panel (botón **Cargar**).
+
+Si el software usa la API para cobrar, **no** tiene que además pasar filas de la
+cola a `procesado` con el mismo código: cobraría dos veces el mismo trabajo.
 
 ---
 
@@ -101,31 +112,50 @@ dictan y se copian a mano por WhatsApp.
 
 ---
 
-## El contrato del endpoint (a construir)
+## El contrato del endpoint
 
 ```
-POST /api/digitalizacion
-Header: x-api-key: <secreto en variable de entorno>
+POST https://<el sitio>/api/digitalizacion
+Header: x-api-key: <SOFTWARE_API_KEY>
+Header: Content-Type: application/json
 ```
 
-**Validar un código** — no consume nada, sirve para que la app avise antes de
+`SOFTWARE_API_KEY` es una variable de entorno de Vercel: un secreto largo y
+aleatorio (por ejemplo, la salida de `openssl rand -hex 32`). La misma clave se
+le pasa al programador del software, que la guarda en **su servidor**, nunca en
+el código que corre en el navegador.
+
+**Validar un código.** No gasta nada. Sirve para que la app avise antes de
 procesar:
 
 ```json
 { "accion": "validar", "codigo": "MTX-7K4P-9RTX" }
 
-→ 200 { "valido": true, "creditos_restantes": 7, "cliente": "Ana" }
-→ 200 { "valido": false, "motivo": "agotado" | "anulado" | "inexistente" }
+→ 200 { "valido": true,  "motivo": null, "codigo": "MTX-7K4P-9RTX", "cliente": "Ana",
+        "creditos_total": 10, "creditos_restantes": 7, "vence_en": null }
+→ 200 { "valido": false, "motivo": "agotado" | "anulado" | "vencido" | "inexistente",
+        "error": "<mensaje para mostrar>", ... }
 ```
 
-**Consumir un crédito:**
+**Consumir créditos.** `cantidad` es opcional (default 1). `referencia` es
+opcional pero muy recomendada: el id del trabajo en el software.
 
 ```json
-{ "accion": "consumir", "codigo": "MTX-7K4P-9RTX", "referencia": "<id único>" }
+{ "accion": "consumir", "codigo": "MTX-7K4P-9RTX", "cantidad": 1, "referencia": "trabajo-123" }
 
-→ 200 { "ok": true, "creditos_restantes": 6 }
-→ 409 { "error": "Sin créditos disponibles" }
+→ 200 { "ok": true, "repetido": false, "creditos_total": 10, "creditos_restantes": 6, "estado": "activo" }
+→ 200 { "ok": true, "repetido": true, ... }   misma referencia otra vez: NO descontó
+→ 404 { "ok": false, "motivo": "inexistente", "error": "El código no existe." }
+→ 409 { "ok": false, "motivo": "agotado" | "anulado" | "vencido", "error": "…", "creditos_restantes": 0 }
+→ 401 { "error": "API key inválida" }
 ```
+
+El código se acepta en minúsculas y con espacios alrededor: el endpoint lo
+normaliza.
+
+**Hay una tercera acción, `consultar`, que es de la página `/software` y no
+lleva clave.** Devuelve solo el estado y los usos del código, sin datos
+personales. El software no la necesita.
 
 ### Cuatro reglas que no son negociables
 
@@ -133,34 +163,26 @@ procesar:
    una API key propia. Pasarle la `SUPABASE_SERVICE_ROLE_KEY` a un tercero le da
    lectura y escritura sobre toda la base: alumnos, finanzas, todo.
 
-2. **El descuento tiene que ser atómico**, en una sola sentencia:
-
-   ```sql
-   update digitalizacion_creditos
-      set creditos_usados = creditos_usados + 1
-    where codigo = $1
-      and estado = 'activo'
-      and creditos_usados < creditos_total
-   returning creditos_restantes;
-   ```
-
-   Si se hace "leo, sumo, guardo", dos digitalizaciones simultáneas gastan un
-   solo crédito. Cero filas devueltas = no había crédito.
+2. **El descuento es atómico.** `fn_usar_credito()` (script 13) toma un lock
+   sobre la fila del código (`select … for update`) antes de mirar cuánto le
+   queda. Si se hiciera "leo, sumo, guardo", dos digitalizaciones simultáneas
+   gastarían un solo crédito.
 
 3. **Idempotencia por `referencia`.** Si a la app se le corta la conexión y
-   reintenta, el mismo `referencia` no puede descontar dos veces: se guarda y el
-   reintento devuelve el resultado anterior.
+   reintenta, el mismo `referencia` no descuenta dos veces: queda guardado en
+   `credito_usos` (índice único por código + referencia) y el reintento
+   devuelve `repetido: true`.
 
 4. **La tabla no es pública.** `anon` no tiene acceso (verificado en el script
    05). Si lo tuviera, alguien podría probar códigos hasta pegarle a uno válido.
 
 ### Un detalle de infraestructura
 
-El plan Hobby de Vercel admite **12 serverless functions** y el proyecto está
-justo en 11. `api/digitalizacion.js` entra en el último lugar libre. Si más
-adelante hacen falta más endpoints, hay que agrupar acciones dentro de un mismo
-archivo (como hace `envia-cotizar.js` con `accion: 'sucursales'`) o pasar a plan
-Pro.
+El plan Hobby de Vercel admite **12 serverless functions**, y con
+`api/digitalizacion.js` el proyecto quedó **justo en 12: no queda lugar libre**.
+Por eso ese archivo atiende a la vez al comprador (`consultar`) y al software
+(`validar`, `consumir`). Cualquier endpoint nuevo tiene que entrar como una
+acción dentro de un archivo que ya exista, o hay que pasar a plan Pro.
 
 ---
 

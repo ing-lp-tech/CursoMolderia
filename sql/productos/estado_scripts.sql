@@ -96,6 +96,22 @@ with estado as (
           coalesce((select count(*) from storage.objects
                      where bucket_id = 'pizarras-imagenes'), 0)::text
           || ' fotos todavía ahí — hay que resubirlas desde el panel antes de borrarlo'
+
+  union all select 14, '12', 'Moneda y modo de envío por producto',
+          exists (select 1 from information_schema.columns
+                   where table_schema = 'public' and table_name = 'productos' and column_name = 'envio_modo'),
+          'columnas moneda / cobro_modo / envio_modo: ' ||
+            (select count(*) from information_schema.columns
+              where table_schema = 'public' and table_name = 'productos'
+                and column_name in ('moneda', 'cobro_modo', 'envio_modo'))::text || ' de 3'
+
+  union all select 15, '13', 'Usos de códigos desde el software',
+          to_regclass('public.credito_usos') is not null
+      and to_regprocedure('fn_usar_credito(text, integer, text, text)') is not null,
+          'credito_usos: ' || (case when to_regclass('public.credito_usos') is not null then 'sí' else 'NO' end)
+          || ' · fn_usar_credito: ' ||
+            (case when to_regprocedure('fn_usar_credito(text, integer, text, text)') is not null
+                  then 'sí' else 'NO' end)
 )
 
 select script,

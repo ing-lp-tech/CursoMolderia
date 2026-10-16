@@ -61,6 +61,12 @@ ETAPA                                       ESTADO
                                             envío cotizar/coordinar/incluido
                                             por producto). Falta correr el 12.
 
+8c — Sector software y códigos             Código listo (13 + /software,
+     (no estaba en el plan)                 códigos manuales, URL del software
+                                            editable, api/digitalizacion.js).
+                                            Falta correr el 13 y cargar
+                                            SOFTWARE_API_KEY en Vercel.
+
 9 — Limpieza                                Script 10 ✅ CORRIDO el 26/09/2026:
                                             las vistas de compatibilidad ya no
                                             están y las tablas quedaron
@@ -70,7 +76,8 @@ ETAPA                                       ESTADO
                                             resubir las fotos.
 ```
 
-**Para correr ahora:** `12` (moneda y modo de envío por producto). El `11`
+**Para correr ahora:** `12` (moneda y modo de envío por producto) si todavía
+no se corrió, y `13` (usos de códigos desde el software). El `11`
 (borrar el bucket viejo) todavía no está escrito y no se puede correr hasta
 resubir las fotos. Todo el resto de la numeración ya está aplicado.
 
@@ -85,6 +92,60 @@ resubir las fotos. Todo el resto de la numeración ya está aplicado.
 □ Resubir las 3 fotos de la pizarra desde el panel (quedan en WebP en el
   bucket nuevo)
 □ Etapa 8 — cargar los plotters y las PCs reales
+```
+
+## Etapa 8c — Sector software y códigos (agregada el 16/10/2026)
+
+No estaba en el plan. Los códigos `MTX-XXXX-XXXX` con límite de usos ya
+existían desde la Etapa 2; faltaba todo lo que pasa alrededor:
+
+- **`/software`** — la página del comprador. Ahí vuelve desde MercadoPago
+  cualquier compra con plan (de pizarra o "Solo Software"), con
+  `?compra=<id>`. Mientras el pago está en verificación lo dice y se refresca
+  sola cada 30 s; cuando se aprueba, muestra el código grande, el botón de
+  copiar, los usos que le quedan y el botón al software. También tiene
+  "¿Ya tenés un código?" para consultar uno, y la venta de los planes que dan
+  créditos, con el mismo modal de compra.
+- **La dirección del software se edita** en `/admin/configuracion →
+  Software de digitalización` (`app_settings.software_url` y
+  `software_boton`). Mientras esté vacía, la página avisa que el acceso se
+  habilita pronto. Si la dirección lleva `{codigo}`, se reemplaza por el
+  código del cliente.
+- **Códigos manuales** — `/admin/pizarras → Créditos → Nuevo código`, con el
+  límite de usos, el vencimiento y las notas que elijas, para clientes
+  especiales. Se marcan "Manual". A cualquier código se le puede cambiar el
+  límite ("Cambiar límite").
+- **`api/digitalizacion.js`** — el software valida y consume códigos con una
+  API key. El contrato está en `sql/productos/README.md`. Es la función 12 de
+  12 que admite el plan Hobby de Vercel.
+- El WhatsApp de aprobación y el de "Reenviar" ahora llevan el link a
+  `/software`.
+- **Pago por alias con crédito de regalo** (`app_settings.transferencia_creditos_extra`,
+  default 1, editable en Configuración). Dos caminos:
+  - Por el checkout, eligiendo transferencia: al aprobar, el servidor suma el
+    regalo al código y lo deja anotado.
+  - Directo al alias desde `/software`, sin checkout: el cliente manda el
+    comprobante por WhatsApp y el código se crea a mano con la casilla
+    "Pagó por alias", que suma el regalo.
+  En el checkout, en la pantalla post-compra y en `/software` se aclara que
+  después de transferir hay que mandar el comprobante al WhatsApp
+  (`moldes_whatsapp_comprobante`).
+
+```
+CHECKPOINT 8c:
+  □ Correr el 13 en Supabase (la última fila de la verificación tiene que
+    decir motivo "inexistente")
+  □ Cargar SOFTWARE_API_KEY en Vercel y redeployar
+  □ Comprar "Solo Software" por transferencia → "Seguir mi compra" muestra
+    "verificando"; aprobar desde el panel → el código aparece solo
+  □ Crear un código manual de 3 usos → consultarlo en /software
+  □ Comprar "Solo Software" ×3 por transferencia y aprobar → el código sale
+    con 4 usos y el WhatsApp dice "incluye 1 de regalo"
+  □ Nuevo código de 3 usos con "Pagó por alias" → sale con 4
+  □ Con la URL del software vacía se ve el aviso; cargada, el botón
+  □ curl con la API key: validar → consumir ×3 → el 4.º devuelve 409;
+    repetir una referencia devuelve repetido: true sin descontar
+  □ (Opcional) agregar /software al navbar desde /admin/navegacion
 ```
 
 ## Etapa 8b — Moneda y modo de envío (agregada el 27/09/2026)

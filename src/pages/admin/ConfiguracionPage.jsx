@@ -16,6 +16,9 @@ export default function ConfiguracionPage() {
     moldes_banco: '',
     moldes_descuento_transferencia: '0',
     moldes_whatsapp_comprobante: '',
+    software_url: '',
+    software_boton: 'Abrir el software',
+    transferencia_creditos_extra: '1',
   });
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -41,6 +44,9 @@ export default function ConfiguracionPage() {
             moldes_banco:                   map.moldes_banco                   ?? '',
             moldes_descuento_transferencia: map.moldes_descuento_transferencia ?? '0',
             moldes_whatsapp_comprobante:    map.moldes_whatsapp_comprobante    ?? '',
+            software_url:                   map.software_url                   ?? '',
+            software_boton:                 map.software_boton                 ?? 'Abrir el software',
+            transferencia_creditos_extra:   map.transferencia_creditos_extra   ?? '1',
           });
         }
         setLoading(false);
@@ -66,6 +72,9 @@ export default function ConfiguracionPage() {
       { id: 'moldes_banco',                   value: form.moldes_banco.trim() },
       { id: 'moldes_descuento_transferencia', value: String(Number(form.moldes_descuento_transferencia) || 0) },
       { id: 'moldes_whatsapp_comprobante',    value: form.moldes_whatsapp_comprobante.trim().replace(/\D/g, '') },
+      { id: 'software_url',                   value: form.software_url.trim() },
+      { id: 'software_boton',                 value: form.software_boton.trim() || 'Abrir el software' },
+      { id: 'transferencia_creditos_extra',   value: String(Math.max(0, Math.trunc(Number(form.transferencia_creditos_extra)) || 0)) },
     ];
 
     const { error: err } = await supabase
@@ -302,6 +311,56 @@ export default function ConfiguracionPage() {
               className="input-field font-mono" placeholder="5491162020911" />
             <p className="text-[10px] text-on-surface-variant mt-1.5">
               Solo números, sin + ni espacios. Ej: 5491162020911 (código país + área + número).
+            </p>
+          </div>
+        </div>
+
+        {/* Software de digitalización */}
+        <div className="card border border-outline-variant/20 space-y-5">
+          <div className="flex items-center gap-2">
+            <span className="material-symbols-outlined text-primary">key</span>
+            <h3 className="font-headline font-bold text-base">Software de digitalización</h3>
+          </div>
+          <p className="text-xs text-on-surface-variant -mt-2">
+            Quien compra un plan de pizarra o "Solo Software" termina en <span className="font-mono">/software</span>:
+            ahí copia su código y, con este botón, entra al software para usarlo.
+          </p>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">
+              Dirección del software
+            </label>
+            <input type="url" value={form.software_url}
+              onChange={e => setForm(p => ({ ...p, software_url: e.target.value }))}
+              className="input-field font-mono" placeholder="https://app.tusoftware.com" />
+            <p className="text-[10px] text-on-surface-variant mt-1.5">
+              Vacío = todavía no está publicado: el comprador ve su código y un aviso de que el acceso se habilita pronto.
+              Si escribís <span className="font-mono">{'{codigo}'}</span> en la dirección
+              (ej: <span className="font-mono">https://app.tusoftware.com/?codigo={'{codigo}'}</span>),
+              se reemplaza por el código del cliente y el software lo recibe ya cargado.
+            </p>
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">
+              Texto del botón
+            </label>
+            <input type="text" value={form.software_boton}
+              onChange={e => setForm(p => ({ ...p, software_boton: e.target.value }))}
+              className="input-field" placeholder="Abrir el software" maxLength={40} />
+          </div>
+
+          <div>
+            <label className="text-xs font-bold uppercase tracking-widest text-on-surface-variant block mb-2">
+              Créditos de regalo por pagar con transferencia / alias
+            </label>
+            <input type="number" min="0" step="1" value={form.transferencia_creditos_extra}
+              onChange={e => setForm(p => ({ ...p, transferencia_creditos_extra: e.target.value }))}
+              className="input-field w-32" />
+            <p className="text-[10px] text-on-surface-variant mt-1.5">
+              Se suman al código cuando aprobás una compra por transferencia de un plan con créditos, y se ofrecen
+              en el checkout y en /software. 0 = sin regalo. El alias y el WhatsApp para el comprobante son los de
+              la sección "Moldes — Métodos de Pago".
             </p>
           </div>
         </div>
