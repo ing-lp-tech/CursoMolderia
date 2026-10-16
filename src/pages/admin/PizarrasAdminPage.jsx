@@ -1088,10 +1088,15 @@ function TabPlanes() {
 // ════════════════════════════════════════════════════════════════
 // TAB CRÉDITOS
 //
-// Los códigos que se emiten al aprobar una compra con un plan que da
-// créditos, más los que creás a mano para clientes especiales. Se gastan
-// desde el software (/api/codigo-software), desde la cola de
-// digitalizaciones o a mano desde acá.
+// Todos los códigos, de los tres orígenes:
+//   compra → emitido al aprobar una venta real
+//   manual → creado acá para un cliente (cortesía, pago por alias…)
+//   demo   → creado acá para mostrar el software
+//
+// Se gastan desde el software (/api/digitalizacion), desde la cola de
+// digitalizaciones o a mano desde acá. Cada cosa que le pasa a un código
+// queda en `credito_movimientos` (script 13): lo anota un trigger de la
+// base, así que el historial no depende de esta pantalla.
 // ════════════════════════════════════════════════════════════════
 
 async function traerCreditos() {
@@ -1107,12 +1112,252 @@ function estaVencido(c) {
   return !!c.vence_en && new Date(c.vence_en) <= new Date();
 }
 
-const NUEVO_CODIGO = { cliente_nombre: '', cliente_whatsapp: '', cliente_email: '', creditos: '10', vence: '', notas: '', porAlias: false };
+const ORIGENES_CODIGO = {
+  compra: { label: 'Compra', icon: 'shopping_cart', clase: 'bg-secondary/15 text-secondary' },
+  manual: { label: 'Manual', icon: 'person',        clase: 'bg-tertiary/15 text-tertiary' },
+  demo:   { label: 'Demo',   icon: 'science',       clase: 'bg-primary/15 text-primary' },
+};
 
-// Un código sin compra detrás: cortesía, canje, cliente especial, o alguien
-// que pagó por alias y mandó el comprobante por WhatsApp. El código lo genera
-// la base (default de la columna), igual que en una venta: así no puede salir
-// repetido.
+// Antes del script 13 la columna `origen` no existe: se deduce de si hay compra.
+function origenDe(c) {
+  return c.origen || (c.compra_id ? 'compra' : 'manual');
+}
+
+function ChipOrigen({ origen }) {
+  const o = ORIGENES_CODIGO[origen] || ORIGENES_CODIGO.manual;
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5 ${o.clase}`}>
+      <span className="material-symbols-outlined text-xs">{o.icon}</span>{o.label}
+    </span>
+  );
+}
+
+// ── Historial ───────────────────────────────────────────────────
+
+const TIPOS_MOVIMIENTO = {
+  emision:      { label: 'Emitido',          icon: 'add_circle',    clase: 'text-secondary' },
+  uso:          { label: 'Uso',              icon: 'remove_circle', clase: 'text-primary' },
+  devolucion:   { label: 'Devolución',       icon: 'undo',          clase: 'text-tertiary' },
+  ajuste:       { label: 'Cambio de límite', icon: 'tune',          clase: 'text-on-surface' },
+  anulacion:    { label: 'Anulado',          icon: 'block',         clase: 'text-error' },
+  reactivacion: { label: 'Reactivado',       icon: 'restart_alt',   clase: 'text-secondary' },
+  eliminacion:  { label: 'Eliminado',        icon: 'delete',        clase: 'text-error' },
+};
+
+const ORIGENES_MOVIMIENTO = {
+  compra:   'Compra aprobada',
+  panel:    'Panel',
+  software: 'Software',
+  cola:     'Cola de digitalización',
+  sistema:  'Sistema',
+};
+
+function cantidadMovimiento(m) {
+  if (!m.cantidad) return null;
+  if (m.tipo === 'uso') return `−${m.cantidad}`;
+  if (m.tipo === 'devolucion' || m.tipo === 'emision') return `+${m.cantidad}`;
+  if (m.tipo === 'ajuste') return m.cantidad > 0 ? `+${m.cantidad}` : `−${Math.abs(m.cantidad)}`;
+  return null;
+}
+
+// Sin la tabla (script 13 sin correr) el error de PostgREST no orienta;
+// este sí.
+function mensajeHistorial(error) {
+  return /credito_movimientos/.test(error?.message || '')
+    ? 'El historial todavía no existe: falta correr el script 13 en Supabase.'
+    : (error?.message || 'No se pudo cargar el historial');
+}
+
+function FilaMovimiento({ m, conCodigo = false }) {
+  const t = TIPOS_MOVIMIENTO[m.tipo] || { label: m.tipo, icon: 'circle', clase: '' };
+  const cant = cantidadMovimiento(m);
+  const quien = [ORIGENES_MOVIMIENTO[m.origen] || m.origen, m.actor_email].filter(Boolean).join(' · ');
+  return (
+    <div className="flex items-start gap-3 py-2 border-b border-outline-variant/10 last:border-0 text-xs">
+      <span className={`material-symbols-outlined text-lg shrink-0 ${t.clase}`}>{t.icon}</span>
+      <div className="min-w-0 flex-1">
+        <p className="flex items-center gap-2 flex-wrap">
+          <span className="font-bold text-sm">{t.label}</span>
+          {cant && <span className={`font-mono font-bold ${t.clase}`}>{cant}</span>}
+          {conCodigo && <span className="font-mono text-primary">{m.codigo}</span>}
+          {conCodigo && m.credito?.origen && <ChipOrigen origen={m.credito.origen} />}
+        </p>
+        <p className="text-on-surface-variant">
+          {quien}
+          {m.referencia && <> · ref <span className="font-mono">{m.referencia.length > 24 ? `${m.referencia.slice(0, 24)}…` : m.referencia}</span></>}
+        </p>
+        {conCodigo && m.credito?.cliente_nombre && <p className="text-on-surface-variant">{m.credito.cliente_nombre}</p>}
+        {m.detalle && <p className="text-on-surface-variant italic">{m.detalle}</p>}
+      </div>
+      <div className="text-right shrink-0">
+        <p className="text-on-surface-variant">{fmtDate(m.creado_en)}</p>
+        {m.total_despues != null && (
+          <p className="text-[10px] text-on-surface-variant">
+            quedan {m.total_despues - (m.usados_despues || 0)} / {m.total_despues}
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// El historial de un código, desplegado debajo de su tarjeta.
+function HistorialCodigo({ creditoId }) {
+  const [movs, setMovs] = useState(null);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let vivo = true;
+    supabase
+      .from('credito_movimientos')
+      .select('*')
+      .eq('credito_id', creditoId)
+      .order('creado_en', { ascending: false })
+      .limit(500)
+      .then(({ data, error: err }) => {
+        if (!vivo) return;
+        if (err) setError(mensajeHistorial(err));
+        else setMovs(data || []);
+      });
+    return () => { vivo = false; };
+  }, [creditoId]);
+
+  if (error) return <p className="text-xs text-error">{error}</p>;
+  if (!movs) return <p className="text-xs text-on-surface-variant">Cargando historial…</p>;
+  if (movs.length === 0) return <p className="text-xs text-on-surface-variant">Sin movimientos registrados.</p>;
+  return <div className="bg-surface-variant/30 rounded-xl px-3">{movs.map(m => <FilaMovimiento key={m.id} m={m} />)}</div>;
+}
+
+// Todos los movimientos de todos los códigos, lo más nuevo primero.
+function HistorialGeneral() {
+  const [movs, setMovs] = useState(null);
+  const [error, setError] = useState('');
+  const [tipo, setTipo] = useState('todos');
+  const [origenCodigo, setOrigenCodigo] = useState('todos');
+  const [busqueda, setBusqueda] = useState('');
+
+  useEffect(() => {
+    let vivo = true;
+    supabase
+      .from('credito_movimientos')
+      .select('*, credito:digitalizacion_creditos(origen, cliente_nombre)')
+      .order('creado_en', { ascending: false })
+      .limit(1000)
+      .then(({ data, error: err }) => {
+        if (!vivo) return;
+        if (err) setError(mensajeHistorial(err));
+        else setMovs(data || []);
+      });
+    return () => { vivo = false; };
+  }, []);
+
+  if (error) return <p className="text-sm text-error">{error}</p>;
+  if (!movs) return <div className="flex justify-center py-16"><span className="material-symbols-outlined animate-spin text-primary text-3xl">refresh</span></div>;
+
+  const q = busqueda.trim().toLowerCase();
+  const visibles = movs.filter(m =>
+    (tipo === 'todos' || m.tipo === tipo) &&
+    (origenCodigo === 'todos' || m.credito?.origen === origenCodigo) &&
+    (!q || [m.codigo, m.credito?.cliente_nombre, m.actor_email, m.referencia].some(v => (v || '').toLowerCase().includes(q)))
+  );
+
+  return (
+    <div className="space-y-3">
+      <div className="grid sm:grid-cols-3 gap-2">
+        <select value={tipo} onChange={e => setTipo(e.target.value)} className="input-field text-sm py-2">
+          <option value="todos">Todos los movimientos</option>
+          {Object.entries(TIPOS_MOVIMIENTO).map(([k, t]) => <option key={k} value={k}>{t.label}</option>)}
+        </select>
+        <select value={origenCodigo} onChange={e => setOrigenCodigo(e.target.value)} className="input-field text-sm py-2">
+          <option value="todos">Códigos de todo origen</option>
+          {Object.entries(ORIGENES_CODIGO).map(([k, o]) => <option key={k} value={k}>Códigos de {o.label.toLowerCase()}</option>)}
+        </select>
+        <input type="search" value={busqueda} onChange={e => setBusqueda(e.target.value)}
+          placeholder="Código, cliente, admin o referencia" className="input-field text-sm py-2" />
+      </div>
+      <p className="text-xs text-on-surface-variant">
+        {visibles.length} movimientos{movs.length === 1000 ? ' (los últimos 1000)' : ''}
+      </p>
+      <div className="border border-outline-variant/20 rounded-2xl px-4">
+        {visibles.map(m => <FilaMovimiento key={m.id} m={m} conCodigo />)}
+        {visibles.length === 0 && <p className="text-sm text-on-surface-variant py-8 text-center">Sin movimientos con estos filtros</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── Resumen por origen ──────────────────────────────────────────
+
+function ResumenCreditos({ creditos }) {
+  const filas = Object.keys(ORIGENES_CODIGO).map(origen => {
+    const de = creditos.filter(c => origenDe(c) === origen);
+    return {
+      origen,
+      codigos:   de.length,
+      emitidos:  de.reduce((s, c) => s + (c.creditos_total || 0), 0),
+      usados:    de.reduce((s, c) => s + (c.creditos_usados || 0), 0),
+      restantes: de.reduce((s, c) => s + (c.estado === 'anulado' ? 0 : (c.creditos_restantes || 0)), 0),
+    };
+  });
+  const total = filas.reduce((t, f) => ({
+    codigos: t.codigos + f.codigos, emitidos: t.emitidos + f.emitidos,
+    usados: t.usados + f.usados, restantes: t.restantes + f.restantes,
+  }), { codigos: 0, emitidos: 0, usados: 0, restantes: 0 });
+
+  return (
+    <div className="border border-outline-variant/20 rounded-2xl overflow-x-auto">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-[10px] uppercase tracking-widest text-on-surface-variant text-right">
+            <th className="text-left font-bold px-4 py-2">Origen</th>
+            <th className="font-bold px-3 py-2">Códigos</th>
+            <th className="font-bold px-3 py-2">Usos dados</th>
+            <th className="font-bold px-3 py-2">Gastados</th>
+            <th className="font-bold px-4 py-2">Disponibles</th>
+          </tr>
+        </thead>
+        <tbody>
+          {filas.map(f => (
+            <tr key={f.origen} className="border-t border-outline-variant/10 text-right">
+              <td className="text-left px-4 py-2"><ChipOrigen origen={f.origen} /></td>
+              <td className="px-3 py-2">{f.codigos}</td>
+              <td className="px-3 py-2">{f.emitidos}</td>
+              <td className="px-3 py-2">{f.usados}</td>
+              <td className="px-4 py-2 font-bold">{f.restantes}</td>
+            </tr>
+          ))}
+          <tr className="border-t border-outline-variant/30 text-right font-bold">
+            <td className="text-left px-4 py-2">Total</td>
+            <td className="px-3 py-2">{total.codigos}</td>
+            <td className="px-3 py-2">{total.emitidos}</td>
+            <td className="px-3 py-2">{total.usados}</td>
+            <td className="px-4 py-2">{total.restantes}</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// ── Nuevo código (manual o demo) ────────────────────────────────
+
+const NUEVO_CODIGO = {
+  tipo: 'manual', cliente_nombre: '', cliente_whatsapp: '', cliente_email: '',
+  creditos: '10', vence: '', notas: '', porAlias: false,
+};
+
+const DIAS_DEMO = 7;
+
+function fechaEnDias(dias) {
+  const d = new Date();
+  d.setDate(d.getDate() + dias);
+  return d.toISOString().slice(0, 10);
+}
+
+// Un código sin compra detrás. "Manual": un cliente (cortesía, canje, pago
+// por alias con el comprobante por WhatsApp). "Demo": para mostrar el
+// software, con pocos usos y vencimiento corto. El código lo genera la base
+// (default de la columna), igual que en una venta: no puede salir repetido.
 function FormNuevoCodigo({ onCreado, onCancelar }) {
   const settings = useAppSettings();
   const extraAlias = Number(settings.transferencia_creditos_extra) || 0;
@@ -1120,52 +1365,89 @@ function FormNuevoCodigo({ onCreado, onCancelar }) {
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState('');
   const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+  const esDemo = form.tipo === 'demo';
+
+  // Una demo arranca con valores de demo; volver a manual los deja como estén.
+  function elegirTipo(tipo) {
+    setForm(p => tipo === 'demo'
+      ? { ...p, tipo, creditos: '3', vence: p.vence || fechaEnDias(DIAS_DEMO), porAlias: false }
+      : { ...p, tipo });
+  }
 
   async function guardar(e) {
     e.preventDefault();
     const creditos = Math.trunc(Number(form.creditos));
     if (!Number.isFinite(creditos) || creditos < 1) { setError('La cantidad de usos tiene que ser 1 o más.'); return; }
-    if (!form.cliente_nombre.trim()) { setError('Poné a quién se lo das: después lo buscás por nombre.'); return; }
+    if (!form.cliente_nombre.trim()) {
+      setError(esDemo ? 'Poné para quién o para qué es la demo: después la buscás por ese nombre.' : 'Poné a quién se lo das: después lo buscás por nombre.');
+      return;
+    }
 
     // "Usos" es lo que pagó; el regalo por alias se suma acá y queda anotado.
-    const extra = form.porAlias ? extraAlias : 0;
+    const extra = !esDemo && form.porAlias ? extraAlias : 0;
     const notas = [
-      extra > 0 ? `Pagó por alias: incluye ${extra} de regalo` : form.porAlias ? 'Pagó por alias' : '',
+      extra > 0 ? `Pagó por alias: incluye ${extra} de regalo` : (!esDemo && form.porAlias) ? 'Pagó por alias' : '',
       form.notas.trim(),
     ].filter(Boolean).join(' · ');
+
+    const fila = {
+      cliente_nombre:   form.cliente_nombre.trim().slice(0, 200),
+      cliente_whatsapp: form.cliente_whatsapp.replace(/\D/g, '') || null,
+      cliente_email:    form.cliente_email.trim() || null,
+      creditos_total:   creditos + extra,
+      // Vence al final del día elegido, no a la medianoche en que empieza.
+      vence_en:         form.vence ? new Date(`${form.vence}T23:59:59`).toISOString() : null,
+      notas:            notas || null,
+      origen:           form.tipo,
+    };
 
     setGuardando(true);
     setError('');
     const { data, error: err } = await supabase
       .from('digitalizacion_creditos')
-      .insert({
-        cliente_nombre:   form.cliente_nombre.trim().slice(0, 200),
-        cliente_whatsapp: form.cliente_whatsapp.replace(/\D/g, '') || null,
-        cliente_email:    form.cliente_email.trim() || null,
-        creditos_total:   creditos + extra,
-        // Vence al final del día elegido, no a la medianoche en que empieza.
-        vence_en:         form.vence ? new Date(`${form.vence}T23:59:59`).toISOString() : null,
-        notas:            notas || null,
-      })
+      .insert(fila)
       .select()
       .single();
     setGuardando(false);
-    if (err) { setError(err.message); return; }
+    if (err) {
+      setError(/origen/.test(err.message)
+        ? 'Falta correr el script 13 en Supabase para poder distinguir códigos manuales y demos.'
+        : err.message);
+      return;
+    }
 
     registrarAuditoria({
       tabla: 'digitalizacion_creditos', registroId: data.id, accion: 'crear',
-      descripcion: `Código manual ${data.codigo} con ${data.creditos_total} usos para "${data.cliente_nombre}"`,
+      descripcion: `Código ${esDemo ? 'demo' : 'manual'} ${data.codigo} con ${data.creditos_total} usos para "${data.cliente_nombre}"`,
       datosNuevos: data,
     });
     onCreado(data);
   }
 
+  const usos = Math.trunc(Number(form.creditos)) || 0;
+
   return (
     <form onSubmit={guardar} className="border border-primary/30 bg-primary/5 rounded-2xl p-4 space-y-3">
-      <p className="font-headline font-bold">Nuevo código</p>
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <p className="font-headline font-bold">Nuevo código</p>
+        <div className="flex rounded-xl border border-outline-variant/30 overflow-hidden text-xs font-bold">
+          {[['manual', 'person', 'Para un cliente'], ['demo', 'science', 'Demo']].map(([k, icon, label]) => (
+            <button key={k} type="button" onClick={() => elegirTipo(k)}
+              className={`flex items-center gap-1 px-3 py-1.5 transition-all ${form.tipo === k ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-variant'}`}>
+              <span className="material-symbols-outlined text-sm">{icon}</span>{label}
+            </button>
+          ))}
+        </div>
+      </div>
+      {esDemo && (
+        <p className="text-xs text-on-surface-variant -mt-1">
+          Para mostrar el software: pocos usos y vencimiento corto. Queda marcado como Demo y no se mezcla con las ventas.
+        </p>
+      )}
       <div className="grid sm:grid-cols-2 gap-3">
         <input value={form.cliente_nombre} onChange={e => set('cliente_nombre', e.target.value)}
-          placeholder="Nombre del cliente *" className="input-field text-sm py-2" />
+          placeholder={esDemo ? 'Para quién o para qué * (ej: Feria textil)' : 'Nombre del cliente *'}
+          className="input-field text-sm py-2" />
         <input value={form.cliente_whatsapp} onChange={e => set('cliente_whatsapp', e.target.value)}
           placeholder="WhatsApp (5491112345678)" className="input-field text-sm py-2 font-mono" />
         <input type="email" value={form.cliente_email} onChange={e => set('cliente_email', e.target.value)}
@@ -1177,25 +1459,28 @@ function FormNuevoCodigo({ onCreado, onCancelar }) {
               className="input-field text-sm py-2 mt-1" />
           </label>
           <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-            Vence (opcional)
+            Vence {esDemo ? '' : '(opcional)'}
             <input type="date" value={form.vence} onChange={e => set('vence', e.target.value)}
               className="input-field text-sm py-2 mt-1" />
           </label>
         </div>
       </div>
       <input value={form.notas} onChange={e => set('notas', e.target.value)}
-        placeholder="Notas (ej: cortesía por el taller de octubre)" className="input-field text-sm py-2" />
-      <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
-        <input type="checkbox" checked={form.porAlias} onChange={e => set('porAlias', e.target.checked)}
-          className="w-4 h-4 accent-primary" />
-        <span>
-          Pagó por alias y mandó el comprobante
-          {extraAlias > 0 && <span className="text-secondary font-bold"> → +{extraAlias} de regalo</span>}
-        </span>
-      </label>
-      {form.porAlias && extraAlias > 0 && (
+        placeholder={esDemo ? 'Notas (ej: demo para el taller de Flores)' : 'Notas (ej: cortesía por el taller de octubre)'}
+        className="input-field text-sm py-2" />
+      {!esDemo && (
+        <label className="flex items-center gap-2 text-sm cursor-pointer select-none">
+          <input type="checkbox" checked={form.porAlias} onChange={e => set('porAlias', e.target.checked)}
+            className="w-4 h-4 accent-primary" />
+          <span>
+            Pagó por alias y mandó el comprobante
+            {extraAlias > 0 && <span className="text-secondary font-bold"> → +{extraAlias} de regalo</span>}
+          </span>
+        </label>
+      )}
+      {!esDemo && form.porAlias && extraAlias > 0 && (
         <p className="text-xs text-on-surface-variant -mt-1">
-          El código sale con {(Math.trunc(Number(form.creditos)) || 0) + extraAlias} usos: los {Math.trunc(Number(form.creditos)) || 0} que pagó más {extraAlias} de regalo.
+          El código sale con {usos + extraAlias} usos: los {usos} que pagó más {extraAlias} de regalo.
         </p>
       )}
       {error && <p className="text-sm text-error">{error}</p>}
@@ -1204,21 +1489,29 @@ function FormNuevoCodigo({ onCreado, onCancelar }) {
           Cancelar
         </button>
         <button type="submit" disabled={guardando} className="btn-primary text-sm py-2 disabled:opacity-50">
-          {guardando ? 'Creando…' : 'Crear código'}
+          {guardando ? 'Creando…' : esDemo ? 'Crear demo' : 'Crear código'}
         </button>
       </div>
     </form>
   );
 }
 
+// ── La pestaña ──────────────────────────────────────────────────
+
 function TabCreditos() {
   const [creditos,  setCreditos]  = useState([]);
   const [loading,   setLoading]   = useState(true);
+  const [vista,     setVista]     = useState('codigos');   // codigos | historial
   const [filtro,    setFiltro]    = useState('activo');
+  const [origen,    setOrigen]    = useState('todos');
   const [busqueda,  setBusqueda]  = useState('');
   const [copiado,   setCopiado]   = useState(null);
   const [guardando, setGuardando] = useState(null);
   const [creando,   setCreando]   = useState(false);
+  // Historial desplegado: id del código + una versión que sube con cada
+  // cambio, para que se recargue y muestre el movimiento recién hecho.
+  const [abierto,   setAbierto]   = useState(null);
+  const [version,   setVersion]   = useState(0);
 
   useEffect(() => {
     let vivo = true;
@@ -1230,8 +1523,13 @@ function TabCreditos() {
     return () => { vivo = false; };
   }, []);
 
-  // El estado (activo / agotado) lo recalcula un trigger: acá solo se mueve el
-  // contador de usados y se relee la fila para no mostrar datos viejos.
+  function reemplazar(data) {
+    setCreditos(prev => prev.map(x => x.id === data.id ? data : x));
+    setVersion(v => v + 1);
+  }
+
+  // El estado (activo / agotado) lo recalcula un trigger, y el movimiento lo
+  // anota otro: acá solo se mueve el contador y se relee la fila.
   async function cambiarUsados(c, delta) {
     const nuevos = Math.min(c.creditos_total, Math.max(0, c.creditos_usados + delta));
     if (nuevos === c.creditos_usados) return;
@@ -1244,7 +1542,7 @@ function TabCreditos() {
       .single();
     setGuardando(null);
     if (error) { alert(error.message); return; }
-    setCreditos(prev => prev.map(x => x.id === c.id ? data : x));
+    reemplazar(data);
   }
 
   // Sube o baja el límite de usos de un código: regalarle 5 más a un cliente,
@@ -1275,7 +1573,7 @@ function TabCreditos() {
       descripcion: `Límite de ${c.codigo}: ${c.creditos_total} → ${total}`,
       datosAnteriores: { creditos_total: c.creditos_total }, datosNuevos: { creditos_total: total },
     });
-    setCreditos(prev => prev.map(x => x.id === c.id ? data : x));
+    reemplazar(data);
   }
 
   async function anular(c) {
@@ -1290,7 +1588,7 @@ function TabCreditos() {
       .single();
     setGuardando(null);
     if (error) { alert(error.message); return; }
-    setCreditos(prev => prev.map(x => x.id === c.id ? data : x));
+    reemplazar(data);
   }
 
   async function copiar(codigo) {
@@ -1322,13 +1620,14 @@ function TabCreditos() {
     { key: 'todos',   label: 'Todos' },
   ];
 
-  const conteo = key => key === 'todos' ? creditos.length : creditos.filter(c => c.estado === key).length;
+  const delOrigen = creditos.filter(c => origen === 'todos' || origenDe(c) === origen);
+  const conteo = key => key === 'todos' ? delOrigen.length : delOrigen.filter(c => c.estado === key).length;
 
-  const visibles = creditos.filter(c => {
+  const visibles = delOrigen.filter(c => {
     if (filtro !== 'todos' && c.estado !== filtro) return false;
     const q = busqueda.trim().toLowerCase();
     if (!q) return true;
-    return [c.codigo, c.cliente_nombre, c.cliente_whatsapp, c.cliente_email]
+    return [c.codigo, c.cliente_nombre, c.cliente_whatsapp, c.cliente_email, c.notas]
       .some(v => (v || '').toLowerCase().includes(q));
   });
 
@@ -1336,124 +1635,159 @@ function TabCreditos() {
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2 flex-wrap items-center">
-        {FILTROS.map(f => (
-          <button key={f.key} onClick={() => setFiltro(f.key)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
-              filtro === f.key ? 'bg-primary/15 border-primary/40 text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-variant'
-            }`}>
-            {f.label} ({conteo(f.key)})
-          </button>
-        ))}
-        {!creando && (
+      <div className="flex gap-2 items-center flex-wrap">
+        <div className="flex rounded-xl border border-outline-variant/30 overflow-hidden text-xs font-bold">
+          {[['codigos', 'key', 'Códigos'], ['historial', 'history', 'Historial']].map(([k, icon, label]) => (
+            <button key={k} onClick={() => setVista(k)}
+              className={`flex items-center gap-1 px-3 py-2 transition-all ${vista === k ? 'bg-primary text-on-primary' : 'text-on-surface-variant hover:bg-surface-variant'}`}>
+              <span className="material-symbols-outlined text-base">{icon}</span>{label}
+            </button>
+          ))}
+        </div>
+        {vista === 'codigos' && !creando && (
           <button onClick={() => setCreando(true)}
             className="ml-auto flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-on-primary text-xs font-bold hover:opacity-90 transition-all">
-            <span className="material-symbols-outlined text-base">add</span>Nuevo código
+            <span className="material-symbols-outlined text-base">add</span>Nuevo código o demo
           </button>
         )}
       </div>
 
-      {creando && (
-        <FormNuevoCodigo
-          onCancelar={() => setCreando(false)}
-          onCreado={nuevo => {
-            setCreditos(prev => [nuevo, ...prev]);
-            setCreando(false);
-            setFiltro('activo');
-            setBusqueda(nuevo.codigo);
-          }}
-        />
-      )}
+      {vista === 'historial' ? <HistorialGeneral /> : (
+        <>
+          <ResumenCreditos creditos={creditos} />
 
-      <input
-        type="search"
-        value={busqueda}
-        onChange={e => setBusqueda(e.target.value)}
-        placeholder="Buscar por código, nombre, WhatsApp o email"
-        className="input-field text-sm py-2"
-      />
+          {creando && (
+            <FormNuevoCodigo
+              onCancelar={() => setCreando(false)}
+              onCreado={nuevo => {
+                setCreditos(prev => [nuevo, ...prev]);
+                setCreando(false);
+                setFiltro('activo');
+                setOrigen('todos');
+                setBusqueda(nuevo.codigo);
+              }}
+            />
+          )}
 
-      <div className="space-y-2">
-        {visibles.map(c => {
-          const wa = linkWhatsapp(c);
-          return (
-            <div key={c.id} className="border border-outline-variant/20 rounded-2xl p-4 space-y-3">
-              <div className="flex items-start justify-between gap-3 flex-wrap">
-                <div className="min-w-0">
-                  <button onClick={() => copiar(c.codigo)} title="Copiar código"
-                    className="font-mono font-black text-lg text-primary hover:underline flex items-center gap-2">
-                    {c.codigo}
-                    <span className="material-symbols-outlined text-base text-on-surface-variant">
-                      {copiado === c.codigo ? 'check' : 'content_copy'}
-                    </span>
-                  </button>
-                  <p className="text-sm font-bold mt-0.5">{c.cliente_nombre || 'Sin nombre'}</p>
-                  <p className="text-xs text-on-surface-variant">
-                    {c.cliente_whatsapp || '—'}{c.cliente_email ? ` · ${c.cliente_email}` : ''}
-                  </p>
-                  <p className="text-xs text-on-surface-variant">
-                    Emitido: {fmtDate(c.creado_en)}
-                    {!c.compra_id && (
-                      <span className="ml-2 text-[10px] font-bold uppercase tracking-widest bg-tertiary/15 text-tertiary rounded-full px-2 py-0.5">Manual</span>
-                    )}
-                  </p>
-                  {c.vence_en && (
-                    <p className={`text-xs ${estaVencido(c) ? 'text-error font-bold' : 'text-on-surface-variant'}`}>
-                      {estaVencido(c) ? 'Venció' : 'Vence'}: {fmtDate(c.vence_en)}
-                    </p>
-                  )}
-                  {c.notas && <p className="text-xs text-on-surface-variant italic mt-0.5">{c.notas}</p>}
-                </div>
-
-                <div className="text-right shrink-0">
-                  <span className={`text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5 ${
-                    c.estado === 'activo'  ? 'bg-secondary/15 text-secondary' :
-                    c.estado === 'agotado' ? 'bg-surface-variant text-on-surface-variant' :
-                    'bg-error/10 text-error'
-                  }`}>{c.estado}</span>
-                  <p className="font-headline font-black text-xl mt-1">
-                    {c.creditos_restantes}<span className="text-sm text-on-surface-variant"> / {c.creditos_total}</span>
-                  </p>
-                  <p className="text-[10px] text-on-surface-variant uppercase tracking-widest">Restantes</p>
-                </div>
-              </div>
-
-              <div className="flex gap-2 flex-wrap pt-1 border-t border-outline-variant/10">
-                <button onClick={() => cambiarUsados(c, 1)} disabled={guardando === c.id || c.creditos_restantes === 0}
-                  className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-all disabled:opacity-40">
-                  <span className="material-symbols-outlined text-base">remove_circle</span>Usar 1
-                </button>
-                <button onClick={() => cambiarUsados(c, -1)} disabled={guardando === c.id || c.creditos_usados === 0}
-                  className="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-variant text-on-surface-variant text-xs font-bold hover:bg-surface-variant/70 transition-all disabled:opacity-40">
-                  <span className="material-symbols-outlined text-base">undo</span>Devolver 1
-                </button>
-                <button onClick={() => cambiarLimite(c)} disabled={guardando === c.id}
-                  className="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-variant text-on-surface-variant text-xs font-bold hover:bg-surface-variant/70 transition-all disabled:opacity-40">
-                  <span className="material-symbols-outlined text-base">tune</span>Cambiar límite
-                </button>
-                {wa && (
-                  <a href={wa} target="_blank" rel="noreferrer"
-                    className="flex items-center gap-1 px-3 py-2 rounded-xl bg-[#25D366]/10 text-[#1EBE5A] text-xs font-bold hover:bg-[#25D366]/20 transition-all">
-                    <span className="material-symbols-outlined text-base">chat</span>Reenviar por WhatsApp
-                  </a>
-                )}
-                <button onClick={() => anular(c)} disabled={guardando === c.id}
-                  className="flex items-center gap-1 px-3 py-2 rounded-xl bg-error/10 text-error text-xs font-bold hover:bg-error/20 transition-all disabled:opacity-40 ml-auto">
-                  <span className="material-symbols-outlined text-base">{c.estado === 'anulado' ? 'restart_alt' : 'block'}</span>
-                  {c.estado === 'anulado' ? 'Reactivar' : 'Anular'}
-                </button>
-              </div>
-            </div>
-          );
-        })}
-
-        {visibles.length === 0 && (
-          <div className="text-center py-16">
-            <span className="material-symbols-outlined text-5xl text-on-surface-variant/20 block mb-3">key</span>
-            <p className="text-on-surface-variant">Sin códigos en esta categoría</p>
+          <div className="flex gap-2 flex-wrap">
+            {[['todos', 'Todo origen'], ...Object.entries(ORIGENES_CODIGO).map(([k, o]) => [k, o.label])].map(([k, label]) => (
+              <button key={k} onClick={() => setOrigen(k)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
+                  origen === k ? 'bg-secondary/15 border-secondary/40 text-secondary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-variant'
+                }`}>
+                {label}
+              </button>
+            ))}
+            <span className="w-px bg-outline-variant/30 mx-1" />
+            {FILTROS.map(f => (
+              <button key={f.key} onClick={() => setFiltro(f.key)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-bold uppercase tracking-widest transition-all border ${
+                  filtro === f.key ? 'bg-primary/15 border-primary/40 text-primary' : 'border-outline-variant/20 text-on-surface-variant hover:bg-surface-variant'
+                }`}>
+                {f.label} ({conteo(f.key)})
+              </button>
+            ))}
           </div>
-        )}
-      </div>
+
+          <input
+            type="search"
+            value={busqueda}
+            onChange={e => setBusqueda(e.target.value)}
+            placeholder="Buscar por código, nombre, WhatsApp, email o notas"
+            className="input-field text-sm py-2"
+          />
+
+          <div className="space-y-2">
+            {visibles.map(c => {
+              const wa = linkWhatsapp(c);
+              const conHistorial = abierto === c.id;
+              return (
+                <div key={c.id} className="border border-outline-variant/20 rounded-2xl p-4 space-y-3">
+                  <div className="flex items-start justify-between gap-3 flex-wrap">
+                    <div className="min-w-0">
+                      <button onClick={() => copiar(c.codigo)} title="Copiar código"
+                        className="font-mono font-black text-lg text-primary hover:underline flex items-center gap-2">
+                        {c.codigo}
+                        <span className="material-symbols-outlined text-base text-on-surface-variant">
+                          {copiado === c.codigo ? 'check' : 'content_copy'}
+                        </span>
+                      </button>
+                      <p className="text-sm font-bold mt-0.5 flex items-center gap-2 flex-wrap">
+                        {c.cliente_nombre || 'Sin nombre'} <ChipOrigen origen={origenDe(c)} />
+                      </p>
+                      <p className="text-xs text-on-surface-variant">
+                        {c.cliente_whatsapp || '—'}{c.cliente_email ? ` · ${c.cliente_email}` : ''}
+                      </p>
+                      <p className="text-xs text-on-surface-variant">
+                        Creado: {fmtDate(c.creado_en)}{c.creado_por_email ? ` · por ${c.creado_por_email}` : ''}
+                      </p>
+                      {c.vence_en && (
+                        <p className={`text-xs ${estaVencido(c) ? 'text-error font-bold' : 'text-on-surface-variant'}`}>
+                          {estaVencido(c) ? 'Venció' : 'Vence'}: {fmtDate(c.vence_en)}
+                        </p>
+                      )}
+                      {c.notas && <p className="text-xs text-on-surface-variant italic mt-0.5">{c.notas}</p>}
+                    </div>
+
+                    <div className="text-right shrink-0">
+                      <span className={`text-[10px] font-bold uppercase tracking-widest rounded-full px-2 py-0.5 ${
+                        c.estado === 'activo'  ? 'bg-secondary/15 text-secondary' :
+                        c.estado === 'agotado' ? 'bg-surface-variant text-on-surface-variant' :
+                        'bg-error/10 text-error'
+                      }`}>{c.estado}</span>
+                      <p className="font-headline font-black text-xl mt-1">
+                        {c.creditos_restantes}<span className="text-sm text-on-surface-variant"> / {c.creditos_total}</span>
+                      </p>
+                      <p className="text-[10px] text-on-surface-variant uppercase tracking-widest">
+                        Quedan · {c.creditos_usados} gastados
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex gap-2 flex-wrap pt-1 border-t border-outline-variant/10">
+                    <button onClick={() => cambiarUsados(c, 1)} disabled={guardando === c.id || c.creditos_restantes === 0}
+                      className="flex items-center gap-1 px-3 py-2 rounded-xl bg-primary/10 text-primary text-xs font-bold hover:bg-primary/20 transition-all disabled:opacity-40">
+                      <span className="material-symbols-outlined text-base">remove_circle</span>Usar 1
+                    </button>
+                    <button onClick={() => cambiarUsados(c, -1)} disabled={guardando === c.id || c.creditos_usados === 0}
+                      className="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-variant text-on-surface-variant text-xs font-bold hover:bg-surface-variant/70 transition-all disabled:opacity-40">
+                      <span className="material-symbols-outlined text-base">undo</span>Devolver 1
+                    </button>
+                    <button onClick={() => cambiarLimite(c)} disabled={guardando === c.id}
+                      className="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-variant text-on-surface-variant text-xs font-bold hover:bg-surface-variant/70 transition-all disabled:opacity-40">
+                      <span className="material-symbols-outlined text-base">tune</span>Cambiar límite
+                    </button>
+                    <button onClick={() => setAbierto(conHistorial ? null : c.id)}
+                      className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold transition-all ${conHistorial ? 'bg-primary/15 text-primary' : 'bg-surface-variant text-on-surface-variant hover:bg-surface-variant/70'}`}>
+                      <span className="material-symbols-outlined text-base">history</span>Historial
+                    </button>
+                    {wa && (
+                      <a href={wa} target="_blank" rel="noreferrer"
+                        className="flex items-center gap-1 px-3 py-2 rounded-xl bg-[#25D366]/10 text-[#1EBE5A] text-xs font-bold hover:bg-[#25D366]/20 transition-all">
+                        <span className="material-symbols-outlined text-base">chat</span>Reenviar por WhatsApp
+                      </a>
+                    )}
+                    <button onClick={() => anular(c)} disabled={guardando === c.id}
+                      className="flex items-center gap-1 px-3 py-2 rounded-xl bg-error/10 text-error text-xs font-bold hover:bg-error/20 transition-all disabled:opacity-40 ml-auto">
+                      <span className="material-symbols-outlined text-base">{c.estado === 'anulado' ? 'restart_alt' : 'block'}</span>
+                      {c.estado === 'anulado' ? 'Reactivar' : 'Anular'}
+                    </button>
+                  </div>
+
+                  {conHistorial && <HistorialCodigo key={`${c.id}-${version}`} creditoId={c.id} />}
+                </div>
+              );
+            })}
+
+            {visibles.length === 0 && (
+              <div className="text-center py-16">
+                <span className="material-symbols-outlined text-5xl text-on-surface-variant/20 block mb-3">key</span>
+                <p className="text-on-surface-variant">Sin códigos en esta categoría</p>
+              </div>
+            )}
+          </div>
+        </>
+      )}
     </div>
   );
 }

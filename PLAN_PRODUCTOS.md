@@ -111,10 +111,16 @@ existían desde la Etapa 2; faltaba todo lo que pasa alrededor:
   `software_boton`). Mientras esté vacía, la página avisa que el acceso se
   habilita pronto. Si la dirección lleva `{codigo}`, se reemplaza por el
   código del cliente.
-- **Códigos manuales** — `/admin/pizarras → Créditos → Nuevo código`, con el
-  límite de usos, el vencimiento y las notas que elijas, para clientes
-  especiales. Se marcan "Manual". A cualquier código se le puede cambiar el
-  límite ("Cambiar límite").
+- **Códigos manuales y demos** — `/admin/pizarras → Créditos → Nuevo código o
+  demo`, con el límite de usos, el vencimiento y las notas que elijas. Cada
+  código guarda su origen (`compra` · `manual` · `demo`) y qué admin lo creó.
+  A cualquier código se le puede cambiar el límite ("Cambiar límite").
+- **Historial completo** (`credito_movimientos`, script 13) — emisión, usos,
+  devoluciones, cambios de límite, anulaciones, con fecha, de dónde vino
+  (compra · panel · software · cola) y qué admin. Lo escribe un trigger, no
+  las pantallas. Se ve por código ("Historial" en cada tarjeta) y en general
+  (vista "Historial"), y arriba hay un resumen por origen: códigos, usos
+  dados, gastados y disponibles.
 - **`api/digitalizacion.js`** — el software valida y consume códigos con una
   API key. El contrato está en `sql/productos/README.md`. Es la función 12 de
   12 que admite el plan Hobby de Vercel.
@@ -139,6 +145,10 @@ CHECKPOINT 8c:
   □ Comprar "Solo Software" por transferencia → "Seguir mi compra" muestra
     "verificando"; aprobar desde el panel → el código aparece solo
   □ Crear un código manual de 3 usos → consultarlo en /software
+  □ Crear una demo → sale marcada Demo, con 3 usos y vence en 7 días
+  □ "Usar 1" en un código → su Historial muestra el uso con tu email
+  □ Usar un código desde el software (curl) → el Historial dice "Software"
+    con la referencia
   □ Comprar "Solo Software" ×3 por transferencia y aprobar → el código sale
     con 4 usos y el WhatsApp dice "incluye 1 de regalo"
   □ Nuevo código de 3 usos con "Pagó por alias" → sale con 4

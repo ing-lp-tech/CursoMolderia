@@ -20,7 +20,8 @@ haga sepa contra qué programa y para que las decisiones ya tomadas no se pierda
 | Descuento automático del crédito | ✅ trigger `trg_digitalizacion_consume_credito` |
 | Galería del admin | ✅ `/admin/pizarras → Digitalizaciones` |
 | `api/digitalizacion.js` (validar y consumir códigos) | ✅ hecho, necesita el script 13 y `SOFTWARE_API_KEY` |
-| `credito_usos` + `fn_usar_credito()` | ✅ script 13 |
+| `credito_movimientos` (historial) + `fn_usar_credito()` | ✅ script 13 |
+| Origen de cada código: compra · manual · demo | ✅ script 13, columna `origen` |
 | Página `/software` (el comprador ve y copia su código) | ✅ |
 | Códigos manuales con límite a elección | ✅ `/admin/pizarras → Créditos → Nuevo código` |
 | Dirección del software, editable | ✅ `/admin/configuracion → Software de digitalización` |
@@ -28,10 +29,16 @@ haga sepa contra qué programa y para que las decisiones ya tomadas no se pierda
 Hay **dos formas de gastar un código**, y las dos suman al mismo contador:
 
 - **Por API** (`accion: 'consumir'`): el software descuenta cuando el cliente
-  usa el código. Queda un renglón en `credito_usos`.
+  usa el código.
 - **Por la cola** (`digitalizaciones`): el trigger descuenta al pasar a
   **procesado**. Las digitalizaciones se pueden seguir cargando a mano desde el
   panel (botón **Cargar**).
+
+Todo lo que le pasa a un código (emisión, usos, devoluciones, cambios de
+límite, anulación) queda en `credito_movimientos` con fecha, origen
+(`compra` · `panel` · `software` · `cola` · `sistema`), admin y referencia. Lo
+escribe un trigger de la base, así que no hay forma de cambiar un código sin
+que quede anotado. Se ve en `/admin/pizarras → Créditos → Historial`.
 
 Si el software usa la API para cobrar, **no** tiene que además pasar filas de la
 cola a `procesado` con el mismo código: cobraría dos veces el mismo trabajo.
@@ -170,7 +177,7 @@ personales. El software no la necesita.
 
 3. **Idempotencia por `referencia`.** Si a la app se le corta la conexión y
    reintenta, el mismo `referencia` no descuenta dos veces: queda guardado en
-   `credito_usos` (índice único por código + referencia) y el reintento
+   `credito_movimientos` (índice único por código + referencia) y el reintento
    devuelve `repetido: true`.
 
 4. **La tabla no es pública.** `anon` no tiene acceso (verificado en el script

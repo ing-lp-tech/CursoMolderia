@@ -105,10 +105,17 @@ with estado as (
               where table_schema = 'public' and table_name = 'productos'
                 and column_name in ('moneda', 'cobro_modo', 'envio_modo'))::text || ' de 3'
 
-  union all select 15, '13', 'Usos de códigos desde el software',
-          to_regclass('public.credito_usos') is not null
-      and to_regprocedure('fn_usar_credito(text, integer, text, text)') is not null,
-          'credito_usos: ' || (case when to_regclass('public.credito_usos') is not null then 'sí' else 'NO' end)
+  union all select 15, '13', 'Origen, historial y uso desde el software',
+          to_regclass('public.credito_movimientos') is not null
+      and to_regprocedure('fn_usar_credito(text, integer, text, text)') is not null
+      and exists (select 1 from information_schema.columns
+                   where table_schema = 'public' and table_name = 'digitalizacion_creditos'
+                     and column_name = 'origen'),
+          'credito_movimientos: ' || (case when to_regclass('public.credito_movimientos') is not null then 'sí' else 'NO' end)
+          || ' · columna origen: ' ||
+            (case when exists (select 1 from information_schema.columns
+                                where table_schema = 'public' and table_name = 'digitalizacion_creditos'
+                                  and column_name = 'origen') then 'sí' else 'NO' end)
           || ' · fn_usar_credito: ' ||
             (case when to_regprocedure('fn_usar_credito(text, integer, text, text)') is not null
                   then 'sí' else 'NO' end)
