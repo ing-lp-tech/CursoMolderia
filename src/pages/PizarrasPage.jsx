@@ -5,6 +5,7 @@ import { PROVINCIAS_ARGENTINA } from '../utils/provinciasArgentina';
 import pizarraDemo from '../assets/pizarra-digitalizando.png';
 import ProductoCompraModal, { PantallaVerificacion } from '../components/ProductoCompraModal';
 import { imgUrl } from '../utils/imagenesProducto';
+import NovedadDigitalizar from '../components/NovedadDigitalizar';
 
 const VENTAJAS = [
   { icon: 'bolt',          titulo: 'Velocidad',    texto: 'Digitalización en segundos.' },
@@ -124,6 +125,7 @@ export default function PizarrasPage() {
         <div className="max-w-6xl mx-auto grid lg:grid-cols-12 gap-10 items-center">
           {/* Texto */}
           <div className="lg:col-span-7 space-y-5">
+            <NovedadDigitalizar variante="pill" />
             <span className="inline-flex items-center gap-2 bg-primary/15 text-primary font-bold text-xs uppercase tracking-widest px-3 py-1.5 rounded-full">
               <span className="material-symbols-outlined text-base">rocket_launch</span>
               Digitalizá tus moldes al instante
@@ -174,6 +176,9 @@ export default function PizarrasPage() {
           </div>
         </div>
       </section>
+
+      {/* Novedad: acceso al software de digitalización */}
+      <NovedadDigitalizar className="pt-10" />
 
       {/* Planes */}
       {planesDestacados.length > 0 && (

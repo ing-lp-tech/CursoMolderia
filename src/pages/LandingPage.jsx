@@ -7,6 +7,7 @@ import heroMolderia from '../assets/hero-molderia.jpg.jpg';
 import { getActiveFlashPromo } from '../utils/cupones';
 import { getSorteoPublicado } from '../utils/sorteos';
 import { useAppSettings } from '../context/AppSettingsContext';
+import NovedadDigitalizar from '../components/NovedadDigitalizar';
 
 const MEDALLAS = ['🥇', '🥈', '🥉'];
 
@@ -161,6 +162,7 @@ export default function LandingPage() {
 
         <div className="container mx-auto grid grid-cols-1 lg:grid-cols-12 gap-12 items-center relative z-10">
           <div className="lg:col-span-7 space-y-8">
+            <NovedadDigitalizar variante="pill" />
             <div className="flex flex-wrap gap-2">
               <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-secondary/10 border border-secondary/20">
                 <span className="w-2 h-2 rounded-full bg-secondary animate-pulse" />
@@ -227,6 +229,9 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Novedad: el software de digitalización */}
+      <NovedadDigitalizar className="py-12" />
 
       {/* Core Pillars */}
       <section className="py-24 px-6 lg:px-20 bg-surface-container-low">
