@@ -1521,6 +1521,138 @@ function FormNuevoCodigo({ onCreado, onCancelar }) {
   );
 }
 
+// ── Editar un código ────────────────────────────────────────────
+
+// La fecha de vencimiento en el formato del <input type="date">, en hora local.
+function fechaInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const dos = n => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${dos(d.getMonth() + 1)}-${dos(d.getDate())}`;
+}
+
+// Corrige los datos de un código ya creado: a quién se le dio, cuántos usos
+// tiene, cuándo vence. El código en sí no se edita: es lo que el cliente ya
+// tiene copiado y lo que figura en el historial.
+//
+// Solo se manda lo que cambió. Un cambio de créditos lo anota el trigger del
+// historial como "Cambio de límite"; los datos del cliente quedan en la
+// auditoría.
+function FormEditarCodigo({ credito: c, onGuardado, onCancelar }) {
+  const [form, setForm] = useState({
+    cliente_nombre:   c.cliente_nombre || '',
+    cliente_whatsapp: c.cliente_whatsapp || '',
+    cliente_email:    c.cliente_email || '',
+    creditos:         String(c.creditos_total),
+    vence:            fechaInput(c.vence_en),
+    notas:            c.notas || '',
+  });
+  const [guardando, setGuardando] = useState(false);
+  const [error, setError] = useState('');
+  const set = (k, v) => setForm(p => ({ ...p, [k]: v }));
+
+  async function guardar(e) {
+    e.preventDefault();
+    const total = Math.trunc(Number(form.creditos));
+    if (!Number.isFinite(total) || total < 1) { setError('Los créditos tienen que ser 1 o más.'); return; }
+    if (total < c.creditos_usados) { setError(`Ya usó ${c.creditos_usados}: no puede tener menos créditos que eso.`); return; }
+    if (!form.cliente_nombre.trim()) { setError('El nombre no puede quedar vacío.'); return; }
+
+    const nuevo = {
+      cliente_nombre:   form.cliente_nombre.trim().slice(0, 200),
+      cliente_whatsapp: form.cliente_whatsapp.replace(/\D/g, '') || null,
+      cliente_email:    form.cliente_email.trim() || null,
+      creditos_total:   total,
+      vence_en:         form.vence ? new Date(`${form.vence}T23:59:59`).toISOString() : null,
+      notas:            form.notas.trim() || null,
+    };
+
+    // Solo lo que cambió. La fecha se compara por día, no por milisegundo.
+    const cambios = {};
+    for (const [k, v] of Object.entries(nuevo)) {
+      const antes = k === 'vence_en' ? (c.vence_en ? fechaInput(c.vence_en) : null) : (c[k] ?? null);
+      const ahora = k === 'vence_en' ? (v ? form.vence : null) : v;
+      if (antes !== ahora) cambios[k] = v;
+    }
+    if (Object.keys(cambios).length === 0) { onCancelar(); return; }
+
+    setGuardando(true);
+    setError('');
+    const { data, error: err } = await supabase
+      .from('digitalizacion_creditos')
+      .update(cambios)
+      .eq('id', c.id)
+      .select()
+      .single();
+    setGuardando(false);
+    if (err) { setError(err.message); return; }
+
+    registrarAuditoria({
+      tabla: 'digitalizacion_creditos', registroId: c.id, accion: 'editar',
+      descripcion: `Código ${c.codigo} editado: ${Object.keys(cambios).join(', ')}`,
+      datosAnteriores: Object.fromEntries(Object.keys(cambios).map(k => [k, c[k] ?? null])),
+      datosNuevos: cambios,
+    });
+    onGuardado(data);
+  }
+
+  const total = Math.trunc(Number(form.creditos)) || 0;
+  const quedan = Math.max(0, total - c.creditos_usados);
+
+  return (
+    <form onSubmit={guardar} className="border border-primary/30 bg-primary/5 rounded-2xl p-4 space-y-3">
+      <p className="font-headline font-bold text-sm">Editar <span className="font-mono text-primary">{c.codigo}</span></p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          Nombre
+          <input value={form.cliente_nombre} onChange={e => set('cliente_nombre', e.target.value)}
+            className="input-field text-sm py-2 mt-1 normal-case tracking-normal font-normal" />
+        </label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          WhatsApp
+          <input value={form.cliente_whatsapp} onChange={e => set('cliente_whatsapp', e.target.value)}
+            placeholder="5491112345678"
+            className="input-field text-sm py-2 mt-1 font-mono tracking-normal font-normal" />
+        </label>
+        <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+          Email
+          <input type="email" value={form.cliente_email} onChange={e => set('cliente_email', e.target.value)}
+            className="input-field text-sm py-2 mt-1 normal-case tracking-normal font-normal" />
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+            Créditos
+            <input type="number" min={Math.max(1, c.creditos_usados)} step="1" value={form.creditos}
+              onChange={e => set('creditos', e.target.value)}
+              className="input-field text-sm py-2 mt-1 tracking-normal font-normal" />
+          </label>
+          <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
+            Vence
+            <input type="date" value={form.vence} onChange={e => set('vence', e.target.value)}
+              className="input-field text-sm py-2 mt-1 tracking-normal font-normal" />
+          </label>
+        </div>
+      </div>
+      <p className="text-xs text-on-surface-variant -mt-1">
+        Ya usó {c.creditos_usados}. Con {total} créditos le {quedan === 1 ? 'queda' : 'quedan'}{' '}
+        <strong className="text-on-surface">{quedan}</strong>.
+        {form.vence ? '' : ' Sin fecha: no vence.'}
+      </p>
+      <input value={form.notas} onChange={e => set('notas', e.target.value)}
+        placeholder="Notas" className="input-field text-sm py-2" />
+      {error && <p className="text-sm text-error">{error}</p>}
+      <div className="flex gap-2 justify-end">
+        <button type="button" onClick={onCancelar} className="px-4 py-2 rounded-xl text-sm font-bold text-on-surface-variant hover:bg-surface-variant">
+          Cancelar
+        </button>
+        <button type="submit" disabled={guardando} className="btn-primary text-sm py-2 disabled:opacity-50">
+          {guardando ? 'Guardando…' : 'Guardar cambios'}
+        </button>
+      </div>
+    </form>
+  );
+}
+
 // ── La pestaña ──────────────────────────────────────────────────
 
 function TabCreditos() {
@@ -1536,6 +1668,7 @@ function TabCreditos() {
   // Historial desplegado: id del código + una versión que sube con cada
   // cambio, para que se recargue y muestre el movimiento recién hecho.
   const [abierto,   setAbierto]   = useState(null);
+  const [editando,  setEditando]  = useState(null);   // id del código en edición
   const [version,   setVersion]   = useState(0);
 
   useEffect(() => {
@@ -1567,37 +1700,6 @@ function TabCreditos() {
       .single();
     setGuardando(null);
     if (error) { alert(error.message); return; }
-    reemplazar(data);
-  }
-
-  // Sube o baja el límite de usos de un código: regalarle 5 más a un cliente,
-  // o corregir uno que se cargó de más. No puede quedar por debajo de lo que
-  // ya se usó (la base lo rechaza con un check).
-  async function cambiarLimite(c) {
-    const resp = prompt(
-      `Límite de usos de ${c.codigo}\n(ya usó ${c.creditos_usados}; el nuevo límite no puede ser menor)`,
-      String(c.creditos_total)
-    );
-    if (resp === null) return;
-    const total = Math.trunc(Number(resp));
-    if (!Number.isFinite(total) || total < 1) { alert('Tiene que ser un número de 1 en adelante.'); return; }
-    if (total < c.creditos_usados) { alert(`Ya usó ${c.creditos_usados}: el límite no puede ser menor.`); return; }
-    if (total === c.creditos_total) return;
-
-    setGuardando(c.id);
-    const { data, error } = await supabase
-      .from('digitalizacion_creditos')
-      .update({ creditos_total: total })
-      .eq('id', c.id)
-      .select()
-      .single();
-    setGuardando(null);
-    if (error) { alert(error.message); return; }
-    registrarAuditoria({
-      tabla: 'digitalizacion_creditos', registroId: c.id, accion: 'editar',
-      descripcion: `Límite de ${c.codigo}: ${c.creditos_total} → ${total}`,
-      datosAnteriores: { creditos_total: c.creditos_total }, datosNuevos: { creditos_total: total },
-    });
     reemplazar(data);
   }
 
@@ -1778,9 +1880,9 @@ function TabCreditos() {
                       className="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-variant text-on-surface-variant text-xs font-bold hover:bg-surface-variant/70 transition-all disabled:opacity-40">
                       <span className="material-symbols-outlined text-base">undo</span>Devolver 1
                     </button>
-                    <button onClick={() => cambiarLimite(c)} disabled={guardando === c.id}
-                      className="flex items-center gap-1 px-3 py-2 rounded-xl bg-surface-variant text-on-surface-variant text-xs font-bold hover:bg-surface-variant/70 transition-all disabled:opacity-40">
-                      <span className="material-symbols-outlined text-base">tune</span>Cambiar límite
+                    <button onClick={() => setEditando(editando === c.id ? null : c.id)} disabled={guardando === c.id}
+                      className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold transition-all disabled:opacity-40 ${editando === c.id ? 'bg-primary/15 text-primary' : 'bg-surface-variant text-on-surface-variant hover:bg-surface-variant/70'}`}>
+                      <span className="material-symbols-outlined text-base">edit</span>Editar
                     </button>
                     <button onClick={() => setAbierto(conHistorial ? null : c.id)}
                       className={`flex items-center gap-1 px-3 py-2 rounded-xl text-xs font-bold transition-all ${conHistorial ? 'bg-primary/15 text-primary' : 'bg-surface-variant text-on-surface-variant hover:bg-surface-variant/70'}`}>
@@ -1798,6 +1900,14 @@ function TabCreditos() {
                       {c.estado === 'anulado' ? 'Reactivar' : 'Anular'}
                     </button>
                   </div>
+
+                  {editando === c.id && (
+                    <FormEditarCodigo
+                      credito={c}
+                      onCancelar={() => setEditando(null)}
+                      onGuardado={data => { reemplazar(data); setEditando(null); }}
+                    />
+                  )}
 
                   {conHistorial && <HistorialCodigo key={`${c.id}-${version}`} creditoId={c.id} />}
                 </div>
