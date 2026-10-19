@@ -1,14 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
 import { setCors, bloquearSiOrigenInvalido } from './_lib/cors.js';
 
-// Códigos de digitalización (MTX-XXXX-XXXX) vistos desde afuera del panel.
+// Códigos de digitalización vistos desde afuera del panel. Por defecto son
+// aleatorios (MTX-XXXX-XXXX), pero el admin puede elegirlos a mano para demos
+// ("DEMO-FERIA"): ver el script 14.
 //
 // Un solo archivo para dos públicos porque el plan Hobby de Vercel admite 12
 // funciones y este es el lugar 12 (ver sql/productos/README.md).
 //
 // ── 1. El comprador, desde /software ─────────────────────────────────────────
 //   { accion: 'consultar', compra: <uuid> }   estado de su compra y su código
-//   { accion: 'consultar', codigo: 'MTX-…' }  cuántos usos le quedan
+//   { accion: 'consultar', codigo: '<código>' } cuántos usos le quedan
 //
 //   Público, con el mismo control de origen que el resto de los endpoints.
 //   Devuelve lo justo: nada de nombre, WhatsApp ni email. El uuid de la compra
@@ -24,7 +26,10 @@ import { setCors, bloquearSiOrigenInvalido } from './_lib/cors.js';
 //   cliente cuyo código se conozca. Por eso estas acciones no llevan CORS.
 
 const UUID_RE   = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-const CODIGO_RE = /^MTX-[2-9A-HJ-NP-Z]{4}-[2-9A-HJ-NP-Z]{4}$/;
+// La misma regla que la constraint del script 14: 4 a 32 caracteres,
+// mayúsculas, números y guiones, sin guion en las puntas. El código llega
+// ya pasado a mayúsculas (leerCodigo), así que "demo-feria" también entra.
+const CODIGO_RE = /^[A-Z0-9][A-Z0-9-]{2,30}[A-Z0-9]$/;
 
 const MENSAJES = {
   inexistente:       'El código no existe.',
@@ -54,7 +59,7 @@ function motivoInvalido(c) {
 
 function leerCodigo(body) {
   const codigo = typeof body?.codigo === 'string' ? body.codigo.trim().toUpperCase() : '';
-  if (!CODIGO_RE.test(codigo)) throw err(400, 'El código tiene que tener la forma MTX-XXXX-XXXX');
+  if (!CODIGO_RE.test(codigo)) throw err(400, 'El código no es válido. Revisá que esté bien copiado.');
   return codigo;
 }
 

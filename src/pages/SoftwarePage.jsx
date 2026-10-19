@@ -259,13 +259,13 @@ function ConsultarCodigo({ settings }) {
           <input
             value={codigo}
             onChange={e => setCodigo(e.target.value.toUpperCase())}
-            placeholder="MTX-XXXX-XXXX"
-            maxLength={13}
+            placeholder="Ej: MTX-7K4P-9RTX"
+            maxLength={32}
             autoComplete="off"
             spellCheck={false}
             className="input-field font-mono uppercase tracking-wider flex-1 min-w-0"
           />
-          <button type="submit" disabled={cargando || codigo.trim().length < 13}
+          <button type="submit" disabled={cargando || codigo.trim().length < 4}
             className="btn-primary shrink-0 disabled:opacity-50">
             {cargando ? '…' : 'Consultar'}
           </button>

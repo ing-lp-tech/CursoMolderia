@@ -146,6 +146,8 @@ CHECKPOINT 8c:
     "verificando"; aprobar desde el panel → el código aparece solo
   □ Crear un código manual de 3 usos → consultarlo en /software
   □ Crear una demo → sale marcada Demo, con 3 usos y vence en 7 días
+  □ (script 14) Crear una demo con código "demo feria" → sale DEMO-FERIA;
+    crear otra igual → avisa que ya existe; consultarla en /software
   □ "Usar 1" en un código → su Historial muestra el uso con tu email
   □ Usar un código desde el software (curl) → el Historial dice "Software"
     con la referencia

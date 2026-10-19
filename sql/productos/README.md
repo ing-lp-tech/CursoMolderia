@@ -114,8 +114,14 @@ Se descartó la alternativa de emitir N claves de un solo uso: el cliente
 perdería los códigos sueltos y el soporte se vuelve "¿cuál ya usé?". Con
 contador, el cliente guarda un solo dato y ve lo mismo que ve el panel.
 
-El alfabeto del código no tiene `0`/`O` ni `1`/`I`, porque estos códigos se
-dictan y se copian a mano por WhatsApp.
+El código aleatorio (`MTX-XXXX-XXXX`) no tiene `0`/`O` ni `1`/`I`, porque se
+dicta y se copia a mano por WhatsApp.
+
+**El admin también puede elegir el código a mano** (script 14), sobre todo para
+demos: `DEMO-FERIA`, `TALLER-FLORES`. Regla, la misma en la base, el panel y el
+endpoint: de 4 a 32 caracteres, mayúsculas, números y guiones, sin guion en las
+puntas (`^[A-Z0-9][A-Z0-9-]{2,30}[A-Z0-9]$`). El software no tiene que asumir
+la forma `MTX-…`.
 
 ---
 

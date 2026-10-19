@@ -5,7 +5,7 @@ import { imgUrl, uploadImagen } from '../../utils/imagenesProducto';
 import SlotImagen from '../../components/SlotImagen';
 import { useAuth } from '../../context/AuthContext';
 import { useAppSettings } from '../../context/AppSettingsContext';
-import { linkSeguimiento } from '../../utils/software';
+import { linkSeguimiento, normalizarCodigo, CODIGO_RE } from '../../utils/software';
 
 const SUPER_ADMIN  = 'ing.lp.tech@gmail.com';
 function fmt(n) { return Number(n || 0).toLocaleString('es-AR'); }
@@ -1342,7 +1342,7 @@ function ResumenCreditos({ creditos }) {
 // ── Nuevo código (manual o demo) ────────────────────────────────
 
 const NUEVO_CODIGO = {
-  tipo: 'manual', cliente_nombre: '', cliente_whatsapp: '', cliente_email: '',
+  tipo: 'manual', codigo: '', cliente_nombre: '', cliente_whatsapp: '', cliente_email: '',
   creditos: '10', vence: '', notas: '', porAlias: false,
 };
 
@@ -1356,8 +1356,11 @@ function fechaEnDias(dias) {
 
 // Un código sin compra detrás. "Manual": un cliente (cortesía, canje, pago
 // por alias con el comprobante por WhatsApp). "Demo": para mostrar el
-// software, con pocos usos y vencimiento corto. El código lo genera la base
-// (default de la columna), igual que en una venta: no puede salir repetido.
+// software, con pocos usos y vencimiento corto.
+//
+// El código, si se deja vacío, lo genera la base (default de la columna),
+// igual que en una venta. Si se escribe uno ("DEMO-FERIA"), se usa ese: la
+// columna es UNIQUE, así que uno repetido lo rechaza la base y acá se avisa.
 function FormNuevoCodigo({ onCreado, onCancelar }) {
   const settings = useAppSettings();
   const extraAlias = Number(settings.transferencia_creditos_extra) || 0;
@@ -1378,6 +1381,11 @@ function FormNuevoCodigo({ onCreado, onCancelar }) {
     e.preventDefault();
     const creditos = Math.trunc(Number(form.creditos));
     if (!Number.isFinite(creditos) || creditos < 1) { setError('La cantidad de usos tiene que ser 1 o más.'); return; }
+    const codigo = form.codigo.replace(/^-+|-+$/g, '');
+    if (codigo && !CODIGO_RE.test(codigo)) {
+      setError('El código tiene que tener de 4 a 32 caracteres: letras, números y guiones.');
+      return;
+    }
     if (!form.cliente_nombre.trim()) {
       setError(esDemo ? 'Poné para quién o para qué es la demo: después la buscás por ese nombre.' : 'Poné a quién se lo das: después lo buscás por nombre.');
       return;
@@ -1399,6 +1407,8 @@ function FormNuevoCodigo({ onCreado, onCancelar }) {
       vence_en:         form.vence ? new Date(`${form.vence}T23:59:59`).toISOString() : null,
       notas:            notas || null,
       origen:           form.tipo,
+      // Sin `codigo` en la fila, la base pone uno aleatorio.
+      ...(codigo ? { codigo } : {}),
     };
 
     setGuardando(true);
@@ -1410,9 +1420,12 @@ function FormNuevoCodigo({ onCreado, onCancelar }) {
       .single();
     setGuardando(false);
     if (err) {
-      setError(/origen/.test(err.message)
-        ? 'Falta correr el script 13 en Supabase para poder distinguir códigos manuales y demos.'
-        : err.message);
+      setError(
+        err.code === '23505'
+          ? `Ya existe un código "${codigo}". Elegí otro.`
+          : /origen/.test(err.message)
+            ? 'Falta correr el script 13 en Supabase para poder distinguir códigos manuales y demos.'
+            : err.message);
       return;
     }
 
@@ -1444,6 +1457,18 @@ function FormNuevoCodigo({ onCreado, onCancelar }) {
           Para mostrar el software: pocos usos y vencimiento corto. Queda marcado como Demo y no se mezcla con las ventas.
         </p>
       )}
+      <div>
+        <input value={form.codigo} onChange={e => set('codigo', normalizarCodigo(e.target.value))}
+          placeholder={esDemo ? 'Código (opcional, ej: DEMO-FERIA) · vacío = aleatorio' : 'Código (opcional) · vacío = aleatorio MTX-XXXX-XXXX'}
+          autoComplete="off" spellCheck={false}
+          className="input-field text-sm py-2 font-mono uppercase tracking-wider" />
+        {form.codigo && (
+          <p className="text-[11px] text-on-surface-variant mt-1">
+            Un código fácil de adivinar lo puede usar cualquiera que lo pruebe: para demos está bien,
+            pero dale pocos usos y vencimiento.
+          </p>
+        )}
+      </div>
       <div className="grid sm:grid-cols-2 gap-3">
         <input value={form.cliente_nombre} onChange={e => set('cliente_nombre', e.target.value)}
           placeholder={esDemo ? 'Para quién o para qué * (ej: Feria textil)' : 'Nombre del cliente *'}

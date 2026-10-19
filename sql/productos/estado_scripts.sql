@@ -119,6 +119,12 @@ with estado as (
           || ' · fn_usar_credito: ' ||
             (case when to_regprocedure('fn_usar_credito(text, integer, text, text)') is not null
                   then 'sí' else 'NO' end)
+
+  union all select 16, '14', 'Códigos elegidos a mano',
+          exists (select 1 from pg_constraint
+                   where conname = 'digitalizacion_creditos_codigo_formato_check'),
+          (select count(*) from digitalizacion_creditos
+            where codigo !~ '^MTX-[A-Z0-9]{4}-[A-Z0-9]{4}$')::text || ' códigos elegidos a mano'
 )
 
 select script,
